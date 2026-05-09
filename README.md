@@ -10,7 +10,9 @@ Antes de tocar código, asegurate de tener instalado en tu computadora:
 - **VS Code** → [descargar acá](https://code.visualstudio.com)
 - **Git** → [descargar acá](https://git-scm.com)
 
-> Si usás Windows, también necesitás **WSL2** (Linux dentro de Windows). Pedile ayuda a Franco para configurarlo la primera vez.
+> Si usás Windows podés trabajar de dos formas:
+> - **Windows nativo** (más fácil de arrancar): instalás Node.js para Windows directamente desde nodejs.org y listo.
+> - **WSL2** (recomendado a largo plazo): Linux dentro de Windows, más rápido y más parecido al servidor de producción. Pedile ayuda a Franco para configurarlo.
 
 ---
 
