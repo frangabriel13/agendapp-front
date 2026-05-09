@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agend App — Frontend
 
-## Getting Started
+Panel de gestión de turnos para negocios (estéticas, peluquerías, etc).
 
-First, run the development server:
+## ¿Qué necesitás para arrancar?
+
+Antes de tocar código, asegurate de tener instalado en tu computadora:
+
+- **Node.js** versión 18 o superior → [descargar acá](https://nodejs.org)
+- **VS Code** → [descargar acá](https://code.visualstudio.com)
+- **Git** → [descargar acá](https://git-scm.com)
+
+> Si usás Windows, también necesitás **WSL2** (Linux dentro de Windows). Pedile ayuda a Franco para configurarlo la primera vez.
+
+---
+
+## Cómo configurar el proyecto por primera vez
+
+Abrí la terminal y seguí estos pasos **en orden**:
+
+**1. Clonar el repositorio** (bajarte el código)
+```bash
+git clone [URL del repositorio]
+```
+
+**2. Entrar a la carpeta del proyecto**
+```bash
+cd agendapp-front
+```
+
+**3. Instalar las dependencias** (las librerías que usa el proyecto)
+```bash
+npm install
+```
+
+> Esto puede tardar unos minutos la primera vez. Es normal.
+
+---
+
+## Cómo correr el proyecto
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Después abrí tu navegador en **http://localhost:3000**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Para detener el servidor: `Ctrl + C` en la terminal.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Estructura de carpetas (qué va dónde)
 
-To learn more about Next.js, take a look at the following resources:
+```
+agendapp-front/
+├── app/                  → Las páginas de la aplicación
+│   ├── (marketing)/      → Página principal (dominio.com)
+│   ├── (admin)/          → Panel del dueño del negocio
+│   ├── (tenant)/         → Portal de clientes del negocio
+│   └── (superadmin)/     → Panel de administración general
+│
+├── components/
+│   ├── ui/               → Componentes visuales base (botones, cards, etc)
+│   └── common/           → Componentes compartidos entre secciones
+│
+├── features/             → Lógica agrupada por funcionalidad
+│   ├── auth/             → Login, registro, sesión
+│   ├── appointments/     → Turnos y agenda
+│   └── businesses/       → Gestión de negocios
+│
+├── hooks/                → Funciones reutilizables de React
+├── services/             → Llamadas al servidor (backend)
+└── types/                → Definiciones de tipos de datos
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Flujo de trabajo con Git
 
-## Deploy on Vercel
+Nunca trabajes directo en la rama `main`. Siempre seguí estos pasos:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**1. Antes de arrancar a trabajar, actualizate:**
+```bash
+git pull origin main
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**2. Creá una rama nueva para tu tarea:**
+```bash
+git checkout -b nombre-de-tu-tarea
+```
+Ejemplo: `git checkout -b agregar-boton-login`
+
+**3. Cuando terminás, guardá tus cambios:**
+```bash
+git add .
+git commit -m "descripción corta de lo que hiciste"
+```
+
+**4. Subí tu rama:**
+```bash
+git push origin nombre-de-tu-tarea
+```
+
+**5. Avisale a Franco para que revise el código antes de integrarlo.**
+
+---
+
+## Comandos útiles
+
+| Comando | Para qué sirve |
+|---|---|
+| `npm run dev` | Iniciar el proyecto en modo desarrollo |
+| `npm run build` | Compilar el proyecto para producción |
+| `git status` | Ver qué archivos modificaste |
+| `git log --oneline` | Ver el historial de cambios |
+
+---
+
+## ¿Algo no funciona?
+
+1. Revisá que hayas corrido `npm install`
+2. Revisá que estés en la carpeta correcta (`agendapp-front/`)
+3. Preguntale a Franco
