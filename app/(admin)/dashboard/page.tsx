@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Dashboard — AgendApp",
+  title: "Dashboard — reservApp",
 }
 
 export default function DashboardPage() {
