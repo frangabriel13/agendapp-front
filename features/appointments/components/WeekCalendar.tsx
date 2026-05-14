@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { Appointment, Professional } from "@/types"
+import { AppointmentModal } from "./AppointmentModal"
 
 const HOUR_START = 8
 const HOUR_END = 20
@@ -203,30 +204,11 @@ export function WeekCalendar({ professionals, appointments, onAppointmentClick }
         </div>
       </div>
 
-      {/* Detail panel */}
       {selectedAppointment && (
-        <div className="border-t border-border px-6 py-4 bg-card shrink-0">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="font-semibold">{selectedAppointment.patient.name}</p>
-              <p className="text-sm text-muted-foreground">{selectedAppointment.service.name} · {selectedAppointment.service.duration} min</p>
-              <p className="text-sm text-muted-foreground">
-                {selectedAppointment.startTime} – {selectedAppointment.endTime} · {selectedAppointment.professional.name}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`text-xs px-2 py-1 rounded-full border ${STATUS_COLORS[selectedAppointment.status]}`}>
-                {STATUS_LABELS[selectedAppointment.status]}
-              </span>
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="text-muted-foreground hover:text-foreground text-sm"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        </div>
+        <AppointmentModal
+          appointment={selectedAppointment}
+          onClose={() => setSelectedAppointment(null)}
+        />
       )}
     </div>
   )

@@ -1,6 +1,8 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Calendar, CheckCircle, Clock, Users, Zap, Shield } from "lucide-react"
+import { Calendar, CheckCircle, Clock, Users, Zap, Shield, Heart } from "lucide-react"
+import { AnimatedStats } from "./components/AnimatedStats"
+import { ContactForm } from "./components/ContactForm"
 
 export const metadata = {
   title: "reservApp — Gestión de turnos para estéticas",
@@ -160,13 +162,16 @@ export default function MarketingPage() {
 
       {/* Nav */}
       <header className="border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur z-10">
-        <Image src="/loguito.png" alt="reservApp" width={120} height={120} className="rounded-lg" />
+        <Link href="/">
+          <Image src="/loguito.png" alt="reservApp" width={120} height={120} className="rounded-lg" />
+        </Link>
         <nav className="hidden md:flex items-center gap-6 text-sm text-gray-500">
           <a href="#features" className="hover:text-gray-900 transition-colors">Funciones</a>
           <a href="#how" className="hover:text-gray-900 transition-colors">Cómo funciona</a>
           <a href="#testimonials" className="hover:text-gray-900 transition-colors">Testimonios</a>
           <a href="#pricing" className="hover:text-gray-900 transition-colors">Precios</a>
           <a href="#faq" className="hover:text-gray-900 transition-colors">FAQ</a>
+          <a href="#contacto" className="hover:text-gray-900 transition-colors">Contacto</a>
         </nav>
         <Link
           href="/login"
@@ -207,13 +212,8 @@ export default function MarketingPage() {
 
       {/* Stats */}
       <section className="border-y border-gray-200 bg-gray-50 px-6 py-12">
-        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {stats.map(({ value, label }) => (
-            <div key={label}>
-              <p className="text-3xl font-bold text-violet-600 mb-1">{value}</p>
-              <p className="text-sm text-gray-500">{label}</p>
-            </div>
-          ))}
+        <div className="max-w-4xl mx-auto">
+          <AnimatedStats />
         </div>
       </section>
 
@@ -298,22 +298,24 @@ export default function MarketingPage() {
         <h2 className="text-3xl font-bold mb-3 text-gray-900">Simple y sin sorpresas</h2>
         <p className="text-gray-500 mb-12">Elegí el plan que se adapta a tu estética. Cancelás cuando quieras.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-2xl overflow-hidden ${
+              className={`relative rounded-2xl overflow-hidden flex flex-col ${
                 plan.highlight
-                  ? "border border-violet-400 bg-white shadow-[0_0_40px_rgba(124,58,237,0.12)] md:-mt-4"
+                  ? "border border-violet-400 bg-white shadow-[0_0_40px_rgba(124,58,237,0.12)] lg:-mt-4"
                   : "border border-gray-200 bg-white shadow-sm"
               }`}
             >
-              {plan.highlight && (
-                <div className="bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white tracking-wide">
+              {plan.highlight ? (
+                <div className="bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white tracking-wide shrink-0">
                   ✦ MÁS POPULAR
                 </div>
+              ) : (
+                <div className="py-2.5 shrink-0" />
               )}
-              <div className="p-8">
+              <div className="p-6 flex flex-col flex-1">
                 <p className="text-gray-500 text-sm mb-1">{plan.description}</p>
                 <p className="text-2xl font-bold text-gray-900 mb-1">{plan.name}</p>
                 <div className="flex items-baseline gap-2 mt-4 mb-1">
@@ -323,9 +325,9 @@ export default function MarketingPage() {
                   </span>
                 </div>
                 <p className="text-4xl font-bold text-gray-900 mb-1">{plan.price}</p>
-                <p className="text-gray-400 text-xs mb-8">ARS / mes</p>
+                <p className="text-gray-400 text-xs mb-6">ARS / mes</p>
 
-                <ul className="text-sm text-left space-y-3 mb-8">
+                <ul className="text-sm text-left space-y-3 mb-6 flex-1">
                   {plan.features.map((item) => (
                     <li key={item} className="flex items-center gap-3">
                       <CheckCircle size={15} className="text-violet-500 shrink-0" />
@@ -336,7 +338,7 @@ export default function MarketingPage() {
 
                 <Link
                   href="/login"
-                  className={`block w-full py-3 rounded-md font-semibold transition-colors ${
+                  className={`block w-full py-3 rounded-md font-semibold transition-colors mt-auto ${
                     plan.highlight
                       ? "bg-violet-600 text-white hover:bg-violet-500"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -347,6 +349,44 @@ export default function MarketingPage() {
               </div>
             </div>
           ))}
+
+          {/* Business card */}
+          <div className="relative rounded-2xl overflow-hidden flex flex-col bg-gradient-to-b from-violet-600 to-violet-800 shadow-sm">
+            <div className="bg-white/10 px-6 py-2.5 text-sm font-semibold text-white tracking-wide shrink-0">
+              ✦ A MEDIDA
+            </div>
+            <div className="p-6 flex flex-col flex-1">
+              <p className="text-violet-200 text-sm mb-1">Para grandes equipos</p>
+              <p className="text-2xl font-bold text-white mb-1">Business</p>
+              <div className="mt-4 mb-1 flex items-baseline gap-2">
+                <span className="text-violet-300 text-lg line-through invisible">—</span>
+              </div>
+              <p className="text-xl font-semibold text-white mb-1">A consultar</p>
+              <p className="text-violet-300 text-xs mb-6">precio según el negocio</p>
+
+              <ul className="text-sm text-left space-y-3 mb-6 flex-1">
+                {[
+                  "Profesionales ilimitados",
+                  "Sucursales ilimitadas",
+                  "Configuración personalizada",
+                  "Soporte dedicado",
+                  "Capacitación incluida",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3">
+                    <CheckCircle size={15} className="text-white shrink-0" />
+                    <span className="text-violet-100">{item}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href="#contacto"
+                className="block w-full py-3 rounded-md font-semibold bg-white text-violet-700 hover:bg-violet-50 transition-colors text-center mt-auto"
+              >
+                Hablar con el equipo
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* WhatsApp add-on */}
@@ -376,6 +416,53 @@ export default function MarketingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Quiénes somos */}
+      <section className="px-6 py-20 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="inline-block text-xs font-medium px-3 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-600 mb-4">
+              Quiénes somos
+            </span>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Construido por gente que entiende el rubro
+            </h2>
+            <p className="text-gray-500 leading-relaxed mb-4">
+              reservApp nació de ver de cerca los problemas reales de las estéticas: turnos anotados en cuadernos, WhatsApps que se pierden, doble booking con las máquinas y fichas clínicas en papel.
+            </p>
+            <p className="text-gray-500 leading-relaxed">
+              Somos un equipo pequeño, argentino, enfocado en hacer que la gestión de tu negocio sea lo más simple posible para que vos puedas enfocarte en lo que sabés hacer.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { icon: Heart, title: "Hecho en Argentina", desc: "Pensado para la realidad local, precios en pesos, soporte en español." },
+              { icon: Shield, title: "Tus datos, seguros", desc: "Backups diarios y acceso seguro. Tu información no va a ningún lado." },
+              { icon: Zap, title: "Siempre mejorando", desc: "Escuchamos a cada cliente. Las mejoras salen de sus necesidades reales." },
+              { icon: Users, title: "Soporte real", desc: "Respondemos por WhatsApp. Sin bots, sin tickets, sin esperas eternas." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="p-4 rounded-xl border border-gray-200 bg-white">
+                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center mb-3">
+                  <Icon size={16} className="text-violet-600" />
+                </div>
+                <p className="text-sm font-semibold text-gray-900 mb-1">{title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Contacto */}
+      <section id="contacto" className="px-6 py-20 bg-gray-50 border-y border-gray-200">
+        <div className="max-w-xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">¿Tenés alguna pregunta?</h2>
+            <p className="text-gray-500">Completá el formulario y te respondemos en menos de 24hs.</p>
+          </div>
+          <ContactForm />
         </div>
       </section>
 
