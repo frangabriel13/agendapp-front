@@ -1,5 +1,9 @@
 import type { User } from "@/types"
 
+if (!process.env.NEXT_PUBLIC_API_URL && process.env.NODE_ENV === "production") {
+  console.warn("[reservApp] NEXT_PUBLIC_API_URL no está configurada — usando fallback http://localhost:4000")
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 
 export interface LoginCredentials {

@@ -6,6 +6,7 @@ import { CheckCircle } from "lucide-react"
 export function ContactForm() {
   const [form, setForm] = useState({ name: "", email: "", message: "" })
   const [errors, setErrors] = useState<Partial<typeof form>>({})
+  const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
   function validate() {
@@ -17,10 +18,14 @@ export function ContactForm() {
     return e
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setSending(true)
+    // Pendiente: enviar `form` al backend de Franco cuando esté el endpoint de contacto
+    await new Promise((r) => setTimeout(r, 600))
+    setSending(false)
     setSent(true)
   }
 
@@ -81,9 +86,10 @@ export function ContactForm() {
 
       <button
         type="submit"
-        className="w-full py-2.5 bg-violet-600 text-white rounded-md font-semibold hover:bg-violet-500 transition-colors"
+        disabled={sending}
+        className="w-full py-2.5 bg-violet-600 text-white rounded-md font-semibold hover:bg-violet-500 disabled:opacity-50 transition-colors"
       >
-        Enviar mensaje
+        {sending ? "Enviando..." : "Enviar mensaje"}
       </button>
     </form>
   )

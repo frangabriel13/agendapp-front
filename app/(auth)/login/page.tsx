@@ -3,7 +3,7 @@ import Link from "next/link"
 import { LoginForm } from "@/features/auth/components/LoginForm"
 
 export const metadata = {
-  title: "Ingresar — reservApp",
+  title: "Ingresar",
 }
 
 export default function LoginPage() {

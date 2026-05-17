@@ -1,9 +1,17 @@
-import type { Professional, Appointment } from "@/types"
+import type { Professional, Appointment, Service } from "@/types"
 
 export const mockProfessionals: Professional[] = [
   { id: "p1", name: "Valentina", email: "vale@demo.com", specialty: "HIFU & Liposonix", branchId: "b1", color: "#7c3aed" },
   { id: "p2", name: "Camila", email: "cami@demo.com", specialty: "Tratamientos faciales", branchId: "b1", color: "#0891b2" },
   { id: "p3", name: "Sofía", email: "sofi@demo.com", specialty: "Corporales", branchId: "b1", color: "#059669" },
+]
+
+export const mockServices: Service[] = [
+  { id: "s1", name: "HIFU Facial", duration: 60, price: 45000 },
+  { id: "s2", name: "Liposonix Abdomen", duration: 90, price: 65000 },
+  { id: "s3", name: "Limpieza profunda", duration: 60, price: 18000 },
+  { id: "s4", name: "Cavitación", duration: 45, price: 22000 },
+  { id: "s5", name: "Hydrafacial", duration: 75, price: 28000 },
 ]
 
 export const mockAppointments: Appointment[] = [
@@ -14,7 +22,7 @@ export const mockAppointments: Appointment[] = [
     professionalId: "p1",
     professional: mockProfessionals[0],
     serviceId: "s1",
-    service: { id: "s1", name: "HIFU Facial", duration: 60, price: 45000 },
+    service: mockServices[0],
     branchId: "b1",
     date: getTodayStr(),
     startTime: "09:00",
@@ -28,7 +36,7 @@ export const mockAppointments: Appointment[] = [
     professionalId: "p1",
     professional: mockProfessionals[0],
     serviceId: "s2",
-    service: { id: "s2", name: "Liposonix Abdomen", duration: 90, price: 65000 },
+    service: mockServices[1],
     branchId: "b1",
     date: getTodayStr(),
     startTime: "11:00",
@@ -42,7 +50,7 @@ export const mockAppointments: Appointment[] = [
     professionalId: "p2",
     professional: mockProfessionals[1],
     serviceId: "s3",
-    service: { id: "s3", name: "Limpieza profunda", duration: 60, price: 18000 },
+    service: mockServices[2],
     branchId: "b1",
     date: getTodayStr(),
     startTime: "10:00",
@@ -56,7 +64,7 @@ export const mockAppointments: Appointment[] = [
     professionalId: "p3",
     professional: mockProfessionals[2],
     serviceId: "s4",
-    service: { id: "s4", name: "Cavitación", duration: 45, price: 22000 },
+    service: mockServices[3],
     branchId: "b1",
     date: getTodayStr(),
     startTime: "14:00",
@@ -70,7 +78,7 @@ export const mockAppointments: Appointment[] = [
     professionalId: "p2",
     professional: mockProfessionals[1],
     serviceId: "s5",
-    service: { id: "s5", name: "Hydrafacial", duration: 75, price: 28000 },
+    service: mockServices[4],
     branchId: "b1",
     date: getTodayStr(),
     startTime: "15:00",
@@ -80,5 +88,8 @@ export const mockAppointments: Appointment[] = [
 ]
 
 function getTodayStr(): string {
-  return new Date().toISOString().split("T")[0]
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${d.getFullYear()}-${m}-${day}`
 }

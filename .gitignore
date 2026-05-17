@@ -45,3 +45,6 @@ CLAUDE.md
 .agents/
 .claude/
 skills-lock.json
+
+# reportes de análisis (no son código de la app)
+reporte-frontend.html
