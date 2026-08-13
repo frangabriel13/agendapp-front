@@ -1,38 +1,44 @@
-import type { User } from "@/types"
+import { apiFetch, getRefreshToken } from "@/lib/api"
+import type { AuthTokens, LoginCredentials, RegisterPayload, Session } from "@/types"
 
-if (!process.env.NEXT_PUBLIC_API_URL && process.env.NODE_ENV === "production") {
-  console.warn("[reservApp] NEXT_PUBLIC_API_URL no está configurada — usando fallback http://localhost:4000")
+export function loginRequest(credentials: LoginCredentials): Promise<AuthTokens> {
+  return apiFetch<AuthTokens>(
+    "/auth/login",
+    { method: "POST", body: JSON.stringify(credentials) },
+    { auth: false },
+  )
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
-
-export interface LoginCredentials {
-  email: string
-  password: string
+/** Registra al dueño y crea el negocio en una sola llamada. */
+export function registerRequest(payload: RegisterPayload): Promise<AuthTokens> {
+  return apiFetch<AuthTokens>(
+    "/auth/register",
+    { method: "POST", body: JSON.stringify(payload) },
+    { auth: false },
+  )
 }
 
-export interface AuthResponse {
-  user: User
-  token: string
+export function getSessionRequest(): Promise<Session> {
+  return apiFetch<Session>("/auth/me")
 }
 
-export async function loginRequest(credentials: LoginCredentials): Promise<AuthResponse> {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credentials),
-  })
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}))
-    throw new Error(error.message || "Credenciales inválidas")
-  }
-  return res.json()
+/**
+ * Revoca el refresh token en el servidor. Es público: alcanza con el refresh
+ * token, así se puede cerrar sesión aunque el access token ya haya vencido.
+ */
+export async function logoutRequest(): Promise<void> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return
+  await apiFetch<void>(
+    "/auth/logout",
+    { method: "POST", body: JSON.stringify({ refreshToken }) },
+    { auth: false },
+  ).catch(() => undefined)
 }
 
-export async function getMeRequest(token: string): Promise<User> {
-  const res = await fetch(`${API_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error("Sesión expirada")
-  return res.json()
+export function changePasswordRequest(input: {
+  currentPassword: string
+  newPassword: string
+}): Promise<void> {
+  return apiFetch<void>("/auth/password", { method: "PATCH", body: JSON.stringify(input) })
 }

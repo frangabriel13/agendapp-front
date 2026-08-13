@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { ApiError } from "@/lib/api"
 import { useLogin } from "../hooks/useAuth"
 import { validateEmail, validatePassword } from "../utils/validators"
 
@@ -80,9 +81,14 @@ export function LoginForm() {
       </div>
 
       {login.isError && (
-        <p className="text-sm text-red-500">
-          {login.error instanceof Error ? login.error.message : "Email o contraseña incorrectos"}
-        </p>
+        <div className="text-sm text-red-500 space-y-1">
+          {(login.error instanceof ApiError
+            ? login.error.messages
+            : ["Email o contraseña incorrectos"]
+          ).map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </div>
       )}
 
       {/* Submit */}

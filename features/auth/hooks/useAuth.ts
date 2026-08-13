@@ -1,19 +1,63 @@
 "use client"
 
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
-import { useSyncExternalStore } from "react"
-import { loginRequest, type LoginCredentials } from "@/services/auth"
-import type { User } from "@/types"
+import { useCallback, useSyncExternalStore } from "react"
+import { clearTokens, hasStoredToken, storeTokens, subscribeToTokens } from "@/lib/api"
+import {
+  getSessionRequest,
+  loginRequest,
+  logoutRequest,
+  registerRequest,
+} from "@/services/auth"
+import type { EmployeeRole, LoginCredentials, RegisterPayload } from "@/types"
+
+export const SESSION_KEY = ["session"] as const
+
+/**
+ * El login solo devuelve tokens: los datos del usuario salen de GET /auth/me.
+ * Por eso no se guarda nada del usuario en localStorage — se pide y se cachea
+ * en React Query, y así no queda una copia que se desactualiza sola.
+ */
+export function useHasToken(): boolean {
+  return useSyncExternalStore(subscribeToTokens, hasStoredToken, () => false)
+}
+
+export function useSession() {
+  const hasToken = useHasToken()
+
+  return useQuery({
+    queryKey: SESSION_KEY,
+    queryFn: getSessionRequest,
+    enabled: hasToken,
+    retry: false,
+    staleTime: 5 * 60_000,
+  })
+}
 
 export function useLogin() {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (credentials: LoginCredentials) => loginRequest(credentials),
-    onSuccess: (data) => {
-      localStorage.setItem("token", data.token)
-      localStorage.setItem("user", JSON.stringify(data.user))
+    onSuccess: async (tokens) => {
+      storeTokens(tokens)
+      await queryClient.invalidateQueries({ queryKey: SESSION_KEY })
+      router.push("/dashboard")
+    },
+  })
+}
+
+export function useRegister() {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: RegisterPayload) => registerRequest(payload),
+    onSuccess: async (tokens) => {
+      storeTokens(tokens)
+      await queryClient.invalidateQueries({ queryKey: SESSION_KEY })
       router.push("/dashboard")
     },
   })
@@ -21,51 +65,17 @@ export function useLogin() {
 
 export function useLogout() {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
-  return () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
-    router.push("/login")
-  }
+  return useCallback(async () => {
+    await logoutRequest()
+    clearTokens()
+    queryClient.clear()
+    router.replace("/login")
+  }, [queryClient, router])
 }
 
-export function getStoredUser(): User | null {
-  if (typeof window === "undefined") return null
-  const raw = localStorage.getItem("user")
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as User
-  } catch {
-    return null
-  }
-}
-
-export function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("token")
-}
-
-let cachedRaw: string | null = null
-let cachedUser: User | null = null
-
-function getStoredUserSnapshot(): User | null {
-  if (typeof window === "undefined") return null
-  const raw = localStorage.getItem("user")
-  if (raw === cachedRaw) return cachedUser
-  cachedRaw = raw
-  try {
-    cachedUser = raw ? (JSON.parse(raw) as User) : null
-  } catch {
-    cachedUser = null
-  }
-  return cachedUser
-}
-
-function subscribeUser(callback: () => void): () => void {
-  window.addEventListener("storage", callback)
-  return () => window.removeEventListener("storage", callback)
-}
-
-export function useStoredUser(): User | null {
-  return useSyncExternalStore(subscribeUser, getStoredUserSnapshot, () => null)
+/** OWNER y ADMINISTRATIVE pueden escribir; PROFESSIONAL solo lee. */
+export function canManage(role: EmployeeRole | undefined): boolean {
+  return role === "OWNER" || role === "ADMINISTRATIVE"
 }

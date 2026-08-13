@@ -4,8 +4,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { Calendar, LayoutDashboard, Settings, Users, LogOut } from "lucide-react"
-import { useLogout, useStoredUser } from "@/features/auth/hooks/useAuth"
-import type { User } from "@/types"
+import { useLogout, useSession } from "@/features/auth/hooks/useAuth"
+import type { EmployeeRole } from "@/types"
 
 const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -14,11 +14,9 @@ const navItems = [
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ]
 
-const ROLE_LABELS: Record<User["role"], string> = {
-  SUPERADMIN: "Superadmin",
+const ROLE_LABELS: Record<EmployeeRole, string> = {
   OWNER: "Dueño/a",
-  MANAGER: "Gerente",
-  RECEPTIONIST: "Recepción",
+  ADMINISTRATIVE: "Administración",
   PROFESSIONAL: "Profesional",
 }
 
@@ -29,7 +27,9 @@ function initials(name: string): string {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const logout = useLogout()
-  const user = useStoredUser()
+  const { data: session } = useSession()
+
+  const fullName = session ? `${session.user.firstName} ${session.user.lastName}` : null
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -61,14 +61,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="border-t border-gray-200 pt-3 mt-3">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
-              {user ? initials(user.name) : "—"}
+              {fullName ? initials(fullName) : "—"}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.name ?? "Mi cuenta"}
+                {fullName ?? "Mi cuenta"}
               </p>
               <p className="text-xs text-gray-400 truncate">
-                {user ? ROLE_LABELS[user.role] : "Sesión local"}
+                {session ? ROLE_LABELS[session.employee.role] : "Cargando..."}
               </p>
             </div>
           </div>

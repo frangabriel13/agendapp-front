@@ -1,0 +1,159 @@
+import type { AuthTokens } from "@/types"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+
+const ACCESS_TOKEN_KEY = "accessToken"
+const REFRESH_TOKEN_KEY = "refreshToken"
+
+/** Cuerpo de error del backend (AllExceptionsFilter). `message` puede ser string o array. */
+interface ApiErrorBody {
+  statusCode: number
+  message: string | string[]
+  error: string
+  requestId?: string
+}
+
+export class ApiError extends Error {
+  readonly statusCode: number
+  /** Los errores de validación traen un mensaje por campo. */
+  readonly messages: string[]
+  readonly requestId?: string
+
+  constructor(statusCode: number, messages: string[], requestId?: string) {
+    super(messages[0] ?? "Ocurrió un error inesperado")
+    this.name = "ApiError"
+    this.statusCode = statusCode
+    this.messages = messages
+    this.requestId = requestId
+  }
+}
+
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(ACCESS_TOKEN_KEY)
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+/**
+ * El evento `storage` solo avisa a las *otras* pestañas, así que los cambios de
+ * la propia se notifican a mano. Permite leer el estado de sesión con
+ * `useSyncExternalStore` en vez de duplicarlo en un `useState`.
+ */
+const listeners = new Set<() => void>()
+
+export function subscribeToTokens(listener: () => void): () => void {
+  listeners.add(listener)
+  window.addEventListener("storage", listener)
+  return () => {
+    listeners.delete(listener)
+    window.removeEventListener("storage", listener)
+  }
+}
+
+export function hasStoredToken(): boolean {
+  return getAccessToken() !== null
+}
+
+export function storeTokens(tokens: AuthTokens): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
+  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+  listeners.forEach((listener) => listener())
+}
+
+export function clearTokens(): void {
+  if (typeof window === "undefined") return
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem("token")
+  localStorage.removeItem("user")
+  listeners.forEach((listener) => listener())
+}
+
+function statusFallback(status: number): string {
+  if (status === 401) return "Necesitás iniciar sesión"
+  if (status === 403) return "No tenés permiso para hacer esto"
+  if (status === 404) return "No encontramos lo que buscabas"
+  if (status === 429) return "Demasiados intentos. Esperá un momento"
+  return "Ocurrió un error inesperado"
+}
+
+function toApiError(status: number, body: unknown): ApiError {
+  const parsed = body as Partial<ApiErrorBody> | null
+  const raw = parsed?.message
+  const messages = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string" && raw.length > 0
+      ? [raw]
+      : [statusFallback(status)]
+  return new ApiError(parsed?.statusCode ?? status, messages, parsed?.requestId)
+}
+
+async function parse<T>(res: Response): Promise<T> {
+  if (res.status === 204) return undefined as T
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw toApiError(res.status, body)
+  return body as T
+}
+
+async function send(path: string, init: RequestInit, token: string | null): Promise<Response> {
+  const headers = new Headers(init.headers)
+  if (init.body !== undefined) headers.set("Content-Type", "application/json")
+  if (token) headers.set("Authorization", `Bearer ${token}`)
+
+  try {
+    return await fetch(`${API_URL}${path}`, { ...init, headers })
+  } catch {
+    throw new ApiError(0, ["No pudimos conectarnos con el servidor"])
+  }
+}
+
+/**
+ * El backend rota el refresh token en cada uso y trata la reutilización de uno
+ * viejo como robo de credenciales: revoca la sesión entera. Si dos requests se
+ * topan con un 401 a la vez y cada una refresca por su cuenta, la segunda
+ * desloguea al usuario. Por eso hay un único refresh en vuelo y el resto espera
+ * ese mismo resultado.
+ */
+let refreshInFlight: Promise<string> | null = null
+
+async function runRefresh(): Promise<string> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) throw new ApiError(401, ["No hay sesión activa"])
+
+  const res = await send("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }, null)
+  const tokens = await parse<AuthTokens>(res)
+  storeTokens(tokens)
+  return tokens.accessToken
+}
+
+function refreshAccessToken(): Promise<string> {
+  refreshInFlight ??= runRefresh().finally(() => {
+    refreshInFlight = null
+  })
+  return refreshInFlight
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  options: { auth?: boolean } = {},
+): Promise<T> {
+  const auth = options.auth ?? true
+  const res = await send(path, init, auth ? getAccessToken() : null)
+
+  if (res.status !== 401 || !auth) return parse<T>(res)
+
+  let accessToken: string
+  try {
+    accessToken = await refreshAccessToken()
+  } catch {
+    clearTokens()
+    throw new ApiError(401, ["Tu sesión expiró. Ingresá de nuevo."])
+  }
+
+  return parse<T>(await send(path, init, accessToken))
+}
