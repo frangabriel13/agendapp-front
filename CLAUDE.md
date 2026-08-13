@@ -60,19 +60,32 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - Agregar componentes con `npx shadcn@latest add <componente>`
 
 ## Archivos clave
-- `types/index.ts` — Todos los tipos TypeScript (User, Appointment, Professional, etc.)
-- `services/auth.ts` — Llamadas al backend (login, getMe). URL base: `NEXT_PUBLIC_API_URL`
-- `features/auth/hooks/useAuth.ts` — useLogin, useLogout, getStoredToken, getStoredUser
+- `docs/api-contract.md` — **Contrato del backend. Leerlo antes de tocar cualquier llamada a la API.**
+- `lib/api.ts` — Cliente HTTP: tokens, refresh serializado, `ApiError`. Toda llamada pasa por acá
+- `types/index.ts` — Tipos TypeScript. La sección de arriba espeja el backend; la de abajo es provisoria
+- `services/auth.ts` — Llamadas a `/auth/*`
+- `features/auth/hooks/useAuth.ts` — `useSession`, `useLogin`, `useRegister`, `useLogout`, `canManage`
 - `features/auth/components/LoginForm.tsx` — Formulario de login
 - `features/appointments/components/WeekCalendar.tsx` — Calendario semanal
-- `features/appointments/data/mockData.ts` — Datos de prueba hasta que haya backend
+- `features/appointments/data/mockData.ts` — Datos de prueba hasta que exista la Fase 5
 - `hooks/` — carpeta de hooks compartidos (vacía por ahora, scaffolding)
 
-## Backend
-- Aún no desarrollado (lo hace Franco, hermano de Fabio)
-- Variable de entorno: `NEXT_PUBLIC_API_URL` (default en código: `http://localhost:4000`)
-- Cuando esté listo: ajustar `types/index.ts`, `services/auth.ts` y `features/auth/hooks/useAuth.ts`
-- No reemplazar mock data hasta que existan los endpoints reales
+## Backend — `../agendapp-api`
+NestJS 11 + Prisma 7 + Postgres. **Es la fuente de verdad**: si el front y el backend
+no coinciden, se cambia el front.
+
+- **Corriendo en `http://localhost:3001`** (`NEXT_PUBLIC_API_URL`). Swagger en `/api`, spec en `/api-json`
+- **Disponible hoy (37 endpoints):** `/auth` (6), `/tenants` (6), `/branches` (11), `/employees` (13), `/health`
+- **Todavía no existe:** servicios (Fase 3), clientes (Fase 4), **turnos y disponibilidad (Fase 5)**, pagos (Fase 6), portal público (Fase 7)
+- Levantarlo: `docker compose up -d && npm run seed:demo && npm run start:dev` desde `../agendapp-api`
+- Usuario de demo: `dueno@demo.test` / `demo1234`
+
+**Tres cosas que rompen si no se saben** (el detalle está en `docs/api-contract.md`):
+1. El login devuelve **solo tokens**; los datos del usuario salen de `GET /auth/me`, que responde `{ user, tenant, employee }`
+2. El refresh token **rota en cada uso** y reusar uno viejo revoca la sesión entera. Nunca refrescar por fuera de `lib/api.ts`
+3. El backend corre con `forbidNonWhitelisted`: **un campo de más en el body devuelve 400**. Mandar solo lo que se edita
+
+No reemplazar el mock de la agenda hasta que exista la Fase 5.
 
 ## Convenciones
 - Componentes interactivos (useState, eventos): agregar "use client" arriba
@@ -87,11 +100,21 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - Nunca trabajar directo en main
 
 ## Roles de usuario
-SUPERADMIN | OWNER | MANAGER | RECEPTIONIST | PROFESSIONAL
+`OWNER | PROFESSIONAL | ADMINISTRATIVE` — son **tres**, los del backend.
+
+`SUPERADMIN`, `MANAGER` y `RECEPTIONIST` existían solo en el front y se
+eliminaron: nunca estuvieron en el backend. `MANAGER` y `RECEPTIONIST` se
+colapsan en `ADMINISTRATIVE`.
+
+Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
+`PROFESSIONAL` recibe 403. Usar `canManage(role)` de `features/auth/hooks/useAuth.ts`.
 
 ## Estado actual
 - Landing page: completa, light theme, 3 planes de pricing con descuentos
-- Login: completo (hardcodeado, sin backend real)
+- **Login: integrado con el backend real** (tokens + refresh con rotación + `/auth/me`)
 - Dashboard: página de bienvenida básica
-- Agenda: calendario semanal con mock data
-- Backend: pendiente (Franco)
+- Agenda: calendario semanal con mock data (Fase 5 del backend pendiente)
+
+**Próximo paso natural:** las pantallas de Equipo y Configuración, que ya tienen
+backend completo (`/employees`, `/branches`, `/tenants`). Falta también un guard
+de rutas: hoy `/dashboard` no verifica sesión.
