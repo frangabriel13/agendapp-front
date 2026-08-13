@@ -99,14 +99,24 @@ async function parse<T>(res: Response): Promise<T> {
   return body as T
 }
 
+/** Sin esto, un backend colgado deja la promesa sin resolver y el spinner girando para siempre. */
+const REQUEST_TIMEOUT_MS = 15_000
+
 async function send(path: string, init: RequestInit, token: string | null): Promise<Response> {
   const headers = new Headers(init.headers)
   if (init.body !== undefined) headers.set("Content-Type", "application/json")
   if (token) headers.set("Authorization", `Bearer ${token}`)
 
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+
   try {
-    return await fetch(`${API_URL}${path}`, { ...init, headers })
-  } catch {
+    return await fetch(`${API_URL}${path}`, { ...init, headers, signal })
+  } catch (error) {
+    if (timeout.aborted) throw new ApiError(0, ["El servidor tardó demasiado en responder"])
+    // Cancelación del llamador (React Query al desmontar): se propaga tal cual
+    // para que la distinga de un fallo.
+    if (init.signal?.aborted) throw error
     throw new ApiError(0, ["No pudimos conectarnos con el servidor"])
   }
 }
@@ -143,17 +153,31 @@ export async function apiFetch<T>(
   options: { auth?: boolean } = {},
 ): Promise<T> {
   const auth = options.auth ?? true
-  const res = await send(path, init, auth ? getAccessToken() : null)
+  const tokenUsed = auth ? getAccessToken() : null
+  const res = await send(path, init, tokenUsed)
 
   if (res.status !== 401 || !auth) return parse<T>(res)
 
   let accessToken: string
   try {
-    accessToken = await refreshAccessToken()
+    // `refreshInFlight` solo agrupa los 401 que caen mientras el refresh está en
+    // vuelo. Los que llegan justo después arrancarían uno nuevo, cuando ya hay
+    // token fresco: si el guardado no es el que falló, alcanza con reintentar.
+    const stored = getAccessToken()
+    accessToken = stored && stored !== tokenUsed ? stored : await refreshAccessToken()
   } catch {
     clearTokens()
     throw new ApiError(401, ["Tu sesión expiró. Ingresá de nuevo."])
   }
 
-  return parse<T>(await send(path, init, accessToken))
+  // Un 401 con un token recién emitido significa que la sesión ya no vale
+  // (revocada desde otra pestaña, empleado desactivado). Sin limpiar acá,
+  // hasStoredToken() sigue en true y la app queda creyendo que hay sesión.
+  const retry = await send(path, init, accessToken)
+  if (retry.status === 401) {
+    clearTokens()
+    throw new ApiError(401, ["Tu sesión expiró. Ingresá de nuevo."])
+  }
+
+  return parse<T>(retry)
 }
