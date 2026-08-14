@@ -28,12 +28,12 @@ export function Nav() {
             <Image src="/loguito.png" alt="reservApp" width={1024} height={312} priority className="h-7 w-auto" />
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 lg:flex">
             {LINKS.map(({ href, label }) => (
               <a
                 key={href}
                 href={href}
-                className="rounded-full px-3 py-1.5 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                className="rounded-full px-3 py-1.5 whitespace-nowrap text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
               >
                 {label}
               </a>
@@ -49,7 +49,7 @@ export function Nav() {
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={open}
-              className="rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 md:hidden"
+              className="rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 lg:hidden"
             >
               {open ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -57,7 +57,7 @@ export function Nav() {
         </div>
 
         {open && (
-          <nav className="flex flex-col gap-0.5 border-t border-black/[0.06] px-3 py-3 md:hidden">
+          <nav className="flex flex-col gap-0.5 border-t border-black/[0.06] px-3 py-3 lg:hidden">
             {LINKS.map(({ href, label }) => (
               <a
                 key={href}

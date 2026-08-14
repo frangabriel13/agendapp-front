@@ -49,58 +49,66 @@ const ROW_HEIGHT = 34
 export function AgendaPreview() {
   return (
     <div aria-hidden className="overflow-hidden rounded-xl border border-black/[0.06] bg-white">
-      <div className="flex items-center gap-2 border-b border-black/[0.06] bg-neutral-50/80 px-4 py-3">
-        <div className="flex gap-1.5">
-          <span className="size-2.5 rounded-full bg-neutral-200" />
-          <span className="size-2.5 rounded-full bg-neutral-200" />
-          <span className="size-2.5 rounded-full bg-neutral-200" />
-        </div>
-        <p className="ml-2 text-[11px] font-medium text-neutral-500">Agenda · Semana del 14 al 19</p>
-        <span className="ml-auto rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-medium text-white">
-          Nuevo turno
-        </span>
-      </div>
-
-      <div className="flex text-[10px]">
-        <div className="w-9 shrink-0 border-r border-black/[0.05]">
-          <div className="h-8 border-b border-black/[0.05]" />
-          {HOURS.map((h) => (
-            <div
-              key={h}
-              className="flex items-start justify-end pr-1.5 pt-1 text-neutral-400"
-              style={{ height: ROW_HEIGHT }}
-            >
-              {h}
-            </div>
-          ))}
+      {/*
+        Ancho mínimo, y el padre recorta: en pantallas chicas la maqueta se asoma
+        en vez de encogerse. Metida a la fuerza en 390px, las seis columnas dejan
+        los turnos en "Li…" y "De…" —no muestra nada—; recortada se leen tres días
+        de verdad y se entiende que hay más a la derecha.
+      */}
+      <div className="min-w-[42rem]">
+        <div className="flex items-center gap-2 border-b border-black/[0.06] bg-neutral-50/80 px-4 py-3">
+          <div className="flex gap-1.5">
+            <span className="size-2.5 rounded-full bg-neutral-200" />
+            <span className="size-2.5 rounded-full bg-neutral-200" />
+            <span className="size-2.5 rounded-full bg-neutral-200" />
+          </div>
+          <p className="ml-2 text-[11px] font-medium text-neutral-500">Agenda · Semana del 14 al 19</p>
+          <span className="ml-auto rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-medium text-white">
+            Nuevo turno
+          </span>
         </div>
 
-        <div className="grid flex-1 grid-cols-6">
-          {WEEK.map((slots, day) => (
-            <div key={DAYS[day]} className="border-r border-black/[0.05] last:border-r-0">
-              <div className="flex h-8 items-center justify-center border-b border-black/[0.05] font-medium text-neutral-400">
-                {DAYS[day]}
+        <div className="flex text-[10px]">
+          <div className="w-9 shrink-0 border-r border-black/[0.05]">
+            <div className="h-8 border-b border-black/[0.05]" />
+            {HOURS.map((h) => (
+              <div
+                key={h}
+                className="flex items-start justify-end pr-1.5 pt-1 text-neutral-400"
+                style={{ height: ROW_HEIGHT }}
+              >
+                {h}
               </div>
-              <div className="relative" style={{ height: HOURS.length * ROW_HEIGHT }}>
-                {HOURS.map((h, i) => (
-                  <div
-                    key={h}
-                    className="absolute inset-x-0 border-b border-black/[0.04]"
-                    style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
-                  />
-                ))}
-                {slots.map(({ row, span, tone, label }) => (
-                  <div
-                    key={label + row}
-                    className={`absolute inset-x-1 truncate rounded border-l-2 px-1.5 py-1 font-medium ${TONES[tone]}`}
-                    style={{ top: row * ROW_HEIGHT + 2, height: span * ROW_HEIGHT - 4 }}
-                  >
-                    {label}
-                  </div>
-                ))}
+            ))}
+          </div>
+
+          <div className="grid flex-1 grid-cols-6">
+            {WEEK.map((slots, day) => (
+              <div key={DAYS[day]} className="border-r border-black/[0.05] last:border-r-0">
+                <div className="flex h-8 items-center justify-center border-b border-black/[0.05] font-medium text-neutral-400">
+                  {DAYS[day]}
+                </div>
+                <div className="relative" style={{ height: HOURS.length * ROW_HEIGHT }}>
+                  {HOURS.map((h, i) => (
+                    <div
+                      key={h}
+                      className="absolute inset-x-0 border-b border-black/[0.04]"
+                      style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
+                    />
+                  ))}
+                  {slots.map(({ row, span, tone, label }) => (
+                    <div
+                      key={label + row}
+                      className={`absolute inset-x-1 truncate rounded border-l-2 px-1.5 py-1 font-medium ${TONES[tone]}`}
+                      style={{ top: row * ROW_HEIGHT + 2, height: span * ROW_HEIGHT - 4 }}
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
