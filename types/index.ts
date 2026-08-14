@@ -1,88 +1,50 @@
-// Los tipos de esta sección espejan el contrato real de agendapp-api.
-// Ver docs/api-contract.md. Ante una duda, manda el backend.
+// Los tipos de esta sección NO se escriben a mano: derivan de `lib/api-types.ts`,
+// que se genera desde el spec OpenAPI del backend con `npm run types:api`.
+// Si el backend cambia un campo, el error sale en `tsc`, no en el navegador.
+// Ver docs/api-contract.md y docs/api-changelog.md.
 
-export type EmployeeRole = "OWNER" | "PROFESSIONAL" | "ADMINISTRATIVE"
+import type { components } from "@/lib/api-types"
 
-export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "PAUSED"
+type Schema = components["schemas"]
+
+export type EmployeeRole = Schema["MeEmployeeDto"]["role"]
+
+export type SubscriptionStatus = Schema["MeTenantDto"]["subscriptionStatus"]
 
 /** Respuesta de POST /auth/login, /auth/register y /auth/refresh. */
-export interface AuthTokens {
-  accessToken: string
-  /** Token opaco, no es un JWT. Se rota en cada uso. */
-  refreshToken: string
-  tokenType: string
-  /** Segundos de vida del access token. */
-  expiresIn: number
-}
+export type AuthTokens = Schema["AuthTokensDto"]
 
-export interface LoginCredentials {
-  email: string
-  password: string
-}
+export type LoginCredentials = Schema["LoginDto"]
 
-export interface RegisterPayload {
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-  phone?: string
-  businessName: string
-}
+export type RegisterPayload = Schema["RegisterDto"]
 
-export interface SessionUser {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-  phone: string | null
-  emailVerifiedAt: string | null
-}
+export type SessionUser = Schema["MeUserDto"]
 
-export interface SessionTenant {
-  id: string
-  businessName: string
-  slug: string
-  timezone: string
-  currency: string
-  language: string
-  subscriptionStatus: SubscriptionStatus
-  trialEndsAt: string | null
-}
+export type SessionTenant = Schema["MeTenantDto"]
 
-export interface SessionEmployee {
-  id: string
-  role: EmployeeRole
-  isOwner: boolean
-}
+export type SessionEmployee = Schema["MeEmployeeDto"]
 
 /** Respuesta de GET /auth/me: quién sos, en qué negocio y con qué rol. */
-export interface Session {
-  user: SessionUser
-  tenant: SessionTenant
-  employee: SessionEmployee
-}
+export type Session = Schema["MeResponseDto"]
 
 /**
  * Sucursal tal como la devuelve GET /branches.
  * No lleva tenant: el backend lo saca del JWT y rechaza la request si se lo mandan.
  */
-export interface Branch {
-  id: string
-  name: string
-  address: string | null
-  phone: string | null
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
+export type Branch = Schema["BranchResponseDto"]
 
-/** 0 = domingo … 6 = sábado, igual que Date.getDay(). Horas como "HH:MM". */
-export interface BusinessHour {
-  dayOfWeek: number
-  isClosed: boolean
-  opensAt: string | null
-  closesAt: string | null
-}
+/**
+ * Horario tal como se lee. 0 = domingo … 6 = sábado. Horas como "HH:MM".
+ * Ojo: no es la misma forma que se manda al escribir, ver `BusinessHourInput`.
+ */
+export type BusinessHour = Schema["BusinessHourResponseDto"]
+
+/**
+ * Horario tal como se escribe en PUT /branches/:id/business-hours. Difiere del
+ * de lectura: acá los días cerrados **omiten** `opensAt`/`closesAt`, no los
+ * mandan en `null`. Mandar `null` es un 400.
+ */
+export type BusinessHourInput = Schema["BusinessHourDto"]
 
 // ---------------------------------------------------------------------------
 // Lo de acá abajo todavía no tiene backend (Fases 3 a 5). Son los tipos que

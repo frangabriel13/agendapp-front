@@ -35,7 +35,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
     startTime: a?.startTime ?? initial.startTime,
     notes: a?.notes ?? "",
   })
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({})
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((p) => ({ ...p, [key]: value }))
@@ -43,7 +43,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
   }
 
   function validate() {
-    const e: Record<string, string> = {}
+    const e: Partial<Record<keyof typeof form, string>> = {}
     if (!form.patientName.trim()) e.patientName = "El paciente es requerido"
     if (!form.patientPhone.trim()) e.patientPhone = "El teléfono es requerido"
     if (!form.professionalId) e.professionalId = "Elegí un profesional"
@@ -58,14 +58,25 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
 
-    const professional = professionals.find((p) => p.id === form.professionalId)!
-    const service = services.find((s) => s.id === form.serviceId)!
+    // El id elegido puede no resolver: lista vacía, o un turno viejo que apunta
+    // a un profesional que ya no está. `validate()` solo mira que no sea "".
+    const professional = professionals.find((p) => p.id === form.professionalId)
+    const service = services.find((s) => s.id === form.serviceId)
+    if (!professional || !service) {
+      setErrors({
+        ...(professional ? {} : { professionalId: "Elegí un profesional" }),
+        ...(service ? {} : { serviceId: "Elegí un servicio" }),
+      })
+      return
+    }
+
+    const patientId = a?.patientId ?? crypto.randomUUID()
 
     const appointment: Appointment = {
       id: a?.id ?? crypto.randomUUID(),
-      patientId: a?.patientId ?? crypto.randomUUID(),
+      patientId,
       patient: {
-        id: a?.patient.id ?? crypto.randomUUID(),
+        id: patientId,
         name: form.patientName.trim(),
         phone: form.patientPhone.trim(),
       },
@@ -142,6 +153,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
                 <option key={p.id} value={p.id}>{p.name} — {p.specialty}</option>
               ))}
             </select>
+            {errors.professionalId && <p className="text-xs text-red-500 mt-1">{errors.professionalId}</p>}
           </div>
 
           <div>
@@ -157,6 +169,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
                 </option>
               ))}
             </select>
+            {errors.serviceId && <p className="text-xs text-red-500 mt-1">{errors.serviceId}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

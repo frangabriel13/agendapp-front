@@ -41,7 +41,7 @@ export function Testimonials() {
             <p className="text-sm text-gray-600 leading-relaxed flex-1">{quote}</p>
             <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
               <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
-                <Image src={photo} alt={name} fill className="object-cover" />
+                <Image src={photo} alt={name} fill sizes="40px" className="object-cover" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">{name}</p>
