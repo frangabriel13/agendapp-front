@@ -23,7 +23,7 @@ export default function ConfiguracionPage() {
   const error = tenant.error ?? branding.error ?? settings.error
 
   return (
-    <div className="p-8">
+    <div className="p-5 sm:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Configuración</h1>
         <p className="mt-1 text-sm text-neutral-500">

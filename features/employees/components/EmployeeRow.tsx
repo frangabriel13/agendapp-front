@@ -62,6 +62,22 @@ export function EmployeeRow({
   const editable = canManage && !employee.isOwner && !isSelf
   const busy = update.isPending || remove.isPending || resend.isPending
 
+  const badges = (
+    <>
+      <span className="rounded-full border border-black/[0.07] bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
+        {ALL_ROLE_LABELS[employee.role]}
+      </span>
+      <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", STATUS_BADGE[employee.status])}>
+        {STATUS_LABELS[employee.status]}
+      </span>
+      {!employee.isActive && (
+        <span className="rounded-full border border-black/[0.07] bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
+          Inactivo
+        </span>
+      )}
+    </>
+  )
+
   return (
     <li className="flex items-center gap-4 px-5 py-4">
       <span
@@ -77,21 +93,12 @@ export function EmployeeRow({
           {isSelf && <span className="ml-2 text-[11px] font-normal text-neutral-400">(vos)</span>}
         </p>
         <p className="truncate text-[13px] text-neutral-500">{employee.user.email}</p>
+        {/* En pantallas chicas no hay lugar a la derecha, pero el rol y el estado
+            son justo lo que se viene a mirar: bajan a una segunda línea. */}
+        <div className="mt-2 flex flex-wrap gap-1.5 sm:hidden">{badges}</div>
       </div>
 
-      <div className="hidden items-center gap-2 sm:flex">
-        <span className="rounded-full border border-black/[0.07] bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-          {ALL_ROLE_LABELS[employee.role]}
-        </span>
-        <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", STATUS_BADGE[employee.status])}>
-          {STATUS_LABELS[employee.status]}
-        </span>
-        {!employee.isActive && (
-          <span className="rounded-full border border-black/[0.07] bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
-            Inactivo
-          </span>
-        )}
-      </div>
+      <div className="hidden items-center gap-2 sm:flex">{badges}</div>
 
       {canManage ? (
         <>

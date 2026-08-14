@@ -55,8 +55,8 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-white">
-      <div className="shrink-0 px-8 pt-8 pb-5">
+    <div className="flex h-full flex-col bg-white">
+      <div className="shrink-0 px-5 pt-6 pb-4 sm:px-8 sm:pt-8 sm:pb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Agenda</h1>
         <p className="mt-1 text-sm text-neutral-500">Gestión de turnos.</p>
       </div>

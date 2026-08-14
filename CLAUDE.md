@@ -54,6 +54,16 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - `Providers` monta `QueryClientProvider` con `staleTime: 60_000` y los devtools de React Query
 - Tocá ese archivo si necesitás cambiar la config global de cache/React Query
 
+## Responsive
+Verificado en 390 / 768 / 1024 / 1440, landing y panel. El sidebar del panel se
+esconde por debajo de `lg` y pasa a un cajón (`components/ui/sheet.tsx`), con una
+barra superior que trae el botón de menú. El cajón lo cierra Radix al navegar
+—los enlaces llaman a `onNavigate`— y con Escape.
+
+El layout del panel usa `h-screen` y no `min-h-screen`: le da altura definida a la
+columna, que es lo que necesita la agenda para ocupar el alto restante con
+`h-full` y scrollear adentro en vez de estirar la página.
+
 ## Diseño — un solo vocabulario
 
 Todo el front usa el mismo sistema. Si aparece un `gray-*` o un `rounded-md` en
