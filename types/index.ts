@@ -46,6 +46,50 @@ export type BusinessHour = Schema["BusinessHourResponseDto"]
  */
 export type BusinessHourInput = Schema["BusinessHourDto"]
 
+/** El detalle de una sucursal trae además su semana comercial. */
+export type BranchDetail = Schema["BranchDetailResponseDto"]
+
+export type CreateBranchPayload = Omit<Schema["CreateBranchDto"], "address" | "phone"> & {
+  address?: string
+  phone?: string
+}
+
+export type UpdateBranchPayload = Omit<Schema["UpdateBranchDto"], "address" | "phone"> & {
+  address?: string | null
+  phone?: string | null
+}
+
+/** Feriado (`isClosed`) u horario especial de un día puntual. */
+export type SpecialDay = Schema["SpecialDayResponseDto"]
+
+export type CreateSpecialDayPayload = Omit<Schema["CreateSpecialDayDto"], "description"> & {
+  description?: string
+}
+
+/** Datos del negocio. GET /tenants/me trae además el plan contratado. */
+export type Tenant = Schema["TenantResponseDto"]
+
+export type TenantPlan = Schema["TenantPlanDto"]
+
+export type UpdateTenantPayload = Schema["UpdateTenantDto"]
+
+export type TenantBranding = Schema["TenantBrandingResponseDto"]
+
+export type UpdateBrandingPayload = Omit<
+  Schema["UpdateTenantBrandingDto"],
+  "logoUrl" | "primaryColor" | "description"
+> & {
+  logoUrl?: string | null
+  primaryColor?: string | null
+  description?: string | null
+}
+
+export type TenantSettings = Schema["TenantSettingsResponseDto"]
+
+export type RefundType = TenantSettings["cancellationRefundType"]
+
+export type UpdateSettingsPayload = Schema["UpdateTenantSettingsDto"]
+
 /** Empleado tal como lo devuelve GET /employees. */
 export type Employee = Schema["EmployeeResponseDto"]
 
@@ -104,6 +148,19 @@ export type EmployeeShift = Schema["EmployeeShiftResponseDto"]
  * o el backend responde 400.
  */
 export type EmployeeShiftInput = Schema["EmployeeShiftDto"]
+
+/**
+ * Ausencia tal como se lee. A diferencia de los tramos, `startsAt` y `endsAt`
+ * son **instantes ISO con zona**, no horas de reloj. `branchId` en `null`
+ * significa "en ninguna sucursal", que es el caso normal de unas vacaciones.
+ */
+export type TimeOff = Schema["TimeOffResponseDto"]
+
+/** Mismo parche que en `InviteEmployeePayload`: el spec deja estos campos sin tipo. */
+export type CreateTimeOffPayload = Omit<Schema["CreateTimeOffDto"], "branchId" | "reason"> & {
+  branchId?: string | null
+  reason?: string
+}
 
 // ---------------------------------------------------------------------------
 // Lo de acá abajo todavía no tiene backend (Fases 3 a 5). Son los tipos que
