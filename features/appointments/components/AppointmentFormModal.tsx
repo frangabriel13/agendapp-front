@@ -2,9 +2,9 @@
 
 import { useState } from "react"
 import { X } from "lucide-react"
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { Appointment, Professional, Service } from "@/types"
 import { addMinutes } from "../lib/time"
-import { useModalDismiss } from "../lib/useModalDismiss"
 
 interface Initial {
   date: string
@@ -23,7 +23,6 @@ interface Props {
 }
 
 export function AppointmentFormModal({ mode, professionals, services, initial, onClose, onSubmit }: Props) {
-  useModalDismiss(onClose)
   const a = initial.appointment
 
   const [form, setForm] = useState({
@@ -100,21 +99,22 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
     }`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="flex flex-col p-0 gap-0 bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-w-md"
+      >
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">
+          <DialogTitle className="text-lg font-bold text-gray-900">
             {mode === "create" ? "Nuevo turno" : "Editar turno"}
-          </h2>
-          <button
-            onClick={onClose}
+          </DialogTitle>
+          <DialogClose
             aria-label="Cerrar"
             className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <X size={18} />
-          </button>
+          </DialogClose>
         </div>
 
         <form onSubmit={handleSubmit} noValidate className="px-6 py-5 space-y-4 overflow-y-auto">
@@ -222,7 +222,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

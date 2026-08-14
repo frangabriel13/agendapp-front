@@ -1,9 +1,10 @@
 "use client"
 
 import { X, Clock, User, Stethoscope, Phone, FileText, Pencil, Check, XCircle, CheckCheck, UserX } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { Appointment, AppointmentStatus } from "@/types"
 import { STATUS_BADGE, STATUS_LABELS } from "../lib/status"
-import { useModalDismiss } from "../lib/useModalDismiss"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + "T12:00:00")
@@ -21,7 +22,7 @@ interface Props {
   onEdit: () => void
 }
 
-const ACTIONS: Record<AppointmentStatus, { status: AppointmentStatus; label: string; icon: typeof Check; tone: "primary" | "muted" | "danger" }[]> = {
+const ACTIONS: Record<AppointmentStatus, { status: AppointmentStatus; label: string; icon: LucideIcon; tone: "primary" | "muted" | "danger" }[]> = {
   pending: [
     { status: "confirmed", label: "Confirmar", icon: Check, tone: "primary" },
     { status: "cancelled", label: "Cancelar", icon: XCircle, tone: "danger" },
@@ -43,30 +44,30 @@ const TONE: Record<"primary" | "muted" | "danger", string> = {
 }
 
 export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit }: Props) {
-  useModalDismiss(onClose)
   const { patient, professional, service, date, startTime, endTime, status, notes } = appointment
   const actions = ACTIONS[status]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="block p-0 gap-0 bg-white rounded-2xl shadow-xl overflow-hidden sm:max-w-md"
+      >
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200">
           <div>
             <p className="text-xs text-gray-400 mb-1 capitalize">{formatDate(date)}</p>
-            <h2 className="text-lg font-bold text-gray-900">{patient.name}</h2>
+            <DialogTitle className="text-lg font-bold text-gray-900">{patient.name}</DialogTitle>
             <span className={`inline-block text-xs px-2 py-0.5 rounded-full border mt-1 ${STATUS_BADGE[status]}`}>
               {STATUS_LABELS[status]}
             </span>
           </div>
-          <button
-            onClick={onClose}
+          <DialogClose
             aria-label="Cerrar"
             className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <X size={18} />
-          </button>
+          </DialogClose>
         </div>
 
         <div className="px-6 py-5 space-y-4">
@@ -119,8 +120,8 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
             Editar
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
