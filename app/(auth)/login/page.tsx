@@ -1,5 +1,4 @@
-import Image from "next/image"
-import Link from "next/link"
+import { AuthCard } from "@/features/auth/components/AuthCard"
 import { LoginForm } from "@/features/auth/components/LoginForm"
 
 export const metadata = {
@@ -8,21 +7,12 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="w-full max-w-sm px-4">
-      <div className="mb-4 text-center">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-violet-600 transition-colors">
-          ← Volver al inicio
-        </Link>
+    <AuthCard back={{ href: "/", label: "Volver al inicio" }}>
+      <div className="mb-6 text-center">
+        <h1 className="text-lg font-semibold tracking-tight text-neutral-900">Ingresá a tu panel</h1>
+        <p className="mt-1.5 text-[13px] text-neutral-500">Con el email y la contraseña de tu cuenta.</p>
       </div>
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-        <div className="mb-6 text-center">
-          <Link href="/">
-            <Image src="/loguito.png" alt="reservApp" width={150} height={150} className="mx-auto mb-2 rounded-xl" />
-          </Link>
-          <p className="text-gray-500 text-sm mt-1">Ingresá a tu panel</p>
-        </div>
-        <LoginForm />
-      </div>
-    </div>
+      <LoginForm />
+    </AuthCard>
   )
 }
