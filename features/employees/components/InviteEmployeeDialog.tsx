@@ -39,19 +39,25 @@ export function InviteEmployeeDialog({ open, onOpenChange, onInvited }: Props) {
     defaultValues: { firstName: "", lastName: "", email: "", phone: "", role: "PROFESSIONAL" },
   })
 
-  async function onSubmit(values: Values) {
+  function onSubmit(values: Values) {
     // El backend corre con `forbidNonWhitelisted` y valida formato: mandar
     // `phone: ""` es un campo vacío que no representa nada. Se omite.
-    const invitation = await invite.mutateAsync({
-      firstName: values.firstName,
-      lastName: values.lastName,
-      email: values.email,
-      role: values.role,
-      ...(values.phone ? { phone: values.phone } : {}),
-    })
-    reset()
-    onOpenChange(false)
-    onInvited(invitation)
+    invite.mutate(
+      {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        role: values.role,
+        ...(values.phone ? { phone: values.phone } : {}),
+      },
+      {
+        onSuccess: (invitation) => {
+          reset()
+          onOpenChange(false)
+          onInvited(invitation)
+        },
+      },
+    )
   }
 
   return (

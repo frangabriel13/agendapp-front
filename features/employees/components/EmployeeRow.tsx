@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarClock, MoreHorizontal, Send, ShieldCheck, Trash2, UserCheck, UserX } from "lucide-react"
+import { CalendarClock, CalendarOff, MoreHorizontal, Send, ShieldCheck, Trash2, UserCheck, UserX } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,7 @@ interface Props {
   currentEmployeeId: string | undefined
   onInvitation: (invitation: EmployeeInvitation) => void
   onEditSchedule: (employee: Employee) => void
+  onEditTimeOff: (employee: Employee) => void
 }
 
 export function EmployeeRow({
@@ -43,6 +44,7 @@ export function EmployeeRow({
   currentEmployeeId,
   onInvitation,
   onEditSchedule,
+  onEditTimeOff,
 }: Props) {
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
   const update = useUpdateEmployee()
@@ -105,6 +107,9 @@ export function EmployeeRow({
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onSelect={() => onEditSchedule(employee)}>
                 <CalendarClock size={14} /> Sucursales y horarios
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onEditTimeOff(employee)}>
+                <CalendarOff size={14} /> Ausencias
               </DropdownMenuItem>
 
               {editable && (

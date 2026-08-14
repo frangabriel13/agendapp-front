@@ -4,17 +4,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { apiErrorMessage } from "@/lib/errors"
 import {
+  createTimeOffRequest,
   getEmployeeRequest,
   inviteEmployeeRequest,
   listEmployeesRequest,
   listSchedulesRequest,
+  listTimeOffRequest,
+  removeTimeOffRequest,
   removeEmployeeRequest,
   resendInvitationRequest,
   setBranchesRequest,
   setSchedulesRequest,
   updateEmployeeRequest,
 } from "@/services/employees"
-import type { EmployeeShiftInput, InviteEmployeePayload, UpdateEmployeePayload } from "@/types"
+import type {
+  CreateTimeOffPayload,
+  EmployeeShiftInput,
+  InviteEmployeePayload,
+  UpdateEmployeePayload,
+} from "@/types"
 
 export const EMPLOYEES_KEY = ["employees"] as const
 
@@ -115,6 +123,28 @@ export function useSaveSchedule() {
       toast.error(apiErrorMessage(error, "No pudimos guardar los horarios"))
     },
   })
+}
+
+export function useTimeOff(id: string | null) {
+  return useQuery({
+    queryKey: [...EMPLOYEES_KEY, id, "ausencias"],
+    queryFn: () => listTimeOffRequest(id!),
+    enabled: id !== null,
+  })
+}
+
+export function useCreateTimeOff() {
+  return useEmployeeMutation(
+    ({ id, ...payload }: CreateTimeOffPayload & { id: string }) => createTimeOffRequest(id, payload),
+    { success: () => "Ausencia agregada", error: "No pudimos agregar la ausencia" },
+  )
+}
+
+export function useRemoveTimeOff() {
+  return useEmployeeMutation(
+    ({ id, timeOffId }: { id: string; timeOffId: string }) => removeTimeOffRequest(id, timeOffId),
+    { success: () => "Ausencia eliminada", error: "No pudimos eliminar la ausencia" },
+  )
 }
 
 export function useResendInvitation() {

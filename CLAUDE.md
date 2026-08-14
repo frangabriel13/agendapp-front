@@ -36,10 +36,11 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/registro` | Placeholder ("próximamente"), deriva a `/#contacto` |
 | `/olvide-contrasena` | Placeholder, deriva a `/#contacto` |
 | `/activar` | **Real.** Cierra la invitación: token del link + contraseña. Pública |
-| `/equipo` | **Real.** Listar, invitar, rol, activar/desactivar, eliminar, sucursales y horarios |
+| `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
 | `/dashboard` | Construida, sobre mock data |
 | `/agenda` | Calendario semanal, sobre mock data |
-| `/configuracion` | `<ComingSoon />` — el backend ya lo soporta |
+| `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
+| `/configuracion` | **Real.** Negocio, marca, política de reservas y datos del plan |
 
 ## Grupos de rutas
 - `app/(marketing)` → landing pública
@@ -190,11 +191,39 @@ Horas de tramo en reloj (`"09:00"`); las ausencias, en cambio, van en ISO con zo
 `dayOfWeek` es 0 = domingo, como `Date.getDay()` — `WEEK_DAYS` en
 `features/employees/lib/schedule.ts` lo reordena para mostrar lunes primero.
 
+**Ausencias** (`features/employees/lib/timeOff.ts`): la persona escribe hora de pared
+y la API guarda un instante, así que la conversión pasa por `new Date(y, m, d, …)`,
+que interpreta en la zona del navegador. **No hay campo `allDay` en la API**: un día
+completo se guarda de 00:00 a 23:59 locales y se deduce al releerlo (`isAllDay`).
+`branchId: null` = ausente en todas.
+
+## Horarios comerciales y días especiales — la trampa
+`PUT /branches/:id/business-hours` espera **los 7 días envueltos en `{ days }`**, y
+un día cerrado va **sin `opensAt`/`closesAt`**. En la lectura esos campos vienen en
+`null`, pero mandar `null` al escribir es un 400. Lo resuelve `toPayload` en
+`features/branches/lib/businessHours.ts`; lo mismo aplica a los días especiales.
+
+El plan limita sucursales y empleados: crear de más devuelve 403 con un mensaje ya
+redactado por el backend, que se muestra tal cual.
+
+## Mutaciones: usar `mutate`, no `await mutateAsync`
+Un `mutateAsync` rechazado dentro de un handler escapa y el navegador lo reporta
+como **error de página**, aunque el hook ya lo haya mostrado en un toast. Eso
+dispararía cualquier herramienta de monitoreo por un error de usuario normal
+—superar el tope del plan, por ejemplo—. Va `mutate(payload, { onSuccess })`.
+
+## Tests: zona horaria fijada
+`vitest.config.mts` fuerza `TZ=America/Argentina/Buenos_Aires`. No es cosmético:
+en UTC, `new Date("2026-12-25")` devuelve el día correcto y el bug de interpretar
+un día de calendario como UTC **pasa desapercibido**. Con offset negativo retrocede
+al 24 y el test lo agarra.
+
 ## Próximo paso
 Acordado con Franco, en orden:
 1. ~~Arreglos baratos: labels, `global-error`, logo, metadata~~ ✅ hecho
 2. ~~**`/equipo`** con react-hook-form + zod, más `/activar`~~ ✅ hecho
 3. ~~Sucursales y horarios del empleado~~ ✅ hecho
-4. **Ausencias** (`/employees/:id/time-off`) — lo único que falta para cerrar `/equipo`
-5. `/configuracion` y el ABM de sucursales — los 8 endpoints que quedan sin cablear
-6. La carrera de refresh entre pestañas
+4. ~~Ausencias (`/employees/:id/time-off`)~~ ✅ hecho — `/equipo` quedó completo
+5. ~~`/configuracion` y el ABM de sucursales~~ ✅ hecho — **22 de 23 endpoints cableados** (falta solo `/health`, que no hace falta)
+6. La carrera de refresh entre pestañas — el único bug que queda
+7. Migrar el panel al vocabulario nuevo, pantalla por pantalla

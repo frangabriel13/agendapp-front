@@ -9,6 +9,7 @@ import { ActivationLinkDialog } from "@/features/employees/components/Activation
 import { EmployeeRow } from "@/features/employees/components/EmployeeRow"
 import { InviteEmployeeDialog } from "@/features/employees/components/InviteEmployeeDialog"
 import { ScheduleDialog } from "@/features/employees/components/ScheduleDialog"
+import { TimeOffDialog } from "@/features/employees/components/TimeOffDialog"
 import { apiErrorMessage } from "@/lib/errors"
 import { useEmployees } from "@/features/employees/hooks/useEmployees"
 import type { Employee, EmployeeInvitation } from "@/types"
@@ -19,6 +20,7 @@ export default function EquipoPage() {
   const [inviting, setInviting] = useState(false)
   const [invitation, setInvitation] = useState<EmployeeInvitation | null>(null)
   const [editingSchedule, setEditingSchedule] = useState<Employee | null>(null)
+  const [editingTimeOff, setEditingTimeOff] = useState<Employee | null>(null)
 
   const manage = canManage(session?.employee.role)
 
@@ -80,6 +82,7 @@ export default function EquipoPage() {
                 currentEmployeeId={session?.employee.id}
                 onInvitation={setInvitation}
                 onEditSchedule={setEditingSchedule}
+                onEditTimeOff={setEditingTimeOff}
               />
             ))}
           </ul>
@@ -91,6 +94,7 @@ export default function EquipoPage() {
       )}
       <ActivationLinkDialog invitation={invitation} onClose={() => setInvitation(null)} />
       <ScheduleDialog employee={editingSchedule} onClose={() => setEditingSchedule(null)} />
+      <TimeOffDialog employee={editingTimeOff} onClose={() => setEditingTimeOff(null)} />
     </div>
   )
 }

@@ -6,6 +6,8 @@ import type {
   EmployeeInvitation,
   EmployeeShift,
   EmployeeShiftInput,
+  CreateTimeOffPayload,
+  TimeOff,
   UpdateEmployeePayload,
   InviteEmployeePayload,
 } from "@/types"
@@ -45,6 +47,21 @@ export function removeEmployeeRequest(id: string): Promise<void> {
 /** Emite un link de activación nuevo e invalida el anterior. */
 export function resendInvitationRequest(id: string): Promise<EmployeeInvitation> {
   return apiFetch<EmployeeInvitation>(`/employees/${id}/invitation`, { method: "POST" })
+}
+
+export function listTimeOffRequest(id: string): Promise<TimeOff[]> {
+  return apiFetch<TimeOff[]>(`/employees/${id}/time-off`)
+}
+
+export function createTimeOffRequest(id: string, payload: CreateTimeOffPayload): Promise<TimeOff> {
+  return apiFetch<TimeOff>(`/employees/${id}/time-off`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function removeTimeOffRequest(id: string, timeOffId: string): Promise<void> {
+  return apiFetch<void>(`/employees/${id}/time-off/${timeOffId}`, { method: "DELETE" })
 }
 
 /** El detalle agrega `branchIds`, que el listado no trae. */

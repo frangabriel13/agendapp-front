@@ -17,8 +17,8 @@ import { useBranches } from "@/features/branches/hooks/useBranches"
 import type { Branch, Employee, EmployeeShift } from "@/types"
 import { useEmployeeDetail, useEmployeeSchedules, useSaveSchedule } from "../hooks/useEmployees"
 import { fullName } from "../lib/roles"
+import { WEEK_DAYS } from "@/lib/days"
 import {
-  WEEK_DAYS,
   formatHours,
   newShift,
   shiftsOfDay,
@@ -116,10 +116,11 @@ function ScheduleEditor({
     setDrafts((previous) => previous.map((s) => (s.key === key ? { ...s, ...changes } : s)))
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (errors.size > 0) return
-    await save.mutateAsync({ id: employeeId, branchIds, shifts: toPayload(drafts) })
-    onSaved()
+    // `mutate` con callback, no `await mutateAsync`: un rechazo sin atrapar sale
+    // como error de página aunque el hook ya lo haya mostrado en un toast.
+    save.mutate({ id: employeeId, branchIds, shifts: toPayload(drafts) }, { onSuccess: onSaved })
   }
 
   if (branches.length === 0) {

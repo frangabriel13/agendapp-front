@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Calendar, LayoutDashboard, Settings, Users, LogOut } from "lucide-react"
+import { Building2, Calendar, LayoutDashboard, Settings, Users, LogOut } from "lucide-react"
 import { hasStoredToken } from "@/lib/api"
 import { useHasToken, useLogout, useSession } from "@/features/auth/hooks/useAuth"
 import type { EmployeeRole } from "@/types"
@@ -13,6 +13,7 @@ const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/agenda", label: "Agenda", icon: Calendar },
   { href: "/equipo", label: "Equipo", icon: Users },
+  { href: "/sucursales", label: "Sucursales", icon: Building2 },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ]
 

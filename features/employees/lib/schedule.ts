@@ -1,20 +1,6 @@
+import { WEEK_DAYS, dayOrder } from "@/lib/days"
 import { timeToMinutes } from "@/lib/time"
 import type { EmployeeShift, EmployeeShiftInput } from "@/types"
-
-/**
- * El backend numera los días como `Date.getDay()`: 0 = domingo. Acá se listan
- * arrancando en lunes, que es como se lee una semana laboral, así que el orden
- * del array no coincide con el valor.
- */
-export const WEEK_DAYS = [
-  { value: 1, label: "Lunes", short: "Lun" },
-  { value: 2, label: "Martes", short: "Mar" },
-  { value: 3, label: "Miércoles", short: "Mié" },
-  { value: 4, label: "Jueves", short: "Jue" },
-  { value: 5, label: "Viernes", short: "Vie" },
-  { value: 6, label: "Sábado", short: "Sáb" },
-  { value: 0, label: "Domingo", short: "Dom" },
-] as const
 
 /**
  * Un tramo mientras se edita.
@@ -62,9 +48,8 @@ export function toPayload(drafts: DraftShift[]): EmployeeShiftInput[] {
 
 /** Semana en orden de lectura: lunes primero, y dentro del día por hora. */
 export function sortShifts<T extends { dayOfWeek: number; startsAt: string }>(shifts: T[]): T[] {
-  const order = (day: number) => WEEK_DAYS.findIndex((d) => d.value === day)
   return [...shifts].sort(
-    (a, b) => order(a.dayOfWeek) - order(b.dayOfWeek) || timeToMinutes(a.startsAt) - timeToMinutes(b.startsAt),
+    (a, b) => dayOrder(a.dayOfWeek) - dayOrder(b.dayOfWeek) || timeToMinutes(a.startsAt) - timeToMinutes(b.startsAt),
   )
 }
 
