@@ -1,3 +1,4 @@
+import { GradientBand } from "./ui/GradientBand"
 import { TopBackdrop } from "./ui/TopBackdrop"
 import { Nav } from "./components/Nav"
 import { Hero } from "./components/Hero"
@@ -29,9 +30,11 @@ export default function MarketingPage() {
         <HowItWorks />
         <Testimonials />
         <Pricing />
-        <Faq />
-        <About />
-        <Contact />
+        <GradientBand>
+          <Faq />
+          <About />
+          <Contact />
+        </GradientBand>
         <FinalCta />
       </main>
       <Footer />
