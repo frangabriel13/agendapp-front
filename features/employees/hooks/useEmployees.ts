@@ -2,29 +2,21 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { ApiError } from "@/lib/api"
+import { apiErrorMessage } from "@/lib/errors"
 import {
+  getEmployeeRequest,
   inviteEmployeeRequest,
   listEmployeesRequest,
+  listSchedulesRequest,
   removeEmployeeRequest,
   resendInvitationRequest,
+  setBranchesRequest,
+  setSchedulesRequest,
   updateEmployeeRequest,
 } from "@/services/employees"
-import type { InviteEmployeePayload, UpdateEmployeePayload } from "@/types"
+import type { EmployeeShiftInput, InviteEmployeePayload, UpdateEmployeePayload } from "@/types"
 
 export const EMPLOYEES_KEY = ["employees"] as const
-
-/**
- * Texto de error para mostrarle a la persona.
- *
- * El backend manda un array de mensajes ya en castellano —típico de la
- * validación de NestJS—, así que se usan tal cual. El `fallback` cubre lo que no
- * es un `ApiError`: un bug del front, o un fallo de red que no pasó por el cliente.
- */
-export function apiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError && error.messages.length > 0) return error.messages.join(" · ")
-  return fallback
-}
 
 export function useEmployees() {
   return useQuery({
@@ -79,6 +71,49 @@ export function useRemoveEmployee() {
   return useEmployeeMutation((id: string) => removeEmployeeRequest(id), {
     success: () => "Empleado eliminado",
     error: "No pudimos eliminar al empleado",
+  })
+}
+
+/** Detalle de un empleado. `null` cuando no hay ninguno abierto. */
+export function useEmployeeDetail(id: string | null) {
+  return useQuery({
+    queryKey: [...EMPLOYEES_KEY, id, "detalle"],
+    queryFn: () => getEmployeeRequest(id!),
+    enabled: id !== null,
+  })
+}
+
+export function useEmployeeSchedules(id: string | null) {
+  return useQuery({
+    queryKey: [...EMPLOYEES_KEY, id, "horarios"],
+    queryFn: () => listSchedulesRequest(id!),
+    enabled: id !== null,
+  })
+}
+
+/**
+ * Guarda sucursales y horarios en una sola acción.
+ *
+ * **Las sucursales van primero, y el orden no es opcional:** un tramo apunta a
+ * una `branchId`, y si esa sucursal todavía no está asignada al empleado el
+ * backend rechaza el PUT de horarios. Al revés —desasignar una sucursal que
+ * tiene tramos— lo frena la validación del editor antes de llegar acá.
+ */
+export function useSaveSchedule() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: { id: string; branchIds: string[]; shifts: EmployeeShiftInput[] }) => {
+      await setBranchesRequest(input.id, input.branchIds)
+      return setSchedulesRequest(input.id, input.shifts)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: EMPLOYEES_KEY })
+      toast.success("Horarios guardados")
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, "No pudimos guardar los horarios"))
+    },
   })
 }
 

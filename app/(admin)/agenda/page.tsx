@@ -5,7 +5,7 @@ import { WeekCalendar } from "@/features/appointments/components/WeekCalendar"
 import { AppointmentModal } from "@/features/appointments/components/AppointmentModal"
 import { AppointmentFormModal } from "@/features/appointments/components/AppointmentFormModal"
 import { mockAppointments, mockProfessionals, mockServices } from "@/features/appointments/data/mockData"
-import { dateToStr } from "@/features/appointments/lib/time"
+import { dateToStr } from "@/lib/time"
 import type { Appointment, AppointmentStatus } from "@/types"
 
 interface FormState {

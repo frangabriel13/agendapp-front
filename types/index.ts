@@ -88,6 +88,23 @@ export type UpdateEmployeePayload = Omit<Schema["UpdateEmployeeDto"], Untyped> &
  */
 export type EmployeeInvitation = Schema["EmployeeInvitationResponseDto"]
 
+/** Cuerpo de POST /employees/activate: el token del link más la contraseña elegida. */
+export type ActivateAccountPayload = Schema["ActivateEmployeeDto"]
+
+/**
+ * Tramo de trabajo tal como se lee de GET /employees/:id/schedules.
+ * Horas de reloj ("09:00"), y `dayOfWeek` 0 = domingo … 6 = sábado, igual que
+ * `Date.getDay()`.
+ */
+export type EmployeeShift = Schema["EmployeeShiftResponseDto"]
+
+/**
+ * Tramo tal como se escribe. **No lleva `id`**: el PUT reemplaza la semana
+ * entera, así que reusar un tramo leído exige sacarle el `id` antes de mandarlo
+ * o el backend responde 400.
+ */
+export type EmployeeShiftInput = Schema["EmployeeShiftDto"]
+
 // ---------------------------------------------------------------------------
 // Lo de acá abajo todavía no tiene backend (Fases 3 a 5). Son los tipos que
 // sostienen el mock de la agenda; van a cambiar cuando existan los endpoints.

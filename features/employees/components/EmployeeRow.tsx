@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MoreHorizontal, Send, ShieldCheck, Trash2, UserCheck, UserX } from "lucide-react"
+import { CalendarClock, MoreHorizontal, Send, ShieldCheck, Trash2, UserCheck, UserX } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,9 +34,16 @@ interface Props {
   /** Id de empleado de quien está mirando, para no dejarlo actuar sobre sí mismo. */
   currentEmployeeId: string | undefined
   onInvitation: (invitation: EmployeeInvitation) => void
+  onEditSchedule: (employee: Employee) => void
 }
 
-export function EmployeeRow({ employee, canManage, currentEmployeeId, onInvitation }: Props) {
+export function EmployeeRow({
+  employee,
+  canManage,
+  currentEmployeeId,
+  onInvitation,
+  onEditSchedule,
+}: Props) {
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
   const update = useUpdateEmployee()
   const remove = useRemoveEmployee()
@@ -44,8 +51,11 @@ export function EmployeeRow({ employee, canManage, currentEmployeeId, onInvitati
 
   const isSelf = employee.id === currentEmployeeId
   /**
-   * Al dueño no se lo toca —el backend rechaza cambiarle el rol o darlo de baja—
+   * Al dueño no se le cambia el rol ni se lo da de baja —el backend lo rechaza—
    * y a uno mismo tampoco: desactivarse es quedarse afuera sin poder volver.
+   *
+   * Los horarios son otra cosa: el dueño también atiende, y editarse los propios
+   * es normal. Por eso esa opción no pasa por acá.
    */
   const editable = canManage && !employee.isOwner && !isSelf
   const busy = update.isPending || remove.isPending || resend.isPending
@@ -81,7 +91,7 @@ export function EmployeeRow({ employee, canManage, currentEmployeeId, onInvitati
         )}
       </div>
 
-      {editable ? (
+      {canManage ? (
         <>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -93,40 +103,49 @@ export function EmployeeRow({ employee, canManage, currentEmployeeId, onInvitati
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="flex items-center gap-2">
-                <ShieldCheck size={14} /> Rol
-              </DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={employee.role}
-                onValueChange={(role) => update.mutate({ id: employee.id, role: role as AssignableRole })}
-              >
-                {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                  <DropdownMenuRadioItem key={value} value={value}>
-                    {label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
+              <DropdownMenuItem onSelect={() => onEditSchedule(employee)}>
+                <CalendarClock size={14} /> Sucursales y horarios
+              </DropdownMenuItem>
 
-              <DropdownMenuSeparator />
+              {editable && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="flex items-center gap-2">
+                    <ShieldCheck size={14} /> Rol
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={employee.role}
+                    onValueChange={(role) => update.mutate({ id: employee.id, role: role as AssignableRole })}
+                  >
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                      <DropdownMenuRadioItem key={value} value={value}>
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
 
-              {employee.status === "PENDING" && (
-                <DropdownMenuItem onSelect={() => resend.mutateAsync(employee.id).then(onInvitation).catch(() => {})}>
-                  <Send size={14} /> Reenviar invitación
-                </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+
+                  {employee.status === "PENDING" && (
+                    <DropdownMenuItem
+                      onSelect={() => resend.mutateAsync(employee.id).then(onInvitation).catch(() => {})}
+                    >
+                      <Send size={14} /> Reenviar invitación
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuItem onSelect={() => update.mutate({ id: employee.id, isActive: !employee.isActive })}>
+                    {employee.isActive ? <UserX size={14} /> : <UserCheck size={14} />}
+                    {employee.isActive ? "Desactivar" : "Reactivar"}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmingRemoval(true)}>
+                    <Trash2 size={14} /> Eliminar
+                  </DropdownMenuItem>
+                </>
               )}
-
-              <DropdownMenuItem
-                onSelect={() => update.mutate({ id: employee.id, isActive: !employee.isActive })}
-              >
-                {employee.isActive ? <UserX size={14} /> : <UserCheck size={14} />}
-                {employee.isActive ? "Desactivar" : "Reactivar"}
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem variant="destructive" onSelect={() => setConfirmingRemoval(true)}>
-                <Trash2 size={14} /> Eliminar
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

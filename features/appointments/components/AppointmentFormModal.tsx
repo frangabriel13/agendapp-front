@@ -4,7 +4,7 @@ import { useId, useState } from "react"
 import { X } from "lucide-react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { Appointment, Professional, Service } from "@/types"
-import { addMinutes } from "../lib/time"
+import { addMinutes } from "@/lib/time"
 
 interface Initial {
   date: string
