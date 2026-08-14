@@ -1,4 +1,4 @@
-import { Glow } from "./Glow"
+import { Glow } from "@/components/Glow"
 
 /**
  * Banda de color que atraviesa un tramo de secciones.

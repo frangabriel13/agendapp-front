@@ -1,5 +1,5 @@
 import { CtaLink } from "../ui/CtaLink"
-import { Glow } from "../ui/Glow"
+import { Glow } from "@/components/Glow"
 
 export function FinalCta() {
   return (

@@ -1,4 +1,4 @@
-import { Glow } from "./Glow"
+import { Glow } from "@/components/Glow"
 
 /**
  * Halo ambiental de la parte de arriba del landing.

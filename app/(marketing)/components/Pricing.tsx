@@ -2,7 +2,7 @@ import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { cardSurface } from "../ui/Card"
 import { CtaLink } from "../ui/CtaLink"
-import { Glow } from "../ui/Glow"
+import { Glow } from "@/components/Glow"
 import { Section } from "../ui/Section"
 import { SectionHeading } from "../ui/SectionHeading"
 
