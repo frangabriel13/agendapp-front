@@ -61,6 +61,7 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 
 ## Archivos clave
 - `docs/api-contract.md` — **Contrato del backend. Leerlo antes de tocar cualquier llamada a la API.**
+- `docs/api-changelog.md` — Qué cambió en el backend, fase por fase. **Mirar la sección "cambios que rompen" cuando aparezca una entrada nueva.**
 - `lib/api.ts` — Cliente HTTP: tokens, refresh serializado, `ApiError`. Toda llamada pasa por acá
 - `types/index.ts` — Tipos TypeScript. La sección de arriba espeja el backend; la de abajo es provisoria
 - `services/auth.ts` — Llamadas a `/auth/*`
