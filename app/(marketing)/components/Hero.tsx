@@ -1,14 +1,11 @@
 import { Badge } from "../ui/Badge"
 import { CtaLink } from "../ui/CtaLink"
-import { Glow } from "../ui/Glow"
 import { AgendaPreview } from "./AgendaPreview"
 
+/** El halo del fondo lo pone `TopBackdrop` desde la página: ver el porqué ahí. */
 export function Hero() {
   return (
-    <section className="relative isolate overflow-hidden px-6 pb-16 pt-14 md:pt-20">
-      <Glow className="left-1/2 top-[-22rem] h-[34rem] w-[76rem] -translate-x-1/2 bg-violet-500/30" />
-      <Glow className="left-[8%] top-[-14rem] h-[26rem] w-[26rem] bg-fuchsia-400/20" />
-
+    <section className="px-6 pb-16 pt-10 md:pt-16">
       <div className="mx-auto max-w-3xl text-center">
         <Badge>Agenda · Recordatorios · Ficha clínica</Badge>
 
