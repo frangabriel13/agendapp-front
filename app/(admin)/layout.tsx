@@ -2,9 +2,11 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { Calendar, LayoutDashboard, Settings, Users, LogOut } from "lucide-react"
-import { useLogout, useSession } from "@/features/auth/hooks/useAuth"
+import { hasStoredToken } from "@/lib/api"
+import { useHasToken, useLogout, useSession } from "@/features/auth/hooks/useAuth"
 import type { EmployeeRole } from "@/types"
 
 const navItems = [
@@ -26,10 +28,35 @@ function initials(name: string): string {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const logout = useLogout()
+  const hasToken = useHasToken()
   const { data: session } = useSession()
 
+  /**
+   * Los tokens viven en localStorage, así que el servidor no puede saber si hay
+   * sesión: `useHasToken` devuelve false al renderizar en el servidor y al
+   * hidratar, y recién después toma el valor real. Por eso el efecto lee
+   * localStorage directo en vez de usar `hasToken`, que en la primera corrida
+   * todavía viene en false y mandaría al login a alguien con sesión válida.
+   * `hasToken` sí va en las dependencias: dispara el redirect si la sesión se
+   * cae después (expiró, o se cerró en otra pestaña).
+   *
+   * De paso, el panel deja de viajar en el HTML prerenderizado.
+   */
+  useEffect(() => {
+    if (!hasStoredToken()) router.replace("/login")
+  }, [hasToken, router])
+
   const fullName = session ? `${session.user.firstName} ${session.user.lastName}` : null
+
+  if (!hasToken) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Cargando…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
