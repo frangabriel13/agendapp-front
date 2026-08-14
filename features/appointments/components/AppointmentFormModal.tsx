@@ -3,6 +3,10 @@
 import { useId, useState } from "react"
 import { X } from "lucide-react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { cta } from "@/components/CtaLink"
+import { control } from "@/components/form"
+import { cn } from "@/lib/utils"
+import { formatPrice } from "@/lib/format"
 import type { Appointment, Professional, Service } from "@/types"
 import { addMinutes } from "@/lib/time"
 
@@ -94,11 +98,6 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
     onSubmit(appointment)
   }
 
-  const inputCls = (err?: string) =>
-    `w-full px-3 py-2 rounded-md border bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-colors ${
-      err ? "border-red-400" : "border-gray-300"
-    }`
-
   /**
    * Ata label, control y mensaje de error por id.
    *
@@ -120,7 +119,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
           set(key, e.target.value),
         "aria-invalid": Boolean(error),
         "aria-describedby": error ? `${id}-error` : undefined,
-        className: inputCls(error),
+        className: control(error),
       },
     }
   }
@@ -140,13 +139,13 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
         aria-describedby={undefined}
         className="flex flex-col p-0 gap-0 bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-w-md"
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 shrink-0">
-          <DialogTitle className="text-lg font-bold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-black/[0.06] shrink-0">
+          <DialogTitle className="text-lg font-bold text-neutral-900">
             {mode === "create" ? "Nuevo turno" : "Editar turno"}
           </DialogTitle>
           <DialogClose
             aria-label="Cerrar"
-            className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
           >
             <X size={18} />
           </DialogClose>
@@ -173,7 +172,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
             <select {...serviceId.control}>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} — {s.duration} min — {s.price.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })}
+                  {s.name} — {s.duration} min — {formatPrice(s.price)}
                 </option>
               ))}
             </select>
@@ -201,13 +200,13 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+              className={cn(cta({ variant: "outline", size: "sm" }))}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm bg-violet-600 text-white rounded-md font-semibold hover:bg-violet-500 transition-colors"
+              className={cn(cta({ size: "sm" }))}
             >
               {mode === "create" ? "Crear turno" : "Guardar cambios"}
             </button>
@@ -233,12 +232,12 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+      <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-neutral-700">
         {label}
       </label>
       {children}
       {error && (
-        <p id={errorId} className="text-xs text-red-500 mt-1">
+        <p id={errorId} className="mt-1.5 text-xs text-red-500">
           {error}
         </p>
       )}

@@ -55,12 +55,12 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="px-6 pt-6 pb-4 shrink-0">
-        <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
-        <p className="text-gray-500 text-sm">Gestión de turnos</p>
+    <div className="flex h-screen flex-col bg-white">
+      <div className="shrink-0 px-8 pt-8 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Agenda</h1>
+        <p className="mt-1 text-sm text-neutral-500">Gestión de turnos.</p>
       </div>
-      <div className="flex-1 overflow-hidden border-t border-gray-200">
+      <div className="flex-1 overflow-hidden border-t border-black/[0.06]">
         <WeekCalendar
           professionals={mockProfessionals}
           appointments={appointments}

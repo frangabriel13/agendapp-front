@@ -3,13 +3,11 @@
 import { useMemo } from "react"
 import Link from "next/link"
 import { CalendarDays, Clock, CheckCircle2, Wallet, ArrowRight } from "lucide-react"
+import { CtaLink } from "@/components/CtaLink"
+import { formatPrice } from "@/lib/format"
+import { dateToStr } from "@/lib/time"
 import { mockAppointments, mockProfessionals } from "@/features/appointments/data/mockData"
 import { STATUS_BADGE, STATUS_LABELS } from "@/features/appointments/lib/status"
-import { dateToStr } from "@/lib/time"
-
-function formatPrice(price: number): string {
-  return price.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })
-}
 
 export default function DashboardPage() {
   const data = useMemo(() => {
@@ -58,59 +56,64 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="p-8 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-6xl p-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Panel principal</h1>
-          <p className="text-gray-500 text-sm">Resumen de tu estética de hoy</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Panel principal</h1>
+          <p className="mt-1 text-sm text-neutral-500">Resumen de tu estética de hoy.</p>
         </div>
-        <Link
-          href="/agenda"
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-violet-600 text-white rounded-md font-medium hover:bg-violet-500 transition-colors"
-        >
+        <CtaLink href="/agenda" size="sm">
           Ir a la agenda
           <ArrowRight size={15} />
-        </Link>
+        </CtaLink>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-xl border border-gray-200 bg-white p-5">
-            <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center mb-3">
-              <Icon size={18} className="text-violet-600" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          <div key={label} className="rounded-2xl border border-black/[0.07] bg-white p-5">
+            <span
+              aria-hidden
+              className="mb-4 flex size-9 items-center justify-center rounded-xl border border-violet-100 bg-gradient-to-b from-violet-50 to-white"
+            >
+              <Icon size={17} className="text-violet-600" />
+            </span>
+            <p className="text-2xl font-semibold tracking-tight text-neutral-900">{value}</p>
+            <p className="mt-1 text-xs text-neutral-500">{label}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white">
-          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Turnos de hoy</h2>
-            <Link href="/agenda" className="text-xs text-violet-600 font-medium hover:underline">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="overflow-hidden rounded-2xl border border-black/[0.07] bg-white lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-4">
+            <h2 className="text-[15px] font-semibold tracking-tight text-neutral-900">Turnos de hoy</h2>
+            <Link href="/agenda" className="text-xs font-medium text-violet-600 transition-colors hover:text-violet-500">
               Ver agenda
             </Link>
           </div>
           {data.todayAppts.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-gray-400">No hay turnos para hoy</p>
+            <p className="px-5 py-12 text-center text-[13px] text-neutral-400">No hay turnos para hoy</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-black/[0.06]">
               {data.todayAppts.map((a) => (
-                <li key={a.id} className="px-5 py-3 flex items-center gap-4">
-                  <span className="text-sm font-medium text-gray-900 tabular-nums w-24">
+                <li key={a.id} className="flex items-center gap-4 px-5 py-3">
+                  <span className="w-24 text-[13px] font-medium tabular-nums text-neutral-900">
                     {a.startTime} – {a.endTime}
                   </span>
                   <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    aria-hidden
+                    className="size-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: a.professional.color }}
                   />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{a.patient.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{a.service.name} · {a.professional.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-neutral-900">{a.patient.name}</p>
+                    <p className="truncate text-xs text-neutral-500">
+                      {a.service.name} · {a.professional.name}
+                    </p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 ${STATUS_BADGE[a.status]}`}>
+                  <span
+                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${STATUS_BADGE[a.status]}`}
+                  >
                     {STATUS_LABELS[a.status]}
                   </span>
                 </li>
@@ -119,17 +122,17 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Ocupación de hoy</h2>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-black/[0.07] bg-white p-5">
+            <h2 className="mb-4 text-[15px] font-semibold tracking-tight text-neutral-900">Ocupación de hoy</h2>
             <div className="space-y-3">
               {data.byProfessional.map(({ professional, count }) => (
                 <div key={professional.id}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-600">{professional.name}</span>
-                    <span className="text-gray-400 tabular-nums">{count}</span>
+                  <div className="mb-1.5 flex items-center justify-between text-[13px]">
+                    <span className="text-neutral-600">{professional.name}</span>
+                    <span className="tabular-nums text-neutral-400">{count}</span>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -143,13 +146,13 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Servicios más pedidos</h2>
+          <div className="rounded-2xl border border-black/[0.07] bg-white p-5">
+            <h2 className="mb-4 text-[15px] font-semibold tracking-tight text-neutral-900">Servicios más pedidos</h2>
             <ul className="space-y-2.5">
               {data.topServices.map(([name, count]) => (
-                <li key={name} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 truncate">{name}</span>
-                  <span className="text-gray-400 tabular-nums shrink-0 ml-2">{count}</span>
+                <li key={name} className="flex items-center justify-between text-[13px]">
+                  <span className="truncate text-neutral-600">{name}</span>
+                  <span className="ml-2 shrink-0 tabular-nums text-neutral-400">{count}</span>
                 </li>
               ))}
             </ul>

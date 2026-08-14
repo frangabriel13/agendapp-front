@@ -54,29 +54,25 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - `Providers` monta `QueryClientProvider` con `staleTime: 60_000` y los devtools de React Query
 - Tocá ese archivo si necesitás cambiar la config global de cache/React Query
 
-## Diseño — hay dos vocabularios conviviendo
+## Diseño — un solo vocabulario
 
-**Nuevo (landing + auth).** Es el que va para todo lo que se toque de acá en más:
-- Grises `neutral-*`, acento `violet-600`, bordes `black/[0.06]`
-- Botones `rounded-full`; el primario es **negro** (`neutral-900`), no violeta
-- Tarjetas `rounded-2xl` con sombra corta; halos violetas difusos de fondo
-- Tipografía Space Grotesk, títulos `font-semibold tracking-tight`
+Todo el front usa el mismo sistema. Si aparece un `gray-*` o un `rounded-md` en
+código nuevo, está mal copiado de algún lado:
 
-**Viejo (admin + agenda, y las 3 pantallas de error).** `gray-*`, `rounded-md`, bordes
-`gray-200`, botones violetas. Son 10 archivos.
+- Grises `neutral-*`, acento `violet-600`, bordes `black/[0.06]` (o `black/10` en controles)
+- Botones **píldora** desde `cta()`; el primario es **negro** (`neutral-900`), no violeta
+- Tarjetas `rounded-2xl`, controles `rounded-xl`, sombra corta
+- Space Grotesk, títulos `font-semibold tracking-tight`
 
-**Que el panel siga con el vocabulario viejo es una decisión, no un descuido.** Se
-migra pantalla por pantalla, cuando cada una se construya en serio: `/equipo` y
-`/configuracion` son placeholders que se escriben de cero, y `/dashboard` y `/agenda`
-corren sobre mocks que hay que rehacer cuando llegue la Fase 5. No proponer una
-migración de barrido.
+**Compartidos, usalos en vez de repetir clases:**
+- `components/CtaLink.tsx` — `CtaLink` para enlaces y `cta()` para `<button>`
+- `components/form.ts` — `controlClasses` y `control(error)` para inputs
+- `components/Glow.tsx` — halos de fondo
+- `lib/format.ts` — `formatPrice`
+- `app/(marketing)/ui/` — `Section`, `SectionHeading`, `Badge`, `Card`, `TopBackdrop`, `GradientBand`
 
-Si trabajás ahí, respetá lo que hay o migrá la pantalla entera — pero nunca mezcles
-los dos vocabularios en un mismo archivo.
-
-Primitivos del landing en `app/(marketing)/ui/`: `Section`, `SectionHeading`, `Badge`,
-`Card`, `CtaLink`, `TopBackdrop`, `GradientBand`. **Usalos en vez de repetir clases.**
-`components/Glow.tsx` es compartido entre landing y auth.
+`components/ui/` es lo que genera shadcn y sigue sus propias convenciones: ahí sí
+aparecen `rounded-md` y tokens propios. No migrarlo a mano.
 
 Los halos necesitan `relative isolate` en el ancestro, y `overflow-x-clip` (nunca
 `overflow-x-hidden`, que rompe el `sticky` del nav) en el contenedor de página.
@@ -84,7 +80,13 @@ Los halos necesitan `relative isolate` en el ancestro, y `overflow-x-clip` (nunc
 ## Tests
 - Vitest, sin jsdom: los tests corren en Node contra un server real de `node:http`
 - `lib/api.test.ts` — timeouts, refresh, sesión caída, 401 concurrentes
-- `features/appointments/lib/week.test.ts` — cálculo de semana y layout de turnos superpuestos
+- `lib/api.crosstab.test.ts` — la carrera entre pestañas, con dos instancias del módulo
+- `lib/errors.test.ts` — formateo de `ApiError`
+- `features/appointments/lib/week.test.ts` — semana y layout de turnos superpuestos
+- `features/employees/lib/schedule.test.ts` — tramos de trabajo y solapamientos
+- `features/employees/lib/timeOff.test.ts` — ausencias: hora de pared vs instante
+- `features/branches/lib/businessHours.test.ts` — semana comercial y el `null` que rompe
+- `features/branches/lib/specialDays.test.ts` — feriados y la trampa UTC
 - Convención: al arreglar un bug, mutá el arreglo y confirmá que el test falla.
   Un test que no falla al romper el código no está probando nada.
 
@@ -126,7 +128,12 @@ del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
 
 **Tres cosas que rompen si no se saben** (el detalle está en `docs/api-contract.md`):
 1. El login devuelve **solo tokens**; los datos del usuario salen de `GET /auth/me`, que responde `{ user, tenant, employee }`
-2. El refresh token **rota en cada uso** y reusar uno viejo revoca la sesión entera. Nunca refrescar por fuera de `lib/api.ts`
+2. El refresh token **rota en cada uso** y reusar uno viejo revoca la sesión entera.
+   Nunca refrescar por fuera de `lib/api.ts`, que lo serializa en dos niveles:
+   `refreshInFlight` agrupa los pedidos de una misma pestaña, y un **Web Lock**
+   (`navigator.locks`) coordina entre pestañas distintas. Al entrar al lock se
+   vuelve a leer el token guardado: si otra pestaña ya refrescó, se usa el suyo.
+   **Sin ese re-chequeo el lock no sirve de nada.** Ver `lib/api.crosstab.test.ts`
 3. El backend corre con `forbidNonWhitelisted`: **un campo de más en el body devuelve 400**. Mandar solo lo que se edita
 
 No reemplazar el mock de la agenda hasta que exista la Fase 5.
@@ -157,17 +164,14 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 
 ## Deuda conocida
 Relevada y no atendida todavía:
-- **Carrera de refresh entre pestañas**: dos pestañas pueden refrescar con el mismo
-  token y el backend revoca la familia entera. Es el bug más real que queda
-- `app/not-found.tsx`, `app/error.tsx` y `app/(admin)/error.tsx` siguen con el estilo
-  viejo. Son las únicas del grupo viejo que ve alguien sin sesión, y no van a
-  cambiar por otro motivo, así que son las primeras candidatas a migrar
 - 84 botones vacíos en la grilla de `WeekCalendar` (12 franjas × 7 días): tienen
   `aria-label`, pero son 84 paradas de tabulación
 - `dashboard/page.tsx` podría ser Server Component (~3 KB menos y arregla un
   desajuste de hidratación latente)
-- `formatPrice` repetido en 3 lugares
 - `next.config.ts` vacío; `tsconfig` sin `noUncheckedIndexedAccess`
+- `/registro` y `/olvide-contrasena` siguen siendo carteles de "próximamente"
+- `/dashboard` y `/agenda` corren sobre `mockData`: el backend no tiene turnos todavía
+- `formatPrice` tiene la moneda fija en ARS; debería salir de `tenant.currency`
 
 ## Alta de empleados — el flujo completo
 1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
@@ -225,5 +229,5 @@ Acordado con Franco, en orden:
 3. ~~Sucursales y horarios del empleado~~ ✅ hecho
 4. ~~Ausencias (`/employees/:id/time-off`)~~ ✅ hecho — `/equipo` quedó completo
 5. ~~`/configuracion` y el ABM de sucursales~~ ✅ hecho — **22 de 23 endpoints cableados** (falta solo `/health`, que no hace falta)
-6. La carrera de refresh entre pestañas — el único bug que queda
-7. Migrar el panel al vocabulario nuevo, pantalla por pantalla
+6. ~~La carrera de refresh entre pestañas~~ ✅ hecho
+7. ~~Migrar el panel al vocabulario nuevo~~ ✅ hecho

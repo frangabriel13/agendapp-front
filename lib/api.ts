@@ -130,9 +130,16 @@ async function send(
  * El backend rota el refresh token en cada uso y trata la reutilización de uno
  * viejo como robo de credenciales: revoca la sesión entera. Si dos requests se
  * topan con un 401 a la vez y cada una refresca por su cuenta, la segunda
- * desloguea al usuario. Por eso hay un único refresh en vuelo y el resto espera
- * ese mismo resultado.
+ * desloguea al usuario.
+ *
+ * Esto lo evita en dos niveles:
+ *
+ * 1. `refreshInFlight` agrupa los pedidos de **esta** pestaña en una sola llamada
+ * 2. `REFRESH_LOCK` serializa las **distintas pestañas**, que no comparten memoria
+ *    pero sí el `localStorage` donde vive el refresh token
  */
+const REFRESH_LOCK = "reservapp-auth-refresh"
+
 let refreshInFlight: Promise<string> | null = null
 
 async function runRefresh(): Promise<string> {
@@ -145,8 +152,32 @@ async function runRefresh(): Promise<string> {
   return tokens.accessToken
 }
 
-function refreshAccessToken(): Promise<string> {
-  refreshInFlight ??= runRefresh().finally(() => {
+/**
+ * Toma el lock entre pestañas y recién ahí decide si hace falta refrescar.
+ *
+ * **El chequeo de adentro es lo que evita el segundo refresh**, no el lock solo:
+ * mientras esta pestaña esperaba su turno, la otra pudo haber rotado el token y
+ * dejado uno nuevo en `localStorage`. Si el guardado ya no es el que falló, se
+ * usa ese; refrescar de nuevo presentaría un refresh token quemado y el backend
+ * revocaría la familia entera.
+ *
+ * `navigator.locks` no existe fuera de un contexto seguro —servir el front por
+ * http en una IP de la red local, por ejemplo—, así que ahí se sigue sin lock:
+ * queda la protección por pestaña, que es lo que había antes.
+ */
+async function refreshWithLock(staleToken: string | null): Promise<string> {
+  const claim = async (): Promise<string> => {
+    const current = getAccessToken()
+    if (current !== null && current !== staleToken) return current
+    return runRefresh()
+  }
+
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined
+  return locks ? locks.request(REFRESH_LOCK, claim) : claim()
+}
+
+function refreshAccessToken(staleToken: string | null): Promise<string> {
+  refreshInFlight ??= refreshWithLock(staleToken).finally(() => {
     refreshInFlight = null
   })
   return refreshInFlight
@@ -169,7 +200,7 @@ export async function apiFetch<T>(
     // vuelo. Los que llegan justo después arrancarían uno nuevo, cuando ya hay
     // token fresco: si el guardado no es el que falló, alcanza con reintentar.
     const stored = getAccessToken()
-    accessToken = stored && stored !== tokenUsed ? stored : await refreshAccessToken()
+    accessToken = stored && stored !== tokenUsed ? stored : await refreshAccessToken(tokenUsed)
   } catch {
     clearTokens()
     throw new ApiError(401, ["Tu sesión expiró. Ingresá de nuevo."])

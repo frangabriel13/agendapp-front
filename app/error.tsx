@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect } from "react"
-import Link from "next/link"
 import { AlertTriangle, RotateCw } from "lucide-react"
+import { CtaLink, cta } from "@/components/CtaLink"
+import { cn } from "@/lib/utils"
 
 export default function Error({
   error,
@@ -16,42 +17,39 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white border border-gray-200 rounded-2xl p-8 text-center">
-        <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle size={22} />
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-white px-4 text-neutral-900 antialiased">
+      <div className="w-full max-w-md rounded-2xl border border-black/[0.08] bg-white p-8 text-center shadow-[0_2px_4px_rgba(0,0,0,0.04)]">
+        <span
+          aria-hidden
+          className="mx-auto mb-5 flex size-12 items-center justify-center rounded-full bg-red-50 text-red-500"
+        >
+          <AlertTriangle size={20} />
+        </span>
 
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Algo salió mal</h1>
-        <p className="text-sm text-gray-500 mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-neutral-900">Algo salió mal</h1>
+        <p className="mt-2 text-[13px] leading-relaxed text-neutral-500">
           No pudimos cargar esta página. Podés reintentar o volver al inicio.
         </p>
 
         {/* En producción Next reemplaza el mensaje por uno genérico y deja el digest. */}
         {process.env.NODE_ENV === "development" && (
-          <p className="text-xs text-left text-red-600 bg-red-50 border border-red-100 rounded-md p-3 mb-6 font-mono break-words">
+          <p className="mt-6 rounded-xl border border-red-100 bg-red-50 p-3 text-left font-mono text-xs break-words text-red-600">
             {error.message}
           </p>
         )}
 
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={reset}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-violet-600 text-white rounded-md font-semibold hover:bg-violet-500 transition-colors cursor-pointer"
-          >
+        <div className="mt-7 flex justify-center gap-2">
+          <button onClick={reset} className={cn(cta({ size: "sm" }))}>
             <RotateCw size={15} />
             Reintentar
           </button>
-          <Link
-            href="/"
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-          >
+          <CtaLink href="/" variant="outline" size="sm">
             Ir al inicio
-          </Link>
+          </CtaLink>
         </div>
 
         {error.digest && (
-          <p className="text-xs text-gray-400 mt-6">
+          <p className="mt-6 text-xs text-neutral-400">
             Código de error: <span className="font-mono">{error.digest}</span>
           </p>
         )}
