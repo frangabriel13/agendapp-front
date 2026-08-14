@@ -18,7 +18,7 @@ export default function AdminError({
   }, [error])
 
   return (
-    <div className="p-8">
+    <div className="p-5 sm:p-8">
       <div className="max-w-lg rounded-2xl border border-black/[0.07] bg-white p-6">
         <div className="flex items-start gap-3">
           <span

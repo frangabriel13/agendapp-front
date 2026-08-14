@@ -40,7 +40,7 @@ export default function SucursalesPage() {
   const remove = useRemoveBranch()
 
   return (
-    <div className="p-8">
+    <div className="p-5 sm:p-8">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Sucursales</h1>
@@ -171,7 +171,7 @@ function BranchRow({ branch, canManage, onEdit, onSpecialDays, onRemove }: RowPr
       </div>
 
       {!branch.isActive && (
-        <span className="hidden rounded-full border border-black/[0.07] bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500 sm:block">
+        <span className="shrink-0 rounded-full border border-black/[0.07] bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
           Inactiva
         </span>
       )}

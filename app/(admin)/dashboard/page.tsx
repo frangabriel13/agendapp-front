@@ -56,7 +56,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="max-w-6xl p-8">
+    <div className="max-w-6xl p-5 sm:p-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Panel principal</h1>
