@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Building2, Calendar, LayoutDashboard, Settings, Users, LogOut } from "lucide-react"
 import { hasStoredToken } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { useHasToken, useLogout, useSession } from "@/features/auth/hooks/useAuth"
 import type { EmployeeRole } from "@/types"
 
@@ -53,33 +54,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!hasToken) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-sm text-gray-400">Cargando…</p>
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <p className="text-sm text-neutral-400">Cargando…</p>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 border-r border-gray-200 bg-white flex flex-col py-6 px-3 shrink-0">
-        <div className="px-3 mb-8 flex items-center gap-2">
+    <div className="flex min-h-screen bg-neutral-50 text-neutral-900 antialiased">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-black/[0.06] bg-white px-3 py-6">
+        <div className="mb-8 px-3">
           {/* El archivo es 1024×312: declararlo cuadrado reserva un hueco que la
               imagen no ocupa y salta el layout al cargar. */}
           <Image src="/loguito.png" alt="reservApp" width={1024} height={312} priority className="h-7 w-auto" />
         </div>
 
-        <nav className="flex flex-col gap-1 flex-1">
+        <nav className="flex flex-1 flex-col gap-0.5">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/")
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
                   active
-                    ? "bg-violet-50 text-violet-700 font-medium"
-                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                }`}
+                    ? "bg-violet-50 font-medium text-violet-700"
+                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900",
+                )}
               >
                 <Icon size={16} className={active ? "text-violet-600" : ""} />
                 {label}
@@ -88,24 +91,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="border-t border-gray-200 pt-3 mt-3">
+        <div className="mt-3 border-t border-black/[0.06] pt-3">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
+            <span
+              aria-hidden
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-semibold text-violet-700"
+            >
               {fullName ? initials(fullName) : "—"}
-            </div>
+            </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {fullName ?? "Mi cuenta"}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {session ? ROLE_LABELS[session.employee.role] : "Cargando..."}
+              <p className="truncate text-[13px] font-medium text-neutral-900">{fullName ?? "Mi cuenta"}</p>
+              <p className="truncate text-xs text-neutral-400">
+                {session ? ROLE_LABELS[session.employee.role] : "Cargando…"}
               </p>
             </div>
           </div>
 
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
           >
             <LogOut size={16} />
             Cerrar sesión
@@ -113,9 +117,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+      <main className="flex-1 overflow-auto">{children}</main>
     </div>
   )
 }
