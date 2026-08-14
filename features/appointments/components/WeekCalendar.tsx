@@ -5,56 +5,12 @@ import { ChevronLeft, ChevronRight, Plus, CalendarOff } from "lucide-react"
 import type { Appointment, AppointmentStatus, Professional } from "@/types"
 import { STATUS_BLOCK, STATUS_BADGE, STATUS_LABELS, STATUS_ORDER } from "../lib/status"
 import { timeToMinutes, dateToStr } from "../lib/time"
+import { getWeekDates, layoutDay } from "../lib/week"
 
 const HOUR_START = 8
 const HOUR_END = 20
 const SLOT_HEIGHT = 60
 const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-
-function getWeekDates(referenceDate: Date): Date[] {
-  const day = referenceDate.getDay()
-  const monday = new Date(referenceDate)
-  monday.setDate(referenceDate.getDate() - (day === 0 ? 6 : day - 1))
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
-}
-
-// Ubica los turnos que se superponen en columnas paralelas dentro del día
-function layoutDay(appts: Appointment[]): Map<string, { lane: number; lanes: number }> {
-  const sorted = [...appts].sort(
-    (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime) || timeToMinutes(a.endTime) - timeToMinutes(b.endTime)
-  )
-  const result = new Map<string, { lane: number; lanes: number }>()
-  let cluster: Appointment[] = []
-  let clusterEnd = -1
-
-  const flush = () => {
-    const laneEnds: number[] = []
-    const laneOf = new Map<string, number>()
-    for (const ap of cluster) {
-      const s = timeToMinutes(ap.startTime)
-      let placed = laneEnds.findIndex((end) => end <= s)
-      if (placed === -1) { laneEnds.push(timeToMinutes(ap.endTime)); placed = laneEnds.length - 1 }
-      else laneEnds[placed] = timeToMinutes(ap.endTime)
-      laneOf.set(ap.id, placed)
-    }
-    for (const ap of cluster) result.set(ap.id, { lane: laneOf.get(ap.id)!, lanes: laneEnds.length })
-    cluster = []
-    clusterEnd = -1
-  }
-
-  for (const ap of sorted) {
-    const s = timeToMinutes(ap.startTime)
-    if (cluster.length && s >= clusterEnd) flush()
-    cluster.push(ap)
-    clusterEnd = Math.max(clusterEnd, timeToMinutes(ap.endTime))
-  }
-  if (cluster.length) flush()
-  return result
-}
 
 interface Props {
   professionals: Professional[]
