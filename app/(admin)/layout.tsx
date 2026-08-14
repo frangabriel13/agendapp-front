@@ -62,7 +62,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen bg-gray-50">
       <aside className="w-56 border-r border-gray-200 bg-white flex flex-col py-6 px-3 shrink-0">
         <div className="px-3 mb-8 flex items-center gap-2">
-          <Image src="/loguito.png" alt="reservApp" width={100} height={100} className="rounded-lg" />
+          {/* El archivo es 1024×312: declararlo cuadrado reserva un hueco que la
+              imagen no ocupa y salta el layout al cargar. */}
+          <Image src="/loguito.png" alt="reservApp" width={1024} height={312} priority className="h-7 w-auto" />
         </div>
 
         <nav className="flex flex-col gap-1 flex-1">

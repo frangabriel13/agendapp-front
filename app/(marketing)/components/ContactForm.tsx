@@ -3,6 +3,7 @@
 import { useId, useState } from "react"
 import { CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { cta } from "@/components/CtaLink"
 
 type Values = { name: string; email: string; message: string }
 type Errors = Partial<Record<keyof Values, string>>
@@ -101,7 +102,7 @@ export function ContactForm() {
       <button
         type="submit"
         disabled={sending}
-        className="w-full rounded-full bg-neutral-900 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+        className={cta({ block: true })}
       >
         {sending ? "Enviando..." : "Enviar mensaje"}
       </button>

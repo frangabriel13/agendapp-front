@@ -24,7 +24,9 @@ export function AuthCard({ back, children }: Props) {
         {back.label}
       </Link>
 
-      <div className="rounded-2xl border border-black/[0.06] bg-white/90 p-8 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_24px_50px_-28px_rgba(80,40,160,0.35)] backdrop-blur">
+      {/* Blanco opaco, no `bg-white/90`: translúcida deja pasar el halo de atrás
+          y la tarjeta pierde el contraste que la separa del fondo. */}
+      <div className="rounded-2xl border border-black/[0.08] bg-white p-8 shadow-[0_2px_4px_rgba(0,0,0,0.04),0_24px_48px_-20px_rgba(80,40,160,0.28)]">
         <Link href="/" aria-label="reservApp — ir al inicio">
           {/* El archivo es 1024×312: declararlo cuadrado reservaba un hueco que la
               imagen no ocupa y saltaba el layout al cargar. */}

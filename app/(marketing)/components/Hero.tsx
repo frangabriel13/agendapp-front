@@ -1,5 +1,5 @@
 import { Badge } from "../ui/Badge"
-import { CtaLink } from "../ui/CtaLink"
+import { CtaLink } from "@/components/CtaLink"
 import { AgendaPreview } from "./AgendaPreview"
 
 /** El halo del fondo lo pone `TopBackdrop` desde la página: ver el porqué ahí. */
