@@ -60,9 +60,17 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - Tarjetas `rounded-2xl` con sombra corta; halos violetas difusos de fondo
 - Tipografía Space Grotesk, títulos `font-semibold tracking-tight`
 
-**Viejo (admin + agenda).** Todavía sin migrar: `gray-*`, `rounded-md`, bordes `gray-200`,
-botones violetas. Si trabajás ahí, respetá lo que hay o migrá la pantalla entera —
-no mezcles los dos en un mismo archivo.
+**Viejo (admin + agenda, y las 3 pantallas de error).** `gray-*`, `rounded-md`, bordes
+`gray-200`, botones violetas. Son 10 archivos.
+
+**Que el panel siga con el vocabulario viejo es una decisión, no un descuido.** Se
+migra pantalla por pantalla, cuando cada una se construya en serio: `/equipo` y
+`/configuracion` son placeholders que se escriben de cero, y `/dashboard` y `/agenda`
+corren sobre mocks que hay que rehacer cuando llegue la Fase 5. No proponer una
+migración de barrido.
+
+Si trabajás ahí, respetá lo que hay o migrá la pantalla entera — pero nunca mezcles
+los dos vocabularios en un mismo archivo.
 
 Primitivos del landing en `app/(marketing)/ui/`: `Section`, `SectionHeading`, `Badge`,
 `Card`, `CtaLink`, `TopBackdrop`, `GradientBand`. **Usalos en vez de repetir clases.**
@@ -149,8 +157,9 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 Relevada y no atendida todavía:
 - **Carrera de refresh entre pestañas**: dos pestañas pueden refrescar con el mismo
   token y el backend revoca la familia entera. Es el bug más real que queda
-- `app/not-found.tsx`, `app/error.tsx` y `app/(admin)/error.tsx` siguen con el
-  estilo viejo. El 404 además viaja en el payload de todas las rutas
+- `app/not-found.tsx`, `app/error.tsx` y `app/(admin)/error.tsx` siguen con el estilo
+  viejo. Son las únicas del grupo viejo que ve alguien sin sesión, y no van a
+  cambiar por otro motivo, así que son las primeras candidatas a migrar
 - 84 botones vacíos en la grilla de `WeekCalendar` (12 franjas × 7 días): tienen
   `aria-label`, pero son 84 paradas de tabulación
 - `dashboard/page.tsx` podría ser Server Component (~3 KB menos y arregla un

@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { cta } from "@/components/CtaLink"
 import { ApiError } from "@/lib/api"
 import { useLogin } from "../hooks/useAuth"
 import { validateEmail, validatePassword } from "../utils/validators"
@@ -122,7 +123,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={login.isPending}
-        className="w-full rounded-full bg-neutral-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+        className={cta({ block: true })}
       >
         {login.isPending ? "Ingresando..." : "Ingresar"}
       </button>

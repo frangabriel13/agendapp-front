@@ -2,10 +2,18 @@ import Link from "next/link"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
-const cta = cva(
+/**
+ * Estilos de los botones de acción, compartidos por landing y auth.
+ *
+ * El `cva` se exporta aparte del componente porque no todo botón es un enlace:
+ * el submit de un formulario tiene que ser un `<button>`. Sin esto, cada
+ * formulario recopia las clases a mano y el primario deja de ser uno solo.
+ */
+export const cta = cva(
   cn(
     "inline-flex items-center justify-center gap-2 rounded-full font-medium",
     "transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600",
+    "disabled:opacity-50",
   ),
   {
     variants: {
@@ -34,7 +42,7 @@ type Props = VariantProps<typeof cta> & {
 }
 
 /**
- * Botón-enlace del landing.
+ * Botón-enlace.
  *
  * Las anclas de la misma página van con `<a>`: `Link` está para navegar entre
  * rutas y en un `#hash` no aporta nada.

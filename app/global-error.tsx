@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect } from "react"
+import { cn } from "@/lib/utils"
+import { cta } from "@/components/CtaLink"
 // `global-error` reemplaza al layout raíz entero, así que el CSS que este importa
 // no llega hasta acá: hay que traerlo de nuevo o la pantalla sale sin estilos.
 import "./globals.css"
@@ -43,7 +45,7 @@ export default function GlobalError({
 
           <button
             onClick={reset}
-            className="mt-7 w-full rounded-full bg-neutral-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700"
+            className={cn(cta({ block: true }), "mt-7")}
           >
             Reintentar
           </button>
