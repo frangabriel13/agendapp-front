@@ -46,6 +46,48 @@ export type BusinessHour = Schema["BusinessHourResponseDto"]
  */
 export type BusinessHourInput = Schema["BusinessHourDto"]
 
+/** Empleado tal como lo devuelve GET /employees. */
+export type Employee = Schema["EmployeeResponseDto"]
+
+/** El detalle de GET /employees/:id agrega las sucursales asignadas. */
+export type EmployeeDetail = Schema["EmployeeDetailResponseDto"]
+
+export type EmployeeStatus = Employee["status"]
+
+/**
+ * Roles que se pueden asignar. `OWNER` queda afuera a propósito: es de quien
+ * creó el negocio y el backend no deja moverlo.
+ */
+export type AssignableRole = Schema["UpdateEmployeeDto"]["role"] & string
+
+/**
+ * El spec declara `phone`, `hiredAt`, `bio` y `avatarUrl` sin tipo, así que
+ * openapi-typescript los genera como `Record<string, never>` — un objeto vacío,
+ * inservible para mandar un string. Se reemplazan por lo que el backend acepta
+ * de verdad; el resto sigue derivando, así un cambio del spec rompe el `tsc`.
+ *
+ * Si algún día el spec los tipa bien, este `Omit` se puede borrar y no se pierde
+ * nada.
+ */
+type Untyped = "phone" | "hiredAt" | "bio" | "avatarUrl"
+
+export type InviteEmployeePayload = Omit<Schema["InviteEmployeeDto"], Untyped> & {
+  phone?: string
+  hiredAt?: string
+  bio?: string
+}
+
+export type UpdateEmployeePayload = Omit<Schema["UpdateEmployeeDto"], Untyped> & {
+  hiredAt?: string | null
+  bio?: string | null
+}
+
+/**
+ * Respuesta de la invitación. `activationUrl` **se muestra una sola vez**: el
+ * backend no lo vuelve a dar, hay que reenviar la invitación para obtener otro.
+ */
+export type EmployeeInvitation = Schema["EmployeeInvitationResponseDto"]
+
 // ---------------------------------------------------------------------------
 // Lo de acá abajo todavía no tiene backend (Fases 3 a 5). Son los tipos que
 // sostienen el mock de la agenda; van a cambiar cuando existan los endpoints.
