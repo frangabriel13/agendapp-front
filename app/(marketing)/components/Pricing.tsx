@@ -28,7 +28,7 @@ const plans: Plan[] = [
   },
   {
     name: "Pro",
-    description: "El más elegido",
+    description: "Para equipos que crecen",
     price: "$45.000",
     period: "ARS / mes",
     discount: { from: "$65.000", off: "30% OFF" },

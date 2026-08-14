@@ -9,16 +9,18 @@ import { Glow } from "@/components/Glow"
  * Anclado al tope de la página, el degradado pasa por detrás del nav —que es una
  * píldora traslúcida, no una barra opaca— y se lee continuo.
  *
- * Los halos laterales son más intensos que el central para dejar el título sobre
- * fondo claro y que el color quede en las esquinas.
+ * El color vive en las esquinas de arriba y el centro queda blanco: el título es
+ * lo que tiene que resaltar, y sobre un fondo teñido parejo pierde contraste.
  */
 export function TopBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0">
-      <Glow className="left-1/2 top-[-18rem] h-[32rem] w-[70rem] -translate-x-1/2 bg-violet-400/20" />
-      <Glow className="left-[-10rem] top-[-14rem] h-[30rem] w-[34rem] bg-violet-500/30" />
-      <Glow className="right-[-10rem] top-[-14rem] h-[30rem] w-[34rem] bg-violet-500/25" />
-      <Glow className="left-1/2 top-[-6rem] h-[24rem] w-[28rem] -translate-x-1/2 bg-fuchsia-400/15" />
+      {/* Tiñe el borde superior y se apaga detrás del nav. */}
+      <Glow className="left-1/2 top-[-32rem] h-[34rem] w-[64rem] -translate-x-1/2 bg-violet-400/20" />
+      {/* Más chicos en mobile: a ancho completo los dos se solapan en el medio y
+          vuelven a teñir el título, que es justo lo que se busca evitar. */}
+      <Glow className="left-[-18rem] top-[-20rem] h-[26rem] w-[26rem] bg-violet-500/35 lg:h-[34rem] lg:w-[34rem]" />
+      <Glow className="right-[-18rem] top-[-20rem] h-[26rem] w-[26rem] bg-fuchsia-400/25 lg:h-[34rem] lg:w-[34rem]" />
     </div>
   )
 }
