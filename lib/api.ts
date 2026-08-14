@@ -102,12 +102,17 @@ async function parse<T>(res: Response): Promise<T> {
 /** Sin esto, un backend colgado deja la promesa sin resolver y el spinner girando para siempre. */
 const REQUEST_TIMEOUT_MS = 15_000
 
-async function send(path: string, init: RequestInit, token: string | null): Promise<Response> {
+async function send(
+  path: string,
+  init: RequestInit,
+  token: string | null,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<Response> {
   const headers = new Headers(init.headers)
   if (init.body !== undefined) headers.set("Content-Type", "application/json")
   if (token) headers.set("Authorization", `Bearer ${token}`)
 
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  const timeout = AbortSignal.timeout(timeoutMs)
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout
 
   try {
@@ -150,11 +155,11 @@ function refreshAccessToken(): Promise<string> {
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
-  options: { auth?: boolean } = {},
+  options: { auth?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
   const auth = options.auth ?? true
   const tokenUsed = auth ? getAccessToken() : null
-  const res = await send(path, init, tokenUsed)
+  const res = await send(path, init, tokenUsed, options.timeoutMs)
 
   if (res.status !== 401 || !auth) return parse<T>(res)
 
@@ -173,7 +178,7 @@ export async function apiFetch<T>(
   // Un 401 con un token recién emitido significa que la sesión ya no vale
   // (revocada desde otra pestaña, empleado desactivado). Sin limpiar acá,
   // hasStoredToken() sigue en true y la app queda creyendo que hay sesión.
-  const retry = await send(path, init, accessToken)
+  const retry = await send(path, init, accessToken, options.timeoutMs)
   if (retry.status === 401) {
     clearTokens()
     throw new ApiError(401, ["Tu sesión expiró. Ingresá de nuevo."])
