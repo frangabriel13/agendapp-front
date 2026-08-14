@@ -1,3 +1,7 @@
+import { cardSurface } from "../ui/Card"
+import { Section } from "../ui/Section"
+import { SectionHeading } from "../ui/SectionHeading"
+
 const steps = [
   { number: "01", title: "Cargás tu equipo", description: "Agregás tus profesionales, servicios y equipos disponibles." },
   { number: "02", title: "Abrís la agenda", description: "Tus turnos se organizan solos en el calendario visual." },
@@ -6,20 +10,30 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="px-6 py-20 bg-gray-50 border-y border-gray-200 scroll-mt-20">
-      <div className="max-w-4xl mx-auto text-center mb-14">
-        <h2 className="text-3xl font-bold mb-3 text-gray-900">Cómo funciona</h2>
-        <p className="text-gray-500">Tres pasos y tu agenda está funcionando.</p>
-      </div>
-      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+    <Section id="how" muted>
+      <SectionHeading
+        badge="Cómo funciona"
+        title={
+          <>
+            Tres pasos y tu agenda
+            <br className="hidden sm:inline" /> está funcionando
+          </>
+        }
+        subtitle="Sin migraciones eternas ni capacitaciones de una semana."
+        className="mb-14"
+      />
+
+      <ol className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {steps.map(({ number, title, description }) => (
-          <div key={number} className="text-center">
-            <p className="text-6xl font-bold text-violet-200 mb-4">{number}</p>
-            <h3 className="font-semibold mb-2 text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
-          </div>
+          <li key={number} className={`${cardSurface} p-6`}>
+            <span className="inline-flex size-9 items-center justify-center rounded-full bg-violet-600 text-[13px] font-semibold text-white">
+              {number}
+            </span>
+            <h3 className="mt-5 font-semibold tracking-tight text-neutral-900">{title}</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-neutral-500">{description}</p>
+          </li>
         ))}
-      </div>
-    </section>
+      </ol>
+    </Section>
   )
 }

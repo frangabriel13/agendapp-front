@@ -1,146 +1,196 @@
-import Link from "next/link"
-import { CheckCircle } from "lucide-react"
+import { Check } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { cardSurface } from "../ui/Card"
+import { CtaLink } from "../ui/CtaLink"
+import { Glow } from "../ui/Glow"
+import { Section } from "../ui/Section"
+import { SectionHeading } from "../ui/SectionHeading"
 
-const plans = [
+type Tone = "default" | "highlight" | "dark"
+
+interface Plan {
+  name: string
+  description: string
+  price: string
+  priceNote: string
+  /** Precio tachado y descuento van juntos: o están los dos o no está ninguno. */
+  discount?: { from: string; off: string }
+  features: string[]
+  cta: { label: string; href: string }
+  tone: Tone
+  tag?: string
+}
+
+const plans: Plan[] = [
   {
     name: "Básico",
-    price: "$25.000",
-    originalPrice: "$35.000",
-    discount: "28% OFF",
     description: "Para empezar",
-    highlight: false,
+    price: "$25.000",
+    priceNote: "ARS / mes",
+    discount: { from: "$35.000", off: "28% OFF" },
     features: ["1 profesional", "1 sucursal", "Agenda ilimitada", "Ficha clínica digital", "Soporte incluido"],
+    cta: { label: "Empezar gratis", href: "/login" },
+    tone: "default",
   },
   {
     name: "Pro",
-    price: "$45.000",
-    originalPrice: "$65.000",
-    discount: "30% OFF",
     description: "El más elegido",
-    highlight: true,
-    features: ["Hasta 3 profesionales", "1 sucursal", "Agenda ilimitada", "Control de equipos", "Ficha clínica digital", "Soporte incluido"],
+    price: "$45.000",
+    priceNote: "ARS / mes",
+    discount: { from: "$65.000", off: "30% OFF" },
+    features: [
+      "Hasta 3 profesionales",
+      "1 sucursal",
+      "Agenda ilimitada",
+      "Control de equipos",
+      "Ficha clínica digital",
+      "Soporte incluido",
+    ],
+    cta: { label: "Empezar gratis", href: "/login" },
+    tone: "highlight",
+    tag: "Más popular",
   },
   {
     name: "Avanzado",
-    price: "$80.000",
-    originalPrice: "$110.000",
-    discount: "27% OFF",
     description: "Para clínicas en crecimiento",
-    highlight: false,
-    features: ["Hasta 6 profesionales", "Hasta 2 sucursales", "Agenda ilimitada", "Control de equipos", "Ficha clínica digital", "Soporte prioritario"],
+    price: "$80.000",
+    priceNote: "ARS / mes",
+    discount: { from: "$110.000", off: "27% OFF" },
+    features: [
+      "Hasta 6 profesionales",
+      "Hasta 2 sucursales",
+      "Agenda ilimitada",
+      "Control de equipos",
+      "Ficha clínica digital",
+      "Soporte prioritario",
+    ],
+    cta: { label: "Empezar gratis", href: "/login" },
+    tone: "default",
   },
-]
-
-const businessFeatures = [
-  "Profesionales ilimitados",
-  "Sucursales ilimitadas",
-  "Configuración personalizada",
-  "Soporte dedicado",
-  "Capacitación incluida",
+  {
+    name: "Business",
+    description: "Para grandes equipos",
+    price: "A consultar",
+    priceNote: "precio según el negocio",
+    features: [
+      "Profesionales ilimitados",
+      "Sucursales ilimitadas",
+      "Configuración personalizada",
+      "Soporte dedicado",
+      "Capacitación incluida",
+    ],
+    cta: { label: "Hablar con el equipo", href: "#contacto" },
+    tone: "dark",
+    tag: "A medida",
+  },
 ]
 
 export function Pricing() {
   return (
-    <section id="pricing" className="px-6 py-20 max-w-5xl mx-auto text-center scroll-mt-20">
-      <span className="inline-block text-xs font-medium px-3 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-600 mb-6">
-        Precio de lanzamiento
-      </span>
-      <h2 className="text-3xl font-bold mb-3 text-gray-900">Simple y sin sorpresas</h2>
-      <p className="text-gray-500 mb-12">Elegí el plan que se adapta a tu estética. Cancelás cuando quieras.</p>
+    <Section id="pricing">
+      <Glow className="left-1/2 top-24 h-[26rem] w-[52rem] -translate-x-1/2 bg-violet-400/15" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+      <SectionHeading
+        badge="Precio de lanzamiento"
+        title={
+          <>
+            Simple y sin sorpresas,
+            <br className="hidden sm:inline" /> para cada tamaño
+          </>
+        }
+        subtitle="Elegí el plan que se adapta a tu estética. Cancelás cuando quieras."
+        className="mb-14"
+      />
+
+      <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
-          <div
-            key={plan.name}
-            className={`relative rounded-2xl overflow-hidden flex flex-col ${
-              plan.highlight
-                ? "border border-violet-400 bg-white shadow-[0_0_40px_rgba(124,58,237,0.12)] lg:-mt-4"
-                : "border border-gray-200 bg-white shadow-sm"
-            }`}
-          >
-            {plan.highlight ? (
-              <div className="bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white tracking-wide shrink-0">
-                ✦ MÁS POPULAR
-              </div>
-            ) : (
-              <div className="py-2.5 shrink-0" />
-            )}
-            <div className="p-6 flex flex-col flex-1">
-              <p className="text-gray-500 text-sm mb-1">{plan.description}</p>
-              <p className="text-2xl font-bold text-gray-900 mb-1">{plan.name}</p>
-              <div className="flex items-baseline gap-2 mt-4 mb-1">
-                <span className="text-gray-400 text-lg line-through">{plan.originalPrice}</span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-pink-500 text-white">
-                  {plan.discount}
-                </span>
-              </div>
-              <p className="text-4xl font-bold text-gray-900 mb-1">{plan.price}</p>
-              <p className="text-gray-400 text-xs mb-6">ARS / mes</p>
-
-              <ul className="text-sm text-left space-y-3 mb-6 flex-1">
-                {plan.features.map((item) => (
-                  <li key={item} className="flex items-center gap-3">
-                    <CheckCircle size={15} className="text-violet-500 shrink-0" />
-                    <span className="text-gray-600">{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/login"
-                className={`block w-full py-3 rounded-md font-semibold transition-colors mt-auto ${
-                  plan.highlight
-                    ? "bg-violet-600 text-white hover:bg-violet-500"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Empezar gratis
-              </Link>
-            </div>
-          </div>
+          <PlanCard key={plan.name} plan={plan} />
         ))}
-
-        <div className="relative rounded-2xl overflow-hidden flex flex-col bg-gradient-to-b from-violet-600 to-violet-800 shadow-sm">
-          <div className="bg-white/10 px-6 py-2.5 text-sm font-semibold text-white tracking-wide shrink-0">
-            ✦ A MEDIDA
-          </div>
-          <div className="p-6 flex flex-col flex-1">
-            <p className="text-violet-200 text-sm mb-1">Para grandes equipos</p>
-            <p className="text-2xl font-bold text-white mb-1">Business</p>
-            <div className="mt-4 mb-1 flex items-baseline gap-2">
-              <span className="text-violet-300 text-lg line-through invisible">—</span>
-            </div>
-            <p className="text-xl font-semibold text-white mb-1">A consultar</p>
-            <p className="text-violet-300 text-xs mb-6">precio según el negocio</p>
-
-            <ul className="text-sm text-left space-y-3 mb-6 flex-1">
-              {businessFeatures.map((item) => (
-                <li key={item} className="flex items-center gap-3">
-                  <CheckCircle size={15} className="text-white shrink-0" />
-                  <span className="text-violet-100">{item}</span>
-                </li>
-              ))}
-            </ul>
-
-            <a
-              href="#contacto"
-              className="block w-full py-3 rounded-md font-semibold bg-white text-violet-700 hover:bg-violet-50 transition-colors text-center mt-auto"
-            >
-              Hablar con el equipo
-            </a>
-          </div>
-        </div>
       </div>
 
-      <div className="mt-8 inline-flex items-center gap-3 px-5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500">
-        <span className="text-lg">💬</span>
-        <span>
-          <span className="text-gray-900 font-medium">Recordatorios por WhatsApp</span>
-          {" "}— add-on disponible en todos los planes. Se cobra por mensaje enviado.
+      <div className="mt-10 flex justify-center">
+        <p className={`${cardSurface} max-w-xl px-5 py-4 text-[13px] leading-relaxed text-neutral-500`}>
+          <span className="font-medium text-neutral-900">Recordatorios por WhatsApp</span> — add-on disponible en todos
+          los planes. Se cobra por mensaje enviado.
+        </p>
+      </div>
+
+      <p className="mt-4 text-center text-xs text-neutral-400">
+        No necesitás tarjeta de crédito para empezar
+      </p>
+    </Section>
+  )
+}
+
+function PlanCard({ plan }: { plan: Plan }) {
+  const dark = plan.tone === "dark"
+
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col rounded-2xl p-6",
+        plan.tone === "default" && cardSurface,
+        plan.tone === "highlight" &&
+          "border border-violet-300 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_24px_50px_-24px_rgba(124,58,237,0.55)] lg:-mt-4 lg:pb-10",
+        dark && "border border-white/10 bg-neutral-950",
+      )}
+    >
+      {plan.tag && (
+        <span
+          className={cn(
+            "absolute right-5 top-5 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide",
+            plan.tone === "highlight" ? "bg-violet-600 text-white" : "bg-white/10 text-white",
+          )}
+        >
+          {plan.tag}
         </span>
+      )}
+
+      <p className={cn("text-[13px]", dark ? "text-neutral-400" : "text-neutral-500")}>{plan.description}</p>
+      <p className={cn("mt-1 text-lg font-semibold tracking-tight", dark ? "text-white" : "text-neutral-900")}>
+        {plan.name}
+      </p>
+
+      {/* Reserva la línea del descuento también cuando no hay, para que los
+          precios de las cuatro tarjetas queden alineados entre sí. */}
+      <div className="mt-5 flex h-6 items-baseline gap-2">
+        {plan.discount && (
+          <>
+            <span className="text-[15px] text-neutral-400 line-through">{plan.discount.from}</span>
+            <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white">
+              {plan.discount.off}
+            </span>
+          </>
+        )}
       </div>
 
-      <p className="text-xs text-gray-400 mt-4">No necesitás tarjeta de crédito para empezar</p>
-    </section>
+      <p
+        className={cn(
+          "mt-1 font-semibold tracking-tight",
+          dark ? "text-2xl text-white" : "text-[2.25rem] leading-none text-neutral-900",
+        )}
+      >
+        {plan.price}
+      </p>
+      <p className={cn("mt-1.5 text-xs", dark ? "text-neutral-500" : "text-neutral-400")}>{plan.priceNote}</p>
+
+      <ul className="mt-6 mb-8 flex-1 space-y-3">
+        {plan.features.map((item) => (
+          <li key={item} className="flex items-start gap-2.5">
+            <Check size={15} className={cn("mt-0.5 shrink-0", dark ? "text-violet-400" : "text-violet-600")} />
+            <span className={cn("text-[13px]", dark ? "text-neutral-300" : "text-neutral-600")}>{item}</span>
+          </li>
+        ))}
+      </ul>
+
+      <CtaLink
+        href={plan.cta.href}
+        block
+        variant={plan.tone === "highlight" ? "violet" : dark ? "light" : "subtle"}
+        className="mt-auto"
+      >
+        {plan.cta.label}
+      </CtaLink>
+    </div>
   )
 }
