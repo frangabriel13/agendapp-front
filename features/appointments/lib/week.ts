@@ -1,5 +1,5 @@
 import type { Appointment } from "@/types"
-import { timeToMinutes } from "./time"
+import { timeToMinutes } from "@/lib/time"
 
 /** Lunes a domingo de la semana que contiene a `referenceDate`. */
 export function getWeekDates(referenceDate: Date): Date[] {

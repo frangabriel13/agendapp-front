@@ -35,9 +35,10 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/login` | **Integrado con el backend real** |
 | `/registro` | Placeholder ("próximamente"), deriva a `/#contacto` |
 | `/olvide-contrasena` | Placeholder, deriva a `/#contacto` |
+| `/activar` | **Real.** Cierra la invitación: token del link + contraseña. Pública |
+| `/equipo` | **Real.** Listar, invitar, rol, activar/desactivar, eliminar, sucursales y horarios |
 | `/dashboard` | Construida, sobre mock data |
 | `/agenda` | Calendario semanal, sobre mock data |
-| `/equipo` | `<ComingSoon />` — el backend ya lo soporta |
 | `/configuracion` | `<ComingSoon />` — el backend ya lo soporta |
 
 ## Grupos de rutas
@@ -167,9 +168,33 @@ Relevada y no atendida todavía:
 - `formatPrice` repetido en 3 lugares
 - `next.config.ts` vacío; `tsconfig` sin `noUncheckedIndexedAccess`
 
+## Alta de empleados — el flujo completo
+1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
+2. Ese link **se muestra una sola vez**. Para recuperarlo hay que reenviar la
+   invitación (`POST /employees/:id/invitation`), que emite otro e invalida el anterior
+3. El invitado abre `/activar?token=…`, elige contraseña y el front postea a
+   `POST /employees/activate` — el único endpoint público de `/employees`
+
+La regla de contraseña vive en `validateNewPassword`; el schema de zod de `/activar`
+la reusa con un `superRefine` en vez de reescribirla, para que no se desincronice.
+
+## Horarios de empleado — tres cosas que rompen
+1. `PUT /employees/:id/branches` y `/schedules` **reemplazan todo**: se manda cómo
+   queda, no lo que cambió. Mandar `[]` vacía
+2. **Las sucursales se guardan primero.** Un tramo apunta a una `branchId`; si esa
+   sucursal no está asignada todavía, el PUT de horarios da 400. Ver `useSaveSchedule`
+3. `EmployeeShiftResponseDto` trae `id` y `EmployeeShiftDto` no. Reenviar un tramo
+   leído sin sacarle el `id` es un 400 por `forbidNonWhitelisted`. Lo resuelve `toPayload`
+
+Horas de tramo en reloj (`"09:00"`); las ausencias, en cambio, van en ISO con zona.
+`dayOfWeek` es 0 = domingo, como `Date.getDay()` — `WEEK_DAYS` en
+`features/employees/lib/schedule.ts` lo reordena para mostrar lunes primero.
+
 ## Próximo paso
 Acordado con Franco, en orden:
 1. ~~Arreglos baratos: labels, `global-error`, logo, metadata~~ ✅ hecho
-2. **`/equipo`** con react-hook-form + zod — la funcionalidad grande que el backend ya soporta
-3. La carrera de refresh entre pestañas
-4. `/configuracion`
+2. ~~**`/equipo`** con react-hook-form + zod, más `/activar`~~ ✅ hecho
+3. ~~Sucursales y horarios del empleado~~ ✅ hecho
+4. **Ausencias** (`/employees/:id/time-off`) — lo único que falta para cerrar `/equipo`
+5. `/configuracion` y el ABM de sucursales — los 8 endpoints que quedan sin cablear
+6. La carrera de refresh entre pestañas

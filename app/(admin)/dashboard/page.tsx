@@ -5,7 +5,7 @@ import Link from "next/link"
 import { CalendarDays, Clock, CheckCircle2, Wallet, ArrowRight } from "lucide-react"
 import { mockAppointments, mockProfessionals } from "@/features/appointments/data/mockData"
 import { STATUS_BADGE, STATUS_LABELS } from "@/features/appointments/lib/status"
-import { dateToStr } from "@/features/appointments/lib/time"
+import { dateToStr } from "@/lib/time"
 
 function formatPrice(price: number): string {
   return price.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })

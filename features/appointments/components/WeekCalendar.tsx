@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Plus, CalendarOff } from "lucide-react"
 import type { Appointment, AppointmentStatus, Professional } from "@/types"
 import { STATUS_BLOCK, STATUS_BADGE, STATUS_LABELS, STATUS_ORDER } from "../lib/status"
-import { timeToMinutes, dateToStr } from "../lib/time"
+import { timeToMinutes, dateToStr } from "@/lib/time"
 import { getWeekDates, layoutDay } from "../lib/week"
 
 const HOUR_START = 8

@@ -8,14 +8,17 @@ import { canManage, useSession } from "@/features/auth/hooks/useAuth"
 import { ActivationLinkDialog } from "@/features/employees/components/ActivationLinkDialog"
 import { EmployeeRow } from "@/features/employees/components/EmployeeRow"
 import { InviteEmployeeDialog } from "@/features/employees/components/InviteEmployeeDialog"
-import { apiErrorMessage, useEmployees } from "@/features/employees/hooks/useEmployees"
-import type { EmployeeInvitation } from "@/types"
+import { ScheduleDialog } from "@/features/employees/components/ScheduleDialog"
+import { apiErrorMessage } from "@/lib/errors"
+import { useEmployees } from "@/features/employees/hooks/useEmployees"
+import type { Employee, EmployeeInvitation } from "@/types"
 
 export default function EquipoPage() {
   const { data: session } = useSession()
   const employees = useEmployees()
   const [inviting, setInviting] = useState(false)
   const [invitation, setInvitation] = useState<EmployeeInvitation | null>(null)
+  const [editingSchedule, setEditingSchedule] = useState<Employee | null>(null)
 
   const manage = canManage(session?.employee.role)
 
@@ -76,6 +79,7 @@ export default function EquipoPage() {
                 canManage={manage}
                 currentEmployeeId={session?.employee.id}
                 onInvitation={setInvitation}
+                onEditSchedule={setEditingSchedule}
               />
             ))}
           </ul>
@@ -86,6 +90,7 @@ export default function EquipoPage() {
         <InviteEmployeeDialog open={inviting} onOpenChange={setInviting} onInvited={setInvitation} />
       )}
       <ActivationLinkDialog invitation={invitation} onClose={() => setInvitation(null)} />
+      <ScheduleDialog employee={editingSchedule} onClose={() => setEditingSchedule(null)} />
     </div>
   )
 }
