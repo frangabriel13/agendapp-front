@@ -7,12 +7,18 @@ const items = [
 
 export function TrustStrip() {
   return (
-    <section className="border-y border-gray-200 bg-gray-50 px-6 py-12">
-      <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-        {items.map(({ value, label }) => (
-          <div key={label}>
-            <p className="text-3xl font-bold text-violet-600 mb-1">{value}</p>
-            <p className="text-sm text-gray-500">{label}</p>
+    <section className="px-6 py-14">
+      <p className="text-center text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-400">
+        Sin letra chica
+      </p>
+      <div className="mx-auto mt-8 grid max-w-4xl grid-cols-2 gap-y-8 md:grid-cols-4">
+        {items.map(({ value, label }, i) => (
+          <div
+            key={label}
+            className={`px-4 text-center ${i > 0 ? "md:border-l md:border-black/[0.07]" : ""}`}
+          >
+            <p className="text-2xl font-semibold tracking-tight text-neutral-900">{value}</p>
+            <p className="mt-1 text-[13px] text-neutral-500">{label}</p>
           </div>
         ))}
       </div>

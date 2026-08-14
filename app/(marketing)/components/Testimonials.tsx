@@ -1,4 +1,8 @@
 import Image from "next/image"
+import { Quote } from "lucide-react"
+import { cardSurface } from "../ui/Card"
+import { Section } from "../ui/Section"
+import { SectionHeading } from "../ui/SectionHeading"
 
 const testimonials = [
   {
@@ -26,32 +30,37 @@ const testimonials = [
 
 export function Testimonials() {
   return (
-    <section id="testimonials" className="px-6 py-20 max-w-5xl mx-auto scroll-mt-20">
-      <div className="text-center mb-14">
-        <h2 className="text-3xl font-bold mb-3 text-gray-900">Lo que dicen nuestras usuarias</h2>
-        <p className="text-gray-500">Estéticas reales, resultados reales.</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <Section id="testimonials">
+      <SectionHeading
+        badge="Testimonios"
+        title={
+          <>
+            Lo que dicen
+            <br className="hidden sm:inline" /> nuestras usuarias
+          </>
+        }
+        subtitle="Estéticas reales, resultados reales."
+        className="mb-14"
+      />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {testimonials.map(({ name, role, place, photo, quote }) => (
-          <div
-            key={name}
-            className="p-6 rounded-xl border border-gray-200 bg-white flex flex-col gap-4 hover:border-violet-300 hover:shadow-sm transition-all"
-          >
-            <p className="text-3xl text-violet-300 font-serif leading-none">&ldquo;</p>
-            <p className="text-sm text-gray-600 leading-relaxed flex-1">{quote}</p>
-            <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
-                <Image src={photo} alt={name} fill sizes="40px" className="object-cover" />
+          <figure key={name} className={`${cardSurface} flex flex-col gap-4 p-6`}>
+            <Quote aria-hidden size={20} className="shrink-0 fill-violet-100 text-violet-200" />
+            <blockquote className="flex-1 text-[13px] leading-relaxed text-neutral-600">{quote}</blockquote>
+            <figcaption className="flex items-center gap-3 border-t border-black/[0.06] pt-4">
+              <div className="relative size-10 shrink-0 overflow-hidden rounded-full">
+                <Image src={photo} alt="" fill sizes="40px" className="object-cover" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{name}</p>
-                <p className="text-xs text-gray-400">{role}</p>
-                <p className="text-xs text-violet-500">{place}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-neutral-900">{name}</p>
+                <p className="truncate text-[11px] text-neutral-400">{role}</p>
+                <p className="truncate text-[11px] text-violet-500">{place}</p>
               </div>
-            </div>
-          </div>
+            </figcaption>
+          </figure>
         ))}
       </div>
-    </section>
+    </Section>
   )
 }

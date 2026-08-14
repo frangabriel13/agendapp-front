@@ -4,8 +4,9 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
+import { CtaLink } from "../ui/CtaLink"
 
-const links = [
+const LINKS = [
   { href: "#features", label: "Funciones" },
   { href: "#how", label: "Cómo funciona" },
   { href: "#testimonials", label: "Testimonios" },
@@ -18,53 +19,58 @@ export function Nav() {
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="border-b border-gray-200 sticky top-0 bg-white/90 backdrop-blur z-20">
-      <div className="px-6 py-4 flex items-center justify-between">
-        <Link href="/">
-          <Image src="/loguito.png" alt="reservApp" width={120} height={120} className="rounded-lg" priority />
-        </Link>
-
-        <nav className="hidden md:flex items-center gap-6 text-sm text-gray-500">
-          {links.map(({ href, label }) => (
-            <a key={href} href={href} className="hover:text-gray-900 transition-colors">
-              {label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="text-sm px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:border-violet-500 hover:text-violet-600 transition-colors font-medium"
-          >
-            Ingresar
+    <header className="sticky top-0 z-30 px-4 pt-4">
+      <div className="mx-auto max-w-5xl rounded-2xl border border-black/[0.06] bg-white/80 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] backdrop-blur-md">
+        <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+          <Link href="/" className="shrink-0" aria-label="reservApp — inicio">
+            {/* El archivo es 1024×312: declararlo cuadrado reservaba un hueco que
+                la imagen no ocupa y saltaba el layout al cargar. */}
+            <Image src="/loguito.png" alt="reservApp" width={1024} height={312} priority className="h-7 w-auto" />
           </Link>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Cerrar menú" : "Abrir menú"}
-            aria-expanded={open}
-            className="md:hidden p-2 -mr-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            {open ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
-      </div>
 
-      {open && (
-        <nav className="md:hidden border-t border-gray-200 bg-white px-6 py-4 flex flex-col gap-1">
-          {links.map(({ href, label }) => (
-            <a
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className="py-2.5 text-sm text-gray-600 hover:text-violet-600 transition-colors"
+          <nav className="hidden items-center gap-1 md:flex">
+            {LINKS.map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                className="rounded-full px-3 py-1.5 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-1">
+            <CtaLink href="/login" size="sm">
+              Ingresar
+            </CtaLink>
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-label={open ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={open}
+              className="rounded-full p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 md:hidden"
             >
-              {label}
-            </a>
-          ))}
-        </nav>
-      )}
+              {open ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </div>
+
+        {open && (
+          <nav className="flex flex-col gap-0.5 border-t border-black/[0.06] px-3 py-3 md:hidden">
+            {LINKS.map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        )}
+      </div>
     </header>
   )
 }

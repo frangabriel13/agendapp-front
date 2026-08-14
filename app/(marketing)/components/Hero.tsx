@@ -1,32 +1,38 @@
-import Link from "next/link"
+import { Badge } from "../ui/Badge"
+import { CtaLink } from "../ui/CtaLink"
+import { Glow } from "../ui/Glow"
+import { AgendaPreview } from "./AgendaPreview"
 
 export function Hero() {
   return (
-    <section className="relative px-6 py-28 text-center max-w-3xl mx-auto overflow-hidden">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,_rgba(124,58,237,0.07)_0%,_transparent_70%)]" />
-      <span className="inline-block text-xs font-medium px-3 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-600 mb-6">
-        Agenda clínica · Recordatorios · Ficha clínica
-      </span>
-      <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6 text-gray-900">
-        La agenda que tu estética{" "}
-        <span className="text-violet-600">necesitaba</span>
-      </h1>
-      <p className="text-gray-500 text-lg mb-10 leading-relaxed">
-        Organizá turnos, profesionales y equipos desde un solo sistema. Sin planillas, sin WhatsApps perdidos, sin doble booking.
-      </p>
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link
-          href="/login"
-          className="px-8 py-3 bg-violet-600 text-white rounded-md font-semibold hover:bg-violet-500 transition-colors"
-        >
-          Empezar gratis
-        </Link>
-        <a
-          href="#features"
-          className="px-8 py-3 border border-gray-300 text-gray-700 rounded-md font-medium hover:border-gray-400 hover:text-gray-900 transition-colors"
-        >
-          Ver funciones
-        </a>
+    <section className="relative isolate overflow-hidden px-6 pb-16 pt-14 md:pt-20">
+      <Glow className="left-1/2 top-[-22rem] h-[34rem] w-[76rem] -translate-x-1/2 bg-violet-500/30" />
+      <Glow className="left-[8%] top-[-14rem] h-[26rem] w-[26rem] bg-fuchsia-400/20" />
+
+      <div className="mx-auto max-w-3xl text-center">
+        <Badge>Agenda · Recordatorios · Ficha clínica</Badge>
+
+        <h1 className="mt-6 text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-neutral-900 sm:text-5xl md:text-6xl">
+          La agenda que tu estética <span className="text-violet-600">necesitaba</span>
+        </h1>
+
+        <p className="mx-auto mt-6 max-w-xl text-pretty text-[15px] leading-relaxed text-neutral-500 md:text-base">
+          Organizá turnos, profesionales y equipos desde un solo sistema. Sin planillas, sin WhatsApps perdidos, sin
+          doble booking.
+        </p>
+
+        <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+          <CtaLink href="/login" size="lg">
+            Empezar gratis
+          </CtaLink>
+          <CtaLink href="#features" variant="outline" size="lg">
+            Ver funciones
+          </CtaLink>
+        </div>
+      </div>
+
+      <div className="mx-auto mt-16 max-w-5xl rounded-[1.4rem] border border-black/[0.06] bg-white/70 p-1.5 shadow-[0_32px_70px_-28px_rgba(91,33,182,0.35)] backdrop-blur">
+        <AgendaPreview />
       </div>
     </section>
   )
