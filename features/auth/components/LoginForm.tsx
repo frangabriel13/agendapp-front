@@ -67,7 +67,7 @@ export function LoginForm() {
           </label>
           <Link
             href="/olvide-contrasena"
-            className="text-[11px] text-violet-600 transition-colors hover:text-violet-500"
+            className="text-xs text-violet-600 transition-colors hover:text-violet-500"
           >
             ¿Olvidaste tu contraseña?
           </Link>

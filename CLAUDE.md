@@ -147,18 +147,20 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 
 ## Deuda conocida
 Relevada y no atendida todavía:
-- 7 `<label>` sin `htmlFor` en `AppointmentFormModal`
-- `app/global-error.tsx` no existe
-- `loguito.png` (1024×312) declarado cuadrado en `app/not-found.tsx` y
-  `app/(admin)/layout.tsx` → salto de layout
-- Falta `metadata` en `/dashboard` y `/agenda`
 - **Carrera de refresh entre pestañas**: dos pestañas pueden refrescar con el mismo
   token y el backend revoca la familia entera. Es el bug más real que queda
-- `app/not-found.tsx` sigue con el estilo viejo y viaja en el payload de todas las rutas
+- `app/not-found.tsx`, `app/error.tsx` y `app/(admin)/error.tsx` siguen con el
+  estilo viejo. El 404 además viaja en el payload de todas las rutas
+- 84 botones vacíos en la grilla de `WeekCalendar` (12 franjas × 7 días): tienen
+  `aria-label`, pero son 84 paradas de tabulación
+- `dashboard/page.tsx` podría ser Server Component (~3 KB menos y arregla un
+  desajuste de hidratación latente)
+- `formatPrice` repetido en 3 lugares
+- `next.config.ts` vacío; `tsconfig` sin `noUncheckedIndexedAccess`
 
 ## Próximo paso
 Acordado con Franco, en orden:
-1. Los cuatro arreglos baratos de arriba (labels, `global-error`, logo, metadata)
+1. ~~Arreglos baratos: labels, `global-error`, logo, metadata~~ ✅ hecho
 2. **`/equipo`** con react-hook-form + zod — la funcionalidad grande que el backend ya soporta
 3. La carrera de refresh entre pestañas
 4. `/configuracion`

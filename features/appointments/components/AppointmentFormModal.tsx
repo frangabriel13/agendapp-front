@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { X } from "lucide-react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { Appointment, Professional, Service } from "@/types"
@@ -24,6 +24,7 @@ interface Props {
 
 export function AppointmentFormModal({ mode, professionals, services, initial, onClose, onSubmit }: Props) {
   const a = initial.appointment
+  const fieldId = useId()
 
   const [form, setForm] = useState({
     patientName: a?.patient.name ?? "",
@@ -98,6 +99,40 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
       err ? "border-red-400" : "border-gray-300"
     }`
 
+  /**
+   * Ata label, control y mensaje de error por id.
+   *
+   * El id sale de `useId` y no de una constante: el modal puede montarse más de
+   * una vez en la misma página y dos `id="date"` harían que el label apunte al
+   * campo equivocado.
+   */
+  function bind(key: keyof typeof form) {
+    const id = `${fieldId}-${key}`
+    const error = errors[key]
+    return {
+      id,
+      error,
+      errorId: `${id}-error`,
+      control: {
+        id,
+        value: form[key],
+        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+          set(key, e.target.value),
+        "aria-invalid": Boolean(error),
+        "aria-describedby": error ? `${id}-error` : undefined,
+        className: inputCls(error),
+      },
+    }
+  }
+
+  const patientName = bind("patientName")
+  const patientPhone = bind("patientPhone")
+  const professionalId = bind("professionalId")
+  const serviceId = bind("serviceId")
+  const date = bind("date")
+  const startTime = bind("startTime")
+  const notes = bind("notes")
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
@@ -118,93 +153,49 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
         </div>
 
         <form onSubmit={handleSubmit} noValidate className="px-6 py-5 space-y-4 overflow-y-auto">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Paciente</label>
-            <input
-              type="text"
-              value={form.patientName}
-              onChange={(e) => set("patientName", e.target.value)}
-              placeholder="Nombre y apellido"
-              className={inputCls(errors.patientName)}
-            />
-            {errors.patientName && <p className="text-xs text-red-500 mt-1">{errors.patientName}</p>}
-          </div>
+          <Field {...patientName} label="Paciente">
+            <input type="text" placeholder="Nombre y apellido" {...patientName.control} />
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-            <input
-              type="tel"
-              value={form.patientPhone}
-              onChange={(e) => set("patientPhone", e.target.value)}
-              placeholder="11-4455-6677"
-              className={inputCls(errors.patientPhone)}
-            />
-            {errors.patientPhone && <p className="text-xs text-red-500 mt-1">{errors.patientPhone}</p>}
-          </div>
+          <Field {...patientPhone} label="Teléfono">
+            <input type="tel" placeholder="11-4455-6677" {...patientPhone.control} />
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Profesional</label>
-            <select
-              value={form.professionalId}
-              onChange={(e) => set("professionalId", e.target.value)}
-              className={inputCls(errors.professionalId)}
-            >
+          <Field {...professionalId} label="Profesional">
+            <select {...professionalId.control}>
               {professionals.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} — {p.specialty}</option>
               ))}
             </select>
-            {errors.professionalId && <p className="text-xs text-red-500 mt-1">{errors.professionalId}</p>}
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Servicio</label>
-            <select
-              value={form.serviceId}
-              onChange={(e) => set("serviceId", e.target.value)}
-              className={inputCls(errors.serviceId)}
-            >
+          <Field {...serviceId} label="Servicio">
+            <select {...serviceId.control}>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} — {s.duration} min — {s.price.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })}
                 </option>
               ))}
             </select>
-            {errors.serviceId && <p className="text-xs text-red-500 mt-1">{errors.serviceId}</p>}
-          </div>
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => set("date", e.target.value)}
-                className={inputCls(errors.date)}
-              />
-              {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hora</label>
-              <input
-                type="time"
-                value={form.startTime}
-                onChange={(e) => set("startTime", e.target.value)}
-                className={inputCls(errors.startTime)}
-              />
-              {errors.startTime && <p className="text-xs text-red-500 mt-1">{errors.startTime}</p>}
-            </div>
+            <Field {...date} label="Fecha">
+              <input type="date" {...date.control} />
+            </Field>
+            <Field {...startTime} label="Hora">
+              <input type="time" {...startTime.control} />
+            </Field>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
+          <Field {...notes} label="Notas (opcional)">
             <textarea
               rows={2}
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
               placeholder="Indicaciones, contraindicaciones..."
-              className={`${inputCls()} resize-none`}
+              {...notes.control}
+              className={`${notes.control.className} resize-none`}
             />
-          </div>
+          </Field>
 
           <div className="flex justify-end gap-2 pt-2">
             <button
@@ -224,5 +215,33 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function Field({
+  id,
+  label,
+  error,
+  errorId,
+  children,
+}: {
+  id: string
+  label: string
+  error?: string
+  errorId: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      {children}
+      {error && (
+        <p id={errorId} className="text-xs text-red-500 mt-1">
+          {error}
+        </p>
+      )}
+    </div>
   )
 }
