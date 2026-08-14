@@ -31,7 +31,7 @@ const faqs = [
 
 export function Faq() {
   return (
-    <Section id="faq" width="narrow" muted>
+    <Section id="faq" width="narrow">
       <SectionHeading
         badge="Preguntas frecuentes"
         title="Todo lo que necesitás saber"

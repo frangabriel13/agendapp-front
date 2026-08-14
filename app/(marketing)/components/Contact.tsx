@@ -5,7 +5,7 @@ import { ContactForm } from "./ContactForm"
 
 export function Contact() {
   return (
-    <Section id="contacto" width="narrow" muted>
+    <Section id="contacto" width="narrow">
       <SectionHeading
         badge="Contacto"
         title="¿Tenés alguna pregunta?"
