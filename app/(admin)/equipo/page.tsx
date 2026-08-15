@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { RotateCw, UserPlus, Users } from "lucide-react"
 import { cta } from "@/components/CtaLink"
+import { Page, PageHeader } from "../ui/Page"
 import { cn } from "@/lib/utils"
 import { canManage, useSession } from "@/features/auth/hooks/useAuth"
 import { ActivationLinkDialog } from "@/features/employees/components/ActivationLinkDialog"
@@ -25,24 +26,21 @@ export default function EquipoPage() {
   const manage = canManage(session?.employee.role)
 
   return (
-    <div className="p-5 sm:p-8">
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Equipo</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Quién trabaja en tu estética y a qué tiene acceso.
-          </p>
-        </div>
+    <Page>
+      <PageHeader
+        title="Equipo"
+        description="Quién trabaja en tu estética y a qué tiene acceso."
+        action={
+          manage && (
+            <button type="button" onClick={() => setInviting(true)} className={cn(cta({ size: "sm" }))}>
+              <UserPlus size={15} />
+              Invitar
+            </button>
+          )
+        }
+      />
 
-        {manage && (
-          <button type="button" onClick={() => setInviting(true)} className={cn(cta({ size: "sm" }))}>
-            <UserPlus size={15} />
-            Invitar
-          </button>
-        )}
-      </div>
-
-      <div className="max-w-3xl overflow-hidden rounded-2xl border border-black/[0.07] bg-white">
+      <div className="overflow-hidden rounded-2xl border border-black/[0.07] bg-white">
         {employees.isPending && <RowsSkeleton />}
 
         {employees.isError && (
@@ -95,7 +93,7 @@ export default function EquipoPage() {
       <ActivationLinkDialog invitation={invitation} onClose={() => setInvitation(null)} />
       <ScheduleDialog employee={editingSchedule} onClose={() => setEditingSchedule(null)} />
       <TimeOffDialog employee={editingTimeOff} onClose={() => setEditingTimeOff(null)} />
-    </div>
+    </Page>
   )
 }
 

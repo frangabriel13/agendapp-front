@@ -5,7 +5,7 @@ import { CalendarOff, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { cta } from "@/components/CtaLink"
-import { control, controlClasses } from "@/components/form"
+import { control, controlClasses, selectClasses } from "@/components/form"
 import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { useBranches } from "@/features/branches/hooks/useBranches"
@@ -165,7 +165,7 @@ function NewTimeOffForm({ employeeId, branches }: { employeeId: string; branches
               id="alcance"
               value={draft.branchId}
               onChange={(e) => patch({ branchId: e.target.value })}
-              className={cn(controlClasses, "border-black/10 py-2 text-[13px]")}
+              className={cn(selectClasses, "border-black/10 py-2 text-[13px]")}
             >
               <option value="">En todas las sucursales</option>
               {branches.map((b) => (

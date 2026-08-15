@@ -128,3 +128,46 @@
     @apply font-sans;
   }
 }
+/*
+ * El panel es una app de altura fija: su contenido scrollea dentro de `main` y
+ * el sidebar queda quieto. Sin este bloqueo el documento también se declara
+ * scrolleable —aunque no se mueva— y el navegador pinta una segunda barra,
+ * inerte, al lado de la que sí funciona.
+ *
+ * Va con `:has()` y no con una clase en `<body>` para no necesitar un efecto:
+ * aplica solo mientras el panel está montado, y el landing sigue scrolleando
+ * normal.
+ */
+html:has([data-app-shell]) {
+  overflow: hidden;
+}
+
+/*
+ * Flecha propia para los `<select>`.
+ *
+ * La nativa la dibuja el sistema operativo: cambia entre Windows, macOS y Linux,
+ * y no respeta el radio ni el color del resto de los controles. Se apaga con
+ * `appearance: none` y se dibuja una igual a la de los íconos de la app.
+ */
+/*
+ * Rayado diagonal de los fines de semana en el calendario de ausencias.
+ *
+ * Va en CSS y no en clases: `repeating-linear-gradient` es un patrón, no un
+ * color, y no hay utilidad de Tailwind que lo genere. Muy tenue a propósito —
+ * separa la semana laboral del fin de semana sin competir con las barras.
+ */
+.hatch-diagonal {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(0 0 0 / 0.05) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.select-chevron {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2.25rem;
+}

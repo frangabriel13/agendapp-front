@@ -96,7 +96,7 @@ export function WeekCalendar({
         <select
           value={profFilter}
           onChange={(e) => setProfFilter(e.target.value)}
-          className="rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-neutral-700 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+          className="select-chevron rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-neutral-700 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
         >
           <option value="all">Todos los profesionales</option>
           {professionals.map((p) => (

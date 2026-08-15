@@ -73,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     // `h-screen` y no `min-h-screen`: le da altura definida a la columna, que es
     // lo que necesita la agenda para ocupar el alto restante y scrollear adentro.
-    <div className="flex h-screen bg-neutral-50 text-neutral-900 antialiased">
+    <div data-app-shell className="flex h-screen bg-neutral-50 text-neutral-900 antialiased">
       {/* Fijo a partir de lg; abajo de eso el lugar lo necesita el contenido. */}
       <aside className="hidden w-56 shrink-0 flex-col border-r border-black/[0.06] bg-white px-3 py-6 lg:flex">
         {sidebar}
@@ -100,7 +100,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Image src="/loguito.png" alt="reservApp" width={1024} height={312} priority className="h-6 w-auto" />
         </header>
 
-        <main className="min-h-0 flex-1 overflow-auto">{children}</main>
+        {/* `overflow-x-clip` y no `hidden`: recorta los halos del fondo sin
+            convertirse en contenedor de scroll horizontal, que rompería las
+            columnas fijas del calendario de ausencias. */}
+        <main className="min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain">
+          {children}
+        </main>
       </div>
     </div>
   )

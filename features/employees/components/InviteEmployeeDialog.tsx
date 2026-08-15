@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cta } from "@/components/CtaLink"
-import { control } from "@/components/form"
+import { control, selectControl } from "@/components/form"
 import { cn } from "@/lib/utils"
 import { useInviteEmployee } from "../hooks/useEmployees"
 import { ROLE_LABELS } from "../lib/roles"
@@ -104,7 +104,7 @@ export function InviteEmployeeDialog({ open, onOpenChange, onInvited }: Props) {
           </Field>
 
           <Field id="role" label="Rol" error={errors.role?.message}>
-            <select id="role" className={control(errors.role)} {...register("role")}>
+            <select id="role" className={selectControl(errors.role)} {...register("role")}>
               {Object.entries(ROLE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
