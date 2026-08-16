@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { cta } from "@/components/CtaLink"
-import { control, controlClasses } from "@/components/form"
+import { controlClasses, selectControl } from "@/components/form"
 import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { useBranches } from "@/features/branches/hooks/useBranches"
@@ -246,7 +246,7 @@ function DayRow({ label, shifts, branches, errors, disabled, onAdd, onRemove, on
                   aria-label={`Sucursal del tramo de ${label}`}
                   value={shift.branchId}
                   onChange={(e) => onPatch(shift.key, { branchId: e.target.value })}
-                  className={cn(control(error), "w-auto flex-1 py-1.5 text-[13px]")}
+                  className={cn(selectControl(error), "w-auto flex-1 py-1.5 text-[13px]")}
                 >
                   <option value="">Elegí…</option>
                   {branches.map((branch) => (

@@ -17,3 +17,14 @@ export const controlClasses = cn(
 export function control(error?: unknown): string {
   return cn(controlClasses, error ? "border-red-400" : "border-black/10")
 }
+
+/**
+ * Igual que un input, pero apagando la flecha nativa del `<select>` y dibujando
+ * una propia. Sin esto el desplegable es el único control que cambia de aspecto
+ * según el sistema operativo.
+ */
+export const selectClasses = cn(controlClasses, "select-chevron")
+
+export function selectControl(error?: unknown): string {
+  return cn(control(error), "select-chevron")
+}

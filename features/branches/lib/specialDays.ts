@@ -1,18 +1,5 @@
-import { timeToMinutes } from "@/lib/time"
+import { parseCalendarDay, timeToMinutes } from "@/lib/time"
 import type { SpecialDay } from "@/types"
-
-/**
- * Convierte "YYYY-MM-DD" a una fecha local.
- *
- * **No usar `new Date("2026-12-25")`**: la spec obliga a interpretar ese formato
- * como UTC, así que en una zona negativa —toda América— se corre un día para
- * atrás y el 25 se muestra como 24. Armando la fecha por partes se interpreta en
- * la zona local, que es lo que representa un día de calendario.
- */
-export function parseCalendarDay(date: string): Date {
-  const [year, month, day] = date.split("-").map(Number)
-  return new Date(year!, month! - 1, day!)
-}
 
 const FORMATTER = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "long" })
 

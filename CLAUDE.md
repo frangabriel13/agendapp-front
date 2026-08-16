@@ -37,7 +37,7 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/olvide-contrasena` | Placeholder, deriva a `/#contacto` |
 | `/activar` | **Real.** Cierra la invitación: token del link + contraseña. Pública |
 | `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
-| `/dashboard` | Construida, sobre mock data |
+| `/dashboard` | **Mitad real.** Equipo y ausencias salen de la API; los turnos siguen en mock |
 | `/agenda` | Calendario semanal, sobre mock data |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
 | `/configuracion` | **Real.** Negocio, marca, política de reservas y datos del plan |
@@ -53,6 +53,68 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - `app/layout.tsx` envuelve todo en `<Providers>` (`app/providers.tsx`)
 - `Providers` monta `QueryClientProvider` con `staleTime: 60_000` y los devtools de React Query
 - Tocá ese archivo si necesitás cambiar la config global de cache/React Query
+
+## El chasis del panel
+El panel **flota sobre un fondo tintado**, igual que el landing: el riel, la barra
+y las tarjetas son superficies blancas separadas por aire.
+
+`app/(admin)/layout.tsx` arma tres piezas, cada una en `app/(admin)/ui/`:
+- **`IconRail`** — el menú: botones circulares, solo íconos. Sin texto hacen falta
+  dos cosas que no son opcionales: `aria-label` en cada uno y una etiqueta que
+  aparece al pasar el mouse **o al llegar con el teclado** (`group-focus-visible`)
+- **`TopBar`** — dónde estás, la fecha, las caras del equipo, "Nuevo turno" y el
+  menú de cuenta. **No repite el menú del riel**: dos navegaciones para las mismas
+  cinco pantallas confunden más de lo que ayudan
+- **`nav.ts`** — las secciones. Las leen el riel, el cajón del teléfono y la
+  píldora de la barra: tienen que decir lo mismo
+
+El fondo del shell es `bg-neutral-200` y no algo más claro: contra el blanco de
+las tarjetas, `neutral-100` deja 4% de diferencia y el riel desaparece.
+
+El shell usa `h-screen` (no `min-h-screen`) y marca su raíz con `data-app-shell`.
+El contenido scrollea dentro de `main`; el riel y la barra quedan quietos.
+`globals.css` además bloquea el scroll del documento con
+`html:has([data-app-shell])`, por si algo se escapa del shell.
+
+Debajo de `lg` el riel se esconde y el menú vuelve a tener texto, en el cajón
+(`components/ui/sheet.tsx`) que abre el botón de la barra.
+
+Las páginas van envueltas en `<Page>` (`app/(admin)/ui/Page.tsx`), que elige ancho
+y padding: `narrow` / `default` / `wide` centran la columna, `full` ocupa todo —es
+lo que usa el tablero, porque un calendario de catorce columnas dentro de una
+columna centrada se aprieta al pedo—. `<PageHeader>` está para las pantallas que
+necesitan título propio; **el tablero no lo usa**: la barra de arriba ya dice en
+qué sección estás, y el título grande es el de la tarjeta principal
+(`<PanelHeader size="lg">`).
+
+## El dashboard
+`app/(admin)/dashboard/page.tsx` solo compone; cada bloque vive en
+`features/dashboard/`:
+
+| Bloque | Datos |
+|---|---|
+| `StatTiles` | Turnos de hoy y facturación — **mock** |
+| `AbsenceTimeline` | Equipo y ausencias — **API real** |
+| `UpcomingAppointments` | La jornada, con el próximo turno destacado — **mock** |
+| `TeamCard` | Equipo, ordenado por lo que hay que hacer — **API real** |
+| `QuickActions` | Saludo, atajos y estado de la suscripción — **API real** |
+
+El chip "Turnos de ejemplo" del encabezado avisa qué parte todavía no es real.
+
+**El calendario de ausencias** (`features/dashboard/lib/timeline.ts`, con tests):
+- La ventana son 14 días **a partir del lunes** de la semana actual, y se fija al
+  montar. Recalcularla en cada render correría el calendario al cruzar la medianoche
+- Trabaja sobre **días de calendario**, no instantes: una ausencia de dos horas
+  ocupa la columna de su día igual que una de dos semanas ocupa catorce
+- Lo que cruza el borde de la ventana se recorta y se dibuja con el borde recto
+  de ese lado (`continuesBefore` / `continuesAfter`)
+- Dos ausencias superpuestas de la misma persona van a filas distintas (`lane`)
+- El ancho de la columna de nombres es la variable CSS `--tl-name`, no una
+  constante de JS: la comparten el encabezado, las filas y la línea de hoy, y
+  además cambia por breakpoint
+- Las ausencias se piden **de a una persona** (`useTeamTimeOff`, N pedidos en
+  paralelo): la API no tiene un endpoint por tenant. Comparte `queryKey` con
+  `useTimeOff`, así guardar una ausencia refresca el diálogo y el panel juntos
 
 ## Responsive
 Verificado en 390 / 768 / 1024 / 1440, landing y panel. El sidebar del panel se
@@ -75,10 +137,16 @@ código nuevo, está mal copiado de algún lado:
 - Space Grotesk, títulos `font-semibold tracking-tight`
 
 **Compartidos, usalos en vez de repetir clases:**
+- `components/surface.ts` — `cardSurface`, la superficie de **toda** tarjeta.
+  Vive fuera de `(marketing)` y `(admin)` para que los dos lados no se separen
 - `components/CtaLink.tsx` — `CtaLink` para enlaces y `cta()` para `<button>`
-- `components/form.ts` — `controlClasses` y `control(error)` para inputs
+- `components/Panel.tsx` — `Panel`, `PanelHeader`, `PanelLink` y `pillClasses` /
+  `pillLinkClasses`: la tarjeta del panel y las píldoras de su barra
+- `components/form.ts` — `controlClasses`, `control(error)`, `selectClasses`, `selectControl(error)`
 - `components/Glow.tsx` — halos de fondo
 - `lib/format.ts` — `formatPrice`
+- `lib/time.ts` — `dateToStr` / `parseCalendarDay` y las cuentas de "HH:MM"
+- `features/employees/lib/palette.ts` — `personColor(id)`, color estable por persona
 - `app/(marketing)/ui/` — `Section`, `SectionHeading`, `Badge`, `Card`, `TopBackdrop`, `GradientBand`
 
 `components/ui/` es lo que genera shadcn y sigue sus propias convenciones: ahí sí
@@ -176,12 +244,12 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 Relevada y no atendida todavía:
 - 84 botones vacíos en la grilla de `WeekCalendar` (12 franjas × 7 días): tienen
   `aria-label`, pero son 84 paradas de tabulación
-- `dashboard/page.tsx` podría ser Server Component (~3 KB menos y arregla un
-  desajuste de hidratación latente)
 - `next.config.ts` vacío; `tsconfig` sin `noUncheckedIndexedAccess`
 - `/registro` y `/olvide-contrasena` siguen siendo carteles de "próximamente"
 - `/dashboard` y `/agenda` corren sobre `mockData`: el backend no tiene turnos todavía
 - `formatPrice` tiene la moneda fija en ARS; debería salir de `tenant.currency`
+- `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
+  ausencias del tenant juntas. Alcanza para los planes actuales
 
 ## Alta de empleados — el flujo completo
 1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
@@ -241,3 +309,4 @@ Acordado con Franco, en orden:
 5. ~~`/configuracion` y el ABM de sucursales~~ ✅ hecho — **22 de 23 endpoints cableados** (falta solo `/health`, que no hace falta)
 6. ~~La carrera de refresh entre pestañas~~ ✅ hecho
 7. ~~Migrar el panel al vocabulario nuevo~~ ✅ hecho
+8. ~~Rediseño del dashboard~~ ✅ hecho — calendario de ausencias real + bento

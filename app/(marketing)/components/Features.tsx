@@ -1,5 +1,5 @@
 import { Calendar, CheckCircle, Clock, Users, Zap, Shield } from "lucide-react"
-import { cardSurface } from "../ui/Card"
+import { cardSurface } from "@/components/surface"
 import { Glow } from "@/components/Glow"
 import { Section } from "../ui/Section"
 import { SectionHeading } from "../ui/SectionHeading"

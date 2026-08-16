@@ -2,6 +2,7 @@
 
 import { RotateCw } from "lucide-react"
 import { cta } from "@/components/CtaLink"
+import { Page, PageHeader } from "../ui/Page"
 import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { canManage, useSession } from "@/features/auth/hooks/useAuth"
@@ -23,17 +24,17 @@ export default function ConfiguracionPage() {
   const error = tenant.error ?? branding.error ?? settings.error
 
   return (
-    <div className="p-5 sm:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Configuración</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          {manage
+    <Page width="narrow">
+      <PageHeader
+        title="Configuración"
+        description={
+          manage
             ? "Los datos de tu negocio y cómo funcionan las reservas."
-            : "Los datos de tu negocio. Solo un administrador puede cambiarlos."}
-        </p>
-      </div>
+            : "Los datos de tu negocio. Solo un administrador puede cambiarlos."
+        }
+      />
 
-      <div className="max-w-2xl space-y-4">
+      <div className="space-y-4">
         {cargando && <SectionsSkeleton />}
 
         {!cargando && error && (
@@ -66,7 +67,7 @@ export default function ConfiguracionPage() {
         {!cargando && !error && branding.data && <BrandingSection branding={branding.data} canSave={manage} />}
         {!cargando && !error && settings.data && <BookingSection settings={settings.data} canSave={manage} />}
       </div>
-    </div>
+    </Page>
   )
 }
 

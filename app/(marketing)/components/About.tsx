@@ -1,5 +1,5 @@
 import { Heart, Shield, Zap, Users } from "lucide-react"
-import { cardSurface } from "../ui/Card"
+import { cardSurface } from "@/components/surface"
 import { Section } from "../ui/Section"
 import { SectionHeading } from "../ui/SectionHeading"
 

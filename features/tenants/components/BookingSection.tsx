@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Switch } from "@/components/ui/switch"
-import { controlClasses } from "@/components/form"
+import { controlClasses, selectClasses } from "@/components/form"
 import { cn } from "@/lib/utils"
 import type { RefundType, TenantSettings } from "@/types"
 import { useUpdateSettings } from "../hooks/useTenant"
@@ -73,7 +73,7 @@ export function BookingSection({ settings, canSave }: { settings: TenantSettings
           value={refundType}
           onChange={(e) => setRefundType(e.target.value as RefundType)}
           disabled={!canSave}
-          className={cn(controlClasses, "border-black/10")}
+          className={cn(selectClasses, "border-black/10")}
         >
           {REFUND_TYPES.map((r) => (
             <option key={r.value} value={r.value}>

@@ -161,7 +161,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
           </Field>
 
           <Field {...professionalId} label="Profesional">
-            <select {...professionalId.control}>
+            <select {...professionalId.control} className={cn(professionalId.control.className, "select-chevron")}>
               {professionals.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} — {p.specialty}</option>
               ))}
@@ -169,7 +169,7 @@ export function AppointmentFormModal({ mode, professionals, services, initial, o
           </Field>
 
           <Field {...serviceId} label="Servicio">
-            <select {...serviceId.control}>
+            <select {...serviceId.control} className={cn(serviceId.control.className, "select-chevron")}>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} — {s.duration} min — {formatPrice(s.price)}

@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cta } from "@/components/CtaLink"
+import { Page, PageHeader } from "../ui/Page"
 import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { canManage, useSession } from "@/features/auth/hooks/useAuth"
@@ -40,21 +41,21 @@ export default function SucursalesPage() {
   const remove = useRemoveBranch()
 
   return (
-    <div className="p-5 sm:p-8">
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Sucursales</h1>
-          <p className="mt-1 text-sm text-neutral-500">Dónde atendés y con qué horario.</p>
-        </div>
-        {manage && (
-          <button type="button" onClick={() => setCreating(true)} className={cn(cta({ size: "sm" }))}>
-            <Plus size={15} />
-            Nueva sucursal
-          </button>
-        )}
-      </div>
+    <Page>
+      <PageHeader
+        title="Sucursales"
+        description="Dónde atendés y con qué horario."
+        action={
+          manage && (
+            <button type="button" onClick={() => setCreating(true)} className={cn(cta({ size: "sm" }))}>
+              <Plus size={15} />
+              Nueva sucursal
+            </button>
+          )
+        }
+      />
 
-      <div className="max-w-3xl overflow-hidden rounded-2xl border border-black/[0.07] bg-white">
+      <div className="overflow-hidden rounded-2xl border border-black/[0.07] bg-white">
         {branches.isPending && (
           <ul className="divide-y divide-black/[0.06]">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -139,7 +140,7 @@ export default function SucursalesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Page>
   )
 }
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { controlClasses } from "@/components/form"
+import { controlClasses, selectClasses } from "@/components/form"
 import { cn } from "@/lib/utils"
 import type { Tenant } from "@/types"
 import { useUpdateTenant } from "../hooks/useTenant"
@@ -46,7 +46,7 @@ export function BusinessSection({ tenant, canSave }: { tenant: Tenant; canSave: 
           value={timezone}
           onChange={(e) => setTimezone(e.target.value)}
           disabled={!canSave}
-          className={cn(controlClasses, "border-black/10")}
+          className={cn(selectClasses, "border-black/10")}
         >
           {withCurrent(TIMEZONES, tenant.timezone).map((tz) => (
             <option key={tz} value={tz}>
@@ -63,7 +63,7 @@ export function BusinessSection({ tenant, canSave }: { tenant: Tenant; canSave: 
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
             disabled={!canSave}
-            className={cn(controlClasses, "border-black/10")}
+            className={cn(selectClasses, "border-black/10")}
           >
             {CURRENCIES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -79,7 +79,7 @@ export function BusinessSection({ tenant, canSave }: { tenant: Tenant; canSave: 
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             disabled={!canSave}
-            className={cn(controlClasses, "border-black/10")}
+            className={cn(selectClasses, "border-black/10")}
           >
             {LANGUAGES.map((l) => (
               <option key={l.value} value={l.value}>

@@ -1,6 +1,6 @@
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { cardSurface } from "../ui/Card"
+import { cardSurface } from "@/components/surface"
 import { CtaLink } from "@/components/CtaLink"
 import { Glow } from "@/components/Glow"
 import { Section } from "../ui/Section"
