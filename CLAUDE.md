@@ -54,17 +54,38 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 - `Providers` monta `QueryClientProvider` con `staleTime: 60_000` y los devtools de React Query
 - Tocá ese archivo si necesitás cambiar la config global de cache/React Query
 
-## El panel es una app de altura fija
-`app/(admin)/layout.tsx` usa `h-screen` (no `min-h-screen`) y marca su raíz con
-`data-app-shell`. El contenido scrollea dentro de `main`; el sidebar queda quieto.
+## El chasis del panel
+El panel **flota sobre un fondo tintado**, igual que el landing: el riel, la barra
+y las tarjetas son superficies blancas separadas por aire.
 
-`globals.css` bloquea el scroll del documento con `html:has([data-app-shell])`.
-Sin eso el documento **también** se declara scrolleable —aunque `scrollY` nunca se
-mueva— y el navegador pinta una segunda barra inerte al lado de la que funciona.
+`app/(admin)/layout.tsx` arma tres piezas, cada una en `app/(admin)/ui/`:
+- **`IconRail`** — el menú: botones circulares, solo íconos. Sin texto hacen falta
+  dos cosas que no son opcionales: `aria-label` en cada uno y una etiqueta que
+  aparece al pasar el mouse **o al llegar con el teclado** (`group-focus-visible`)
+- **`TopBar`** — dónde estás, la fecha, las caras del equipo, "Nuevo turno" y el
+  menú de cuenta. **No repite el menú del riel**: dos navegaciones para las mismas
+  cinco pantallas confunden más de lo que ayudan
+- **`nav.ts`** — las secciones. Las leen el riel, el cajón del teléfono y la
+  píldora de la barra: tienen que decir lo mismo
 
-Las páginas van envueltas en `<Page>` de `app/(admin)/ui/Page.tsx`, que centra la
-columna. Pegada a la izquierda, en un monitor ancho deja un vacío que parece un
-error de maquetado. `<PageHeader>` trae el título, la bajada y la acción.
+El fondo del shell es `bg-neutral-200` y no algo más claro: contra el blanco de
+las tarjetas, `neutral-100` deja 4% de diferencia y el riel desaparece.
+
+El shell usa `h-screen` (no `min-h-screen`) y marca su raíz con `data-app-shell`.
+El contenido scrollea dentro de `main`; el riel y la barra quedan quietos.
+`globals.css` además bloquea el scroll del documento con
+`html:has([data-app-shell])`, por si algo se escapa del shell.
+
+Debajo de `lg` el riel se esconde y el menú vuelve a tener texto, en el cajón
+(`components/ui/sheet.tsx`) que abre el botón de la barra.
+
+Las páginas van envueltas en `<Page>` (`app/(admin)/ui/Page.tsx`), que elige ancho
+y padding: `narrow` / `default` / `wide` centran la columna, `full` ocupa todo —es
+lo que usa el tablero, porque un calendario de catorce columnas dentro de una
+columna centrada se aprieta al pedo—. `<PageHeader>` está para las pantallas que
+necesitan título propio; **el tablero no lo usa**: la barra de arriba ya dice en
+qué sección estás, y el título grande es el de la tarjeta principal
+(`<PanelHeader size="lg">`).
 
 ## El dashboard
 `app/(admin)/dashboard/page.tsx` solo compone; cada bloque vive en

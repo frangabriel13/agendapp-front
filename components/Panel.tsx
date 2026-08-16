@@ -33,6 +33,12 @@ export function Panel({ className, children }: { className?: string; children: R
 
 interface PanelHeaderProps {
   title: string
+  /**
+   * `lg` para la tarjeta que encabeza una pantalla. El panel no tiene título de
+   * página propio —la barra de arriba ya dice en qué sección estás—, así que el
+   * título grande es el de la tarjeta principal.
+   */
+  size?: "md" | "lg"
   /** Chip al lado del título: un contador, un aviso de datos de ejemplo. */
   badge?: React.ReactNode
   /** Píldoras de la derecha. */
@@ -40,11 +46,18 @@ interface PanelHeaderProps {
   className?: string
 }
 
-export function PanelHeader({ title, badge, action, className }: PanelHeaderProps) {
+export function PanelHeader({ title, size = "md", badge, action, className }: PanelHeaderProps) {
   return (
     <div className={cn("flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4", className)}>
-      <div className="flex min-w-0 items-center gap-2">
-        <h2 className="truncate text-[15px] font-semibold tracking-tight text-neutral-900">{title}</h2>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <h2
+          className={cn(
+            "truncate font-semibold tracking-tight text-neutral-900",
+            size === "lg" ? "text-xl sm:text-2xl" : "text-[15px]",
+          )}
+        >
+          {title}
+        </h2>
         {badge}
       </div>
       {action && <div className="flex items-center gap-2">{action}</div>}

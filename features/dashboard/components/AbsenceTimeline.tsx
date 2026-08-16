@@ -72,6 +72,7 @@ export function AbsenceTimeline() {
     <Panel>
       <PanelHeader
         title="Ausencias del equipo"
+        size="lg"
         action={
           <>
             <span className={cn(pillClasses, "hidden sm:inline-flex")}>
@@ -242,8 +243,8 @@ function cellClasses(day: TimelineDay): string {
     day.isToday
       ? "border-violet-200 bg-violet-50"
       : day.isWeekend
-        ? "hatch-diagonal border-black/[0.04] bg-neutral-100/80"
-        : "border-black/[0.04] bg-neutral-50",
+        ? "hatch-diagonal border-black/[0.05] bg-neutral-200/70"
+        : "border-black/[0.05] bg-neutral-100",
   )
 }
 

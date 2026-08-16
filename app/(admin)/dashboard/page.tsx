@@ -1,15 +1,10 @@
 "use client"
 
 import { useMemo } from "react"
-import { ArrowRight, CalendarDays, CheckCircle2, Clock, Wallet } from "lucide-react"
-import { CtaLink } from "@/components/CtaLink"
-import { Glow } from "@/components/Glow"
-import { pillClasses } from "@/components/Panel"
-import { Page, PageHeader } from "../ui/Page"
-import { cn } from "@/lib/utils"
+import { CalendarDays, CheckCircle2, Clock, Info, Wallet } from "lucide-react"
+import { Page } from "../ui/Page"
 import { formatPrice } from "@/lib/format"
 import { dateToStr } from "@/lib/time"
-import { useSession } from "@/features/auth/hooks/useAuth"
 import { mockAppointments } from "@/features/appointments/data/mockData"
 import { AbsenceTimeline } from "@/features/dashboard/components/AbsenceTimeline"
 import { QuickActions } from "@/features/dashboard/components/QuickActions"
@@ -18,8 +13,6 @@ import { TeamCard } from "@/features/dashboard/components/TeamCard"
 import { UpcomingAppointments } from "@/features/dashboard/components/UpcomingAppointments"
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
-
   /**
    * Los turnos todavía salen de datos de ejemplo: el backend no expone la
    * agenda. El equipo y las ausencias del calendario sí son reales, por eso el
@@ -75,35 +68,28 @@ export default function DashboardPage() {
   ]
 
   return (
-    <Page width="wide" className="relative isolate">
-      {/* El mismo halo del landing, para que el panel no arranque en gris plano.
-          Debajo de `sm` no entra sin teñir el título: ahí la columna es angosta
-          y el halo le queda encima. */}
-      <Glow className="-top-28 right-0 hidden size-80 bg-violet-200/35 sm:block" />
-
-      <PageHeader
-        title="Panel"
-        description={
-          session
-            ? `Lo que está pasando hoy en ${session.tenant.businessName}.`
-            : "Lo que está pasando hoy en tu negocio."
-        }
-        badge={<span className={cn(pillClasses, "text-neutral-500")}>Turnos de ejemplo</span>}
-        action={
-          <CtaLink href="/agenda" size="sm">
-            Ir a la agenda
-            <ArrowRight size={15} />
-          </CtaLink>
-        }
-      />
-
-      <div className="space-y-4">
-        <StatTiles stats={stats} />
+    /*
+     * Sin título de página: la barra de arriba ya dice que estás en Inicio, y el
+     * encabezado grande es el de la tarjeta principal. Repetirlo comía una
+     * franja entera de alto para decir dos veces lo mismo.
+     */
+    <Page width="full">
+      <div className="space-y-3">
+        <StatTiles
+          stats={stats}
+          note={
+            <p className="flex items-center gap-1.5 text-xs text-neutral-500">
+              <Info size={13} aria-hidden />
+              Los turnos son datos de ejemplo hasta que la agenda esté conectada. El equipo y las
+              ausencias son reales.
+            </p>
+          }
+        />
 
         <AbsenceTimeline />
 
         {/* Tres columnas de igual peso: ninguna es "la principal". */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <UpcomingAppointments appointments={agenda.deHoy} />
           <TeamCard />
           <QuickActions />

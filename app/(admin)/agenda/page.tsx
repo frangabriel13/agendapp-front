@@ -55,7 +55,9 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    // La agenda ocupa todo el alto disponible, pero flota como el resto: sin el
+    // radio y el borde, es el único bloque del panel con las esquinas en punta.
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-white">
       <div className="shrink-0 px-5 pt-6 pb-4 sm:px-8 sm:pt-8 sm:pb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Agenda</h1>
         <p className="mt-1 text-sm text-neutral-500">Gestión de turnos.</p>

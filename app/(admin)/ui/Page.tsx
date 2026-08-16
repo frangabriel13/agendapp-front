@@ -2,11 +2,16 @@ import { cn } from "@/lib/utils"
 
 const WIDTHS = {
   /** Formularios largos: más angosto se lee mejor y no quedan campos gigantes. */
-  narrow: "max-w-3xl",
+  narrow: "max-w-3xl p-5 sm:p-8",
   /** Listas. */
-  default: "max-w-5xl",
-  /** Grillas de varias columnas, como el panel principal. */
-  wide: "max-w-6xl",
+  default: "max-w-5xl p-5 sm:p-8",
+  /** Grillas de varias columnas. */
+  wide: "max-w-6xl p-5 sm:p-8",
+  /**
+   * Todo el ancho, con el aire justo. Para tableros: un calendario de catorce
+   * columnas dentro de una columna centrada se aprieta al pedo.
+   */
+  full: "max-w-none p-1 sm:p-2",
 } as const
 
 interface PageProps {
@@ -22,7 +27,7 @@ interface PageProps {
  * contenido pegado a un costado deja un vacío que parece un error de maquetado.
  */
 export function Page({ width = "default", className, children }: PageProps) {
-  return <div className={cn("mx-auto w-full p-5 sm:p-8", WIDTHS[width], className)}>{children}</div>
+  return <div className={cn("mx-auto w-full", WIDTHS[width], className)}>{children}</div>
 }
 
 interface HeaderProps {
