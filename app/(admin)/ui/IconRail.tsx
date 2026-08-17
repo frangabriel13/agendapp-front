@@ -1,29 +1,47 @@
 "use client"
 
 import Link from "next/link"
-import { LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { Session } from "@/types"
+import { AccountMenu } from "./AccountMenu"
 import { BrandMark } from "./BrandMark"
 import { NAV_ITEMS, SETTINGS_ITEM, type NavItem } from "./nav"
 
 /**
- * El menú lateral: botones circulares flotando sobre el fondo.
+ * El menú lateral: un panel blanco con los íconos adentro.
  *
  * Sin texto, como en el diseño. Eso obliga a dos cosas que no son opcionales:
- * cada botón lleva `aria-label` —para el lector de pantalla el ícono no dice
+ * cada ítem lleva `aria-label` —para el lector de pantalla el ícono no dice
  * nada— y una etiqueta que aparece al pasar el mouse o al llegar con el
  * teclado, porque un ícono suelto solo se entiende cuando ya lo aprendiste.
+ *
+ * Abajo va la cuenta, y no en la barra de arriba: esa barra solo se monta en
+ * Inicio, y cerrar sesión tiene que poder hacerse desde cualquier pantalla.
  */
-export function IconRail({ pathname, onLogout }: { pathname: string; onLogout: () => void }) {
+export function IconRail({
+  pathname,
+  session,
+  onLogout,
+}: {
+  pathname: string
+  session: Session | undefined
+  onLogout: () => void
+}) {
   return (
     <nav
       aria-label="Secciones"
-      className="relative z-30 hidden w-[4.25rem] shrink-0 flex-col items-center py-1 lg:flex"
+      className={cn(
+        "relative z-30 hidden w-[4.5rem] shrink-0 flex-col items-center py-4 lg:flex",
+        // La misma superficie que el header del landing, puesta de canto: es un
+        // panel que contiene los ítems, no botones sueltos sobre el fondo.
+        "rounded-2xl border border-black/[0.06] bg-white/80 backdrop-blur-md",
+        "shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)]",
+      )}
     >
       <BrandMark />
 
       {/* `my-auto`: el grupo queda centrado en el alto libre, no pegado arriba. */}
-      <div className="my-auto flex flex-col items-center gap-2">
+      <div className="my-auto flex flex-col items-center gap-1">
         {NAV_ITEMS.map((item) => (
           <RailLink key={item.href} item={item} pathname={pathname} />
         ))}
@@ -31,9 +49,7 @@ export function IconRail({ pathname, onLogout }: { pathname: string; onLogout: (
 
       <div className="flex flex-col items-center gap-2">
         <RailLink item={SETTINGS_ITEM} pathname={pathname} />
-        <RailButton label="Cerrar sesión" onClick={onLogout}>
-          <LogOut size={18} aria-hidden />
-        </RailButton>
+        <AccountMenu session={session} onLogout={onLogout} />
       </div>
     </nav>
   )
@@ -60,24 +76,7 @@ function RailLink({ item, pathname }: { item: NavItem; pathname: string }) {
   )
 }
 
-function RailButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button type="button" onClick={onClick} aria-label={label} className={cn(railButton, railIdle)}>
-      {children}
-      <Tooltip>{label}</Tooltip>
-    </button>
-  )
-}
-
-/** `aria-hidden`: el nombre accesible ya lo da el `aria-label` del botón. */
+/** `aria-hidden`: el nombre accesible ya lo da el `aria-label` del enlace. */
 function Tooltip({ children }: { children: React.ReactNode }) {
   return (
     <span
@@ -98,13 +97,11 @@ const railButton = cn(
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600",
 )
 
-const railActive = "bg-violet-600 text-white shadow-[0_10px_22px_-10px_rgba(124,58,237,0.95)]"
-
 /**
- * El borde no es decorativo: un círculo blanco sobre el fondo claro, con sola
- * sombra, casi no se ve. Es el mismo borde tenue del resto del sistema.
+ * Los estados son los mismos que los del header del landing y los de la píldora
+ * de sección de la barra de arriba: adentro de un panel blanco, un botón blanco
+ * con borde no se distingue de su propio fondo.
  */
-const railIdle = cn(
-  "border border-black/[0.06] bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900",
-  "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_20px_-14px_rgba(0,0,0,0.4)]",
-)
+const railActive = "bg-violet-50 text-violet-700"
+
+const railIdle = "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
