@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { useHasToken, useLogout, useSession } from "@/features/auth/hooks/useAuth"
 import { BrandMark } from "./ui/BrandMark"
 import { IconRail } from "./ui/IconRail"
+import { MobileBar } from "./ui/MobileBar"
 import { TopBar } from "./ui/TopBar"
 import { NAV_ITEMS, SETTINGS_ITEM, type NavItem } from "./ui/nav"
 
@@ -67,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <Glow className="-top-40 left-1/3 size-[38rem] bg-violet-200/50" />
       <Glow className="-right-20 -bottom-48 size-[30rem] bg-indigo-200/40" />
 
-      <IconRail pathname={pathname} onLogout={logout} />
+      <IconRail pathname={pathname} session={session} onLogout={logout} />
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="left" className="w-64 gap-0 p-0">
@@ -78,12 +79,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        <TopBar
+        {/* Siempre: abajo de `lg` el riel no está, y sin esto no hay ni menú ni
+            cuenta en ninguna pantalla. */}
+        <MobileBar
           pathname={pathname}
           session={session}
           onOpenMenu={() => setMenuOpen(true)}
           onLogout={logout}
         />
+
+        {/* Solo en Inicio: es contexto del tablero, no chrome de la aplicación.
+            El resto de las pantallas trae su propio encabezado con `PageHeader`. */}
+        {pathname === "/dashboard" && <TopBar session={session} />}
 
         {/* Transparente a propósito: lo que flota son las tarjetas de adentro.
             `overflow-x-clip` recorta los halos sin volverse contenedor de scroll

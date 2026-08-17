@@ -59,14 +59,26 @@ El panel **flota sobre un fondo tintado**, igual que el landing: el riel, la bar
 y las tarjetas son superficies blancas separadas por aire.
 
 `app/(admin)/layout.tsx` arma tres piezas, cada una en `app/(admin)/ui/`:
-- **`IconRail`** — el menú: botones circulares, solo íconos. Sin texto hacen falta
-  dos cosas que no son opcionales: `aria-label` en cada uno y una etiqueta que
-  aparece al pasar el mouse **o al llegar con el teclado** (`group-focus-visible`)
-- **`TopBar`** — dónde estás, la fecha, las caras del equipo, "Nuevo turno" y el
-  menú de cuenta. **No repite el menú del riel**: dos navegaciones para las mismas
-  cinco pantallas confunden más de lo que ayudan
-- **`nav.ts`** — las secciones. Las leen el riel, el cajón del teléfono y la
-  píldora de la barra: tienen que decir lo mismo
+- **`IconRail`** — el menú: **un panel blanco de alto completo**, con la misma
+  superficie que el header del landing (`bg-white/80` + `backdrop-blur` + borde
+  tenue + sombra corta), puesta de canto. Adentro van la marca, las secciones y
+  el engranaje: son ítems de un panel, no botones sueltos sobre el fondo.
+  Solo íconos, así que hacen falta dos cosas que no son opcionales: `aria-label`
+  en cada uno y una etiqueta que aparece al pasar el mouse **o al llegar con el
+  teclado** (`group-focus-visible`). Abajo de todo va `AccountMenu`
+- **`MobileBar`** — **en todas las pantallas**, solo debajo de `lg`: el botón de
+  menú, en qué sección estás y la cuenta. Ahí el riel está oculto, así que sin
+  esta barra no habría forma de navegar ni de cerrar sesión
+- **`TopBar`** — **solo en `/dashboard`**, y solo de `lg` para arriba: el nombre
+  del negocio, la fecha, las caras del equipo y "Nuevo turno". Es contexto del
+  tablero, no chrome de la aplicación; el resto de las pantallas trae su propio
+  encabezado con `PageHeader`. **No repite el menú del riel**: dos navegaciones
+  para las mismas cinco pantallas confunden más de lo que ayudan
+- **`AccountMenu`** — el avatar y su menú (Configuración, Cerrar sesión). Vive en
+  el riel y en `MobileBar`, **nunca en `TopBar`**: cerrar sesión tiene que poder
+  hacerse desde cualquier pantalla, y esa barra solo existe en Inicio
+- **`nav.ts`** — las secciones. Las leen el riel, el cajón del teléfono y el
+  título de `MobileBar`: tienen que decir lo mismo
 
 El fondo del shell es `bg-neutral-200` y no algo más claro: contra el blanco de
 las tarjetas, `neutral-100` deja 4% de diferencia y el riel desaparece.
@@ -244,7 +256,7 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 Relevada y no atendida todavía:
 - 84 botones vacíos en la grilla de `WeekCalendar` (12 franjas × 7 días): tienen
   `aria-label`, pero son 84 paradas de tabulación
-- `next.config.ts` vacío; `tsconfig` sin `noUncheckedIndexedAccess`
+- `tsconfig` sin `noUncheckedIndexedAccess`
 - `/registro` y `/olvide-contrasena` siguen siendo carteles de "próximamente"
 - `/dashboard` y `/agenda` corren sobre `mockData`: el backend no tiene turnos todavía
 - `formatPrice` tiene la moneda fija en ARS; debería salir de `tenant.currency`

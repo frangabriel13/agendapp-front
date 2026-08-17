@@ -17,7 +17,7 @@ export function BrandMark({ className }: { className?: string }) {
       className={cn(
         "flex size-11 shrink-0 items-center justify-center rounded-2xl text-white",
         "bg-gradient-to-br from-violet-600 to-pink-500",
-        "shadow-[0_10px_22px_-10px_rgba(124,58,237,0.9)]",
+        "shadow-[0_6px_16px_-8px_rgba(124,58,237,0.65)]",
         "transition-transform hover:scale-105",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600",
         className,
