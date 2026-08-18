@@ -129,7 +129,7 @@ qué sección estás, y el título grande es el de la tarjeta principal
 | `AbsenceTimeline` | Equipo y ausencias — **API real** |
 | `UpcomingAppointments` | La jornada, con el próximo turno destacado — **mock** |
 | `TeamCard` | Equipo, ordenado por lo que hay que hacer — **API real** |
-| `RevenueCard` | Facturación del mes, partida en atendido / agendado — **mock** |
+| `RevenueCard` | Tres cortes de plata: el mes, lo que va de la semana y hoy — **mock** |
 
 **El tablero llena la pantalla.** El envoltorio de `main` es `min-h-full`, el
 calendario conserva su alto (`shrink-0`) y la grilla de las tres tarjetas se
@@ -174,6 +174,36 @@ misma. Reglas que no son obvias:
   **contra el total del corte**, no contra el más grande: una barra llena
   significa "se lleva todo", no "es el mayor de la lista"
 - Empate en plata, desempata alfabético: si no, las filas bailan entre renders
+
+**`monthOutlook` es lo que alimenta la tarjeta del tablero.** Tres decisiones que
+parecen detalles y no lo son:
+- **Compara contra el mismo tramo del mes anterior, no contra su cierre.** Medir
+  18 días contra 31 hace que el negocio parezca en caída todos los meses hasta el
+  día 30
+- **La proyección no extrapola a ciegas.** Una estética sabe parte de su futuro:
+  los turnos del resto del mes ya están agendados. Solo se estiman los días que
+  quedan **sin nada agendado**, al ritmo de lo que va del mes. Los días que ya
+  tienen turnos no se estiman: su plata ya está contada
+- **`null` no es cero.** Sin registro del mes anterior devuelve `null` y la
+  tarjeta dice "sin registro": un "$0" ahí afirmaría que el negocio no facturó,
+  cuando lo que pasa es que todavía no usaba la app. Lo mismo con la variación
+  cuando la base es cero: no es "creció infinito", es que no se puede medir
+- Antes del día 5 la proyección viene marcada `preliminar`: con dos jornadas de
+  datos el número no dice nada y no hay que dejar que parezca que sí
+- `weekToDateRevenue` corta **en hoy**, no el domingo: es "lo que va" de la
+  semana, no "lo que va a haber". Los turnos ya agendados para el jueves son
+  plata que todavía no entró, y sumarlos haría que el número creciera solo por
+  reservar. La semana arranca el lunes, igual que la agenda y el calendario
+
+**`RevenueCard` no muestra ni la proyección ni el cierre del mes anterior**, y
+las dos ausencias son a propósito. La proyección es un cálculo sobre un cálculo.
+Y el mes anterior ya está en el chip de variación, que es la forma útil de ese
+dato —cuánto mejor o peor vas— y no un número suelto que hay que restar de
+cabeza. `monthOutlook` sigue calculando los dos y están testeados.
+
+Los dos cuadros de abajo van a dos columnas en todos los anchos, sin breakpoint:
+con solo dos hay lugar de sobra hasta en un teléfono. Verificado de 390 a 1920
+buscando texto recortado, que es donde esto se rompe.
 
 ## Responsive
 Verificado en 390 / 768 / 1024 / 1440, landing y panel. El sidebar del panel se
@@ -247,7 +277,16 @@ ancho de pantalla). No hay script commiteado todavía.
 - `features/auth/hooks/useAuth.ts` — `useSession`, `useHasToken`, `useLogin`, `useRegister`, `useLogout`, `canManage`
 - `features/auth/components/` — `AuthCard` (cascarón), `AuthNotice` (aviso "próximamente"), `LoginForm`
 - `features/appointments/lib/week.ts` — `getWeekDates` y `layoutDay`, con tests
-- `features/appointments/data/mockData.ts` — Datos de prueba hasta que exista la Fase 5
+- `features/appointments/data/mockData.ts` — Datos de prueba hasta que exista la Fase 5.
+  Trae **el mes en curso y el anterior**, no solo hoy: sin historial, la tarjeta de
+  facturación y `/reportes` quedan vacías y no se puede ni mirar cómo se ven.
+  **Las fechas se generan relativas a hoy**, nunca escritas a mano: un mock con
+  fechas fijas envejece y al mes siguiente el "mes en curso" vuelve a estar vacío.
+  Los días se recortan al largo real de cada mes —si no, un 30 en febrero lo
+  normaliza `Date` al 2 de marzo y el turno se va de mes—. Y son **contiguos,
+  todos menos los domingos**: con una lista salteada, el corte "lo que va de la
+  semana" caía en una semana sin turnos según qué día fuera hoy y mostraba lo
+  mismo que "hoy", como si estuviera roto
 - `app/(admin)/layout.tsx` — Sidebar **y guard de sesión**
 
 ## Backend — `../agendapp-api`
@@ -258,8 +297,9 @@ no coinciden, se cambia el front.
 del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
 
 - **Corriendo en `http://localhost:3001`** (`NEXT_PUBLIC_API_URL`). Swagger en `/api`, spec en `/api-json`
-- **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/health`
-- **Todavía no existe:** servicios (Fase 3), clientes (Fase 4), **turnos y disponibilidad (Fase 5)**, pagos (Fase 6), portal público (Fase 7)
+- **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/service-categories`, `/services`, `/resources`, `/health`
+- **Todavía no existe:** clientes (Fase 4), **turnos y disponibilidad (Fase 5)**, pagos (Fase 6), portal público (Fase 7)
+- **Catálogo (Fase 3, nuevo):** precios en **centavos** (`priceCents`); un servicio se presta por par `(empleado, sucursal)`, no solo por empleado; los recursos son feature de plan. Detalle en `docs/api-changelog.md`
 - Levantarlo: `docker compose up -d && npm run seed:demo && npm run start:dev` desde `../agendapp-api`
 - Usuario de demo: `dueno@demo.test` / `demo1234`
 

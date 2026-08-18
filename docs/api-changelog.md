@@ -24,6 +24,65 @@ como error de compilación en vez de como bug en el navegador.
 
 ---
 
+## Fase 3 — Catálogo: servicios, categorías y recursos (2026-08-18)
+
+19 endpoints nuevos. **No rompe nada de lo que ya estaba** — todo lo de Fases 0 a 2
+sigue igual.
+
+### Nuevo
+
+| Área | Qué trae |
+|---|---|
+| `/service-categories` (5) | CRUD de categorías |
+| `/services` (9) | CRUD de servicios, `PUT /:id/employees` (quién lo presta y dónde), `PUT /:id/resources` |
+| `/resources` (5) | CRUD de camillas, salas y sillones, por sucursal |
+
+### ⚠️ Cambios que rompen
+
+Ninguno en endpoints existentes. Pero **sí se resolvió un aviso anterior**:
+
+- **`Service.price` ahora es `priceCents`, entero en centavos.** El tipo
+  provisorio que estaba en `types/index.ts` hay que reemplazarlo. `1500000` son
+  $15.000. Lo mismo `depositAmountCents` (la seña, `null` si no pide).
+
+### Tres cosas que conviene saber antes de armar la pantalla
+
+1. **La seña no puede superar al precio, ni indirectamente.** Bajar el precio por
+   debajo de una seña ya cargada devuelve 400. Si el usuario baja el precio,
+   mandá `priceCents` y `depositAmountCents` juntos.
+2. **Un servicio se presta por *persona + sucursal*, no solo por persona.**
+   `PUT /services/:id/employees` recibe `{ assignments: [{ employeeId, branchId }] }`
+   y valida cada par contra las sucursales del empleado: si no trabaja ahí, 400.
+   El selector tiene que dejar elegir las dos cosas.
+3. **Los recursos son feature de plan.** Con plan Básico, `POST /resources` da 403
+   con un mensaje explicando que hay que cambiar de plan — conviene mostrarlo tal
+   cual. El gate corre solo en el alta: un negocio que baja de plan sigue viendo y
+   editando lo que ya tenía.
+
+Detalles menores: `color` es `#RRGGBB` y va directo al calendario;
+`durationMinutes` va de 1 a 1440; las categorías se ordenan por `displayOrder` y a
+igual valor alfabéticamente; **dar de baja una categoría no borra sus servicios**,
+los deja con `category: null`; el nombre de un recurso es único **por sucursal**
+(puede haber "Camilla 1" en Centro y en Palermo).
+
+### El seed de demo ahora trae catálogo
+
+`npm run seed:demo` carga 2 categorías, 2 servicios y 2 recursos. Lucía hace corte
+en las dos sucursales pero color solo en Centro — es el caso que rompe la
+suposición "un servicio, todas las sucursales".
+
+### Qué se puede construir
+
+Pantalla de catálogo completa: categorías, servicios con precio y duración,
+asignación de quién presta qué y dónde, recursos por sucursal.
+
+### Todavía no
+
+Clientes (Fase 4), **turnos y disponibilidad** (Fase 5), pagos, portal público.
+La agenda sigue con mock.
+
+---
+
 ## Fases 0 a 2 — Base, auth y estructura del negocio (2026-08-12)
 
 Punto de partida. Es todo lo que existía cuando el front se integró por primera vez.
@@ -74,8 +133,11 @@ encima de ellas.
   viaja en la respuesta porque todavía no se mandan emails. Cuando se implemente
   el envío (antes de la Fase 7), desaparece de la respuesta. **No armar UI que
   dependa de mostrarlo.**
-- **`Service.price` va a ser un entero en centavos**, no un decimal. El tipo
-  actual en `types/index.ts` es provisorio.
-- **`Professional` va a pasar a ser `Employee`**, y un empleado puede estar
-  asignado a **varias** sucursales, no a una.
 - **`Patient` va a pasar a llamarse `Customer`** (Fase 4).
+
+Resueltos (ver la entrada de la Fase 3):
+
+- ~~`Service.price` va a ser un entero en centavos~~ → es `priceCents`.
+- ~~`Professional` va a pasar a ser `Employee` con varias sucursales~~ → así es
+  desde la Fase 2, y la Fase 3 lo lleva al catálogo: un servicio se presta por
+  par `(empleado, sucursal)`.
