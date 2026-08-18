@@ -44,7 +44,7 @@ export function UpcomingAppointments({ appointments }: { appointments: Appointme
           </p>
         </div>
       ) : (
-        <div className="px-5 pb-5">
+        <div className="flex-1 px-5 pb-5">
           {siguiente ? (
             <NextUp appointment={siguiente} label={nextUpLabel(siguiente, now)} />
           ) : (

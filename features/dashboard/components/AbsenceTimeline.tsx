@@ -69,7 +69,7 @@ export function AbsenceTimeline() {
   const sinAusencias = rows.length > 0 && rows.every((row) => row.spans.length === 0)
 
   return (
-    <Panel>
+    <Panel className="shrink-0">
       <PanelHeader
         title="Ausencias del equipo"
         size="lg"

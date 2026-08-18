@@ -60,7 +60,7 @@ export function TeamCard() {
       )}
 
       {employees.data && (
-        <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+        <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-3 px-5 pb-5">
           {visibles.map((employee) => (
             <PersonCard key={employee.id} employee={employee} />
           ))}

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import Link from "next/link"
-import { Bell, CalendarDays, Plus } from "lucide-react"
+import { Bell, CalendarDays, Plus, TriangleAlert } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ import { useEmployees } from "@/features/employees/hooks/useEmployees"
 import { personColor } from "@/features/employees/lib/palette"
 import { fullName, initials } from "@/features/employees/lib/roles"
 import type { Employee, Session } from "@/types"
+import { subscriptionNote } from "@/features/dashboard/lib/subscription"
 import { AccountMenu } from "./AccountMenu"
 
 /** Cuántas caras entran antes de pasar a contarlas. */
@@ -44,6 +45,7 @@ export function TopBar({
   onLogout: () => void
 }) {
   const employees = useEmployees()
+  const suscripcion = session ? subscriptionNote(session.tenant) : null
 
   const hoy = useMemo(() => {
     const texto = new Date().toLocaleDateString("es-AR", {
@@ -69,6 +71,21 @@ export function TopBar({
         <CalendarDays size={13} aria-hidden />
         {hoy}
       </span>
+
+      {/* Solo cuando hay algo que decir: una suscripción al día no merece cartel.
+          Vivía en la tarjeta de atajos, que ya no está. */}
+      {suscripcion && (
+        <span
+          className={cn(
+            pillClasses,
+            "hidden lg:inline-flex",
+            suscripcion.urgent && "border-amber-200 bg-amber-50 text-amber-800",
+          )}
+        >
+          {suscripcion.urgent && <TriangleAlert size={12} aria-hidden />}
+          {suscripcion.text}
+        </span>
+      )}
 
       <div className="ml-auto flex items-center gap-2">
         {employees.data && employees.data.length > 0 && <AvatarStack employees={employees.data} />}
