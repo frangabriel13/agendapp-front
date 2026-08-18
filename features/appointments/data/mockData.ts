@@ -1,4 +1,4 @@
-import type { Professional, Appointment, Service } from "@/types"
+import type { Appointment, AppointmentStatus, Professional, Service } from "@/types"
 
 export const mockProfessionals: Professional[] = [
   { id: "p1", name: "Valentina", email: "vale@demo.com", specialty: "HIFU & Liposonix", branchId: "b1", color: "#7c3aed" },
@@ -93,3 +93,121 @@ function getTodayStr(): string {
   const day = String(d.getDate()).padStart(2, "0")
   return `${d.getFullYear()}-${m}-${day}`
 }
+
+/**
+ * Historial de ejemplo: el mes en curso y el anterior.
+ *
+ * Sin esto, todo lo que mira "el mes" —la tarjeta de facturación del tablero y
+ * `/reportes`— queda vacío: los cinco turnos de arriba son todos de hoy, así que
+ * no hay mes anterior contra el cual comparar ni nada agendado por venir.
+ *
+ * **Las fechas son relativas a hoy, nunca fijas.** Un mock con fechas escritas a
+ * mano envejece: al mes siguiente el "mes en curso" queda vacío otra vez.
+ *
+ * Se va cuando exista la Fase 5 y los turnos salgan de la API.
+ */
+const PACIENTES = [
+  { id: "pa6", name: "Carla Méndez", phone: "11-5566-7788" },
+  { id: "pa7", name: "Rocío Álvarez", phone: "11-2244-6688" },
+  { id: "pa8", name: "Julieta Paz", phone: "11-7788-9900" },
+  { id: "pa9", name: "Noelia Bravo", phone: "11-3355-7799" },
+  { id: "pa10", name: "Bárbara Ortiz", phone: "11-4466-8800" },
+]
+
+/** Cuatro franjas que no se pisan entre sí dentro del mismo día. */
+const FRANJAS = [
+  ["09:00", "10:00"],
+  ["11:00", "12:30"],
+  ["14:00", "15:00"],
+  ["16:00", "17:15"],
+]
+
+/** Días que tiene ese mes. El 0 del siguiente es el último del actual. */
+function diasDelMes(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate()
+}
+
+/**
+ * Todos los días del mes menos los domingos.
+ *
+ * Contiguo y no una lista salteada: con huecos, el corte "lo que va de la
+ * semana" cae en una semana sin turnos según qué día sea hoy y termina
+ * mostrando lo mismo que "hoy", como si estuviera roto.
+ */
+function diasDe(year: number, month: number): number[] {
+  const dias: number[] = []
+  for (let day = 1; day <= diasDelMes(year, month); day++) {
+    if (new Date(year, month, day).getDay() !== 0) dias.push(day)
+  }
+  return dias
+}
+
+/**
+ * Turnos por día. Tres es lo que hace que el día de hoy —que tiene cinco escritos
+ * a mano— no parezca un pico: con un turno por día, hoy solo inflaba el mes en
+ * curso y la comparación daba un crecimiento irreal del 50%.
+ */
+const TURNOS_POR_DIA = 3
+
+function fechaDe(year: number, month: number, day: number): string {
+  // `new Date` normaliza el 31 de un mes de 30 y el cambio de año.
+  const d = new Date(year, month, day)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+function turnoDe(date: string, index: number, status: AppointmentStatus): Appointment {
+  const service = mockServices[index % mockServices.length]!
+  const professional = mockProfessionals[index % mockProfessionals.length]!
+  const patient = PACIENTES[index % PACIENTES.length]!
+  const [startTime, endTime] = FRANJAS[index % FRANJAS.length]!
+
+  return {
+    id: `h${date}-${index}`,
+    patientId: patient.id,
+    patient,
+    professionalId: professional.id,
+    professional,
+    serviceId: service.id,
+    service,
+    branchId: "b1",
+    date,
+    startTime: startTime!,
+    endTime: endTime!,
+    status,
+  }
+}
+
+function construirHistorial(): Appointment[] {
+  const hoy = new Date()
+  const turnos: Appointment[] = []
+  let index = 0
+
+  const agregar = (date: string, cantidad: number, status: AppointmentStatus) => {
+    for (let i = 0; i < cantidad; i++) turnos.push(turnoDe(date, index++, status))
+  }
+
+  for (const day of diasDe(hoy.getFullYear(), hoy.getMonth() - 1)) {
+    agregar(fechaDe(hoy.getFullYear(), hoy.getMonth() - 1, day), TURNOS_POR_DIA, "completed")
+  }
+
+  for (const day of diasDe(hoy.getFullYear(), hoy.getMonth())) {
+    // Hoy ya tiene sus cinco turnos escritos arriba: no se le agregan más.
+    if (day === hoy.getDate()) continue
+
+    // Un turno extra cada tres días: el mes en curso viene apenas mejor que el
+    // anterior, que es la historia que cuenta la tarjeta de facturación.
+    const cantidad = TURNOS_POR_DIA + (day % 3 === 0 ? 1 : 0)
+
+    // Lo que ya pasó se atendió; lo que viene está confirmado y todavía no
+    // ocurrió. De esa diferencia sale la proyección del mes.
+    agregar(
+      fechaDe(hoy.getFullYear(), hoy.getMonth(), day),
+      cantidad,
+      day < hoy.getDate() ? "completed" : "confirmed",
+    )
+  }
+
+  return turnos
+}
+
+mockAppointments.push(...construirHistorial())

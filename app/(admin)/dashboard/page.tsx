@@ -41,7 +41,8 @@ export default function DashboardPage() {
       <div className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-3">
         <UpcomingAppointments appointments={deHoy} />
         <TeamCard />
-        <RevenueCard appointments={deHoy} />
+        {/* Todos los turnos, no los de hoy: la tarjeta mira el mes y el anterior. */}
+        <RevenueCard appointments={mockAppointments} />
       </div>
     </Page>
   )
