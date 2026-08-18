@@ -104,7 +104,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
              * `h-full` contra `main`, y un div de más en el medio le rompe el
              * alto.
              */
-            <div className="flex flex-col gap-3">
+            <div className="flex min-h-full flex-col gap-3">
               <TopBar session={session} onLogout={logout} />
               {children}
             </div>

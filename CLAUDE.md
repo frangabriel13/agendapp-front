@@ -39,6 +39,7 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
 | `/dashboard` | **Mitad real.** Equipo y ausencias salen de la API; los turnos siguen en mock |
 | `/agenda` | Calendario semanal, sobre mock data |
+| `/reportes` | Facturación del mes, por servicio y por profesional — sobre mock |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
 | `/configuracion` | **Real.** Negocio, marca, política de reservas y datos del plan |
 
@@ -125,11 +126,24 @@ qué sección estás, y el título grande es el de la tarjeta principal
 
 | Bloque | Datos |
 |---|---|
-| `StatTiles` | Turnos de hoy y facturación — **mock** |
 | `AbsenceTimeline` | Equipo y ausencias — **API real** |
 | `UpcomingAppointments` | La jornada, con el próximo turno destacado — **mock** |
 | `TeamCard` | Equipo, ordenado por lo que hay que hacer — **API real** |
-| `QuickActions` | Saludo, atajos y estado de la suscripción — **API real** |
+| `RevenueCard` | Facturación del mes, partida en atendido / agendado — **mock** |
+
+**El tablero llena la pantalla.** El envoltorio de `main` es `min-h-full`, el
+calendario conserva su alto (`shrink-0`) y la grilla de las tres tarjetas se
+queda con lo que sobra (`flex-1`). Así llegan hasta abajo en vez de dejar un
+vacío. Cuando el contenido pasa el alto visible —un equipo grande, un teléfono—
+no aprieta nada: ahí no sobra alto, `min-height: auto` frena la compresión y
+`main` scrollea.
+
+**No hay fila de KPIs, y es a propósito.** Había cuatro —turnos de hoy,
+confirmados, pendientes, facturación— y se sacaron: tres eran el conteo de una
+lista que ya se ve entera en `UpcomingAppointments`, justo abajo. Un número
+arriba se gana el lugar cuando dice algo que el detalle no puede: una comparación
+contra la semana pasada, plata, o algo accionable. Si vuelven con la Fase 5, que
+sea con eso.
 
 **El calendario de ausencias** (`features/dashboard/lib/timeline.ts`, con tests):
 - La ventana son 14 días **a partir del lunes** de la semana actual, y se fija al
@@ -145,6 +159,21 @@ qué sección estás, y el título grande es el de la tarjeta principal
 - Las ausencias se piden **de a una persona** (`useTeamTimeOff`, N pedidos en
   paralelo): la API no tiene un endpoint por tenant. Comparte `queryKey` con
   `useTimeOff`, así guardar una ausencia refresca el diálogo y el panel juntos
+
+## Reportes y facturación
+Las cuentas viven en `features/reports/lib/revenue.ts`, con tests, y **no** en las
+páginas: hoy los turnos salen de `mockData` y mañana de la API, y la cuenta es la
+misma. Reglas que no son obvias:
+
+- Suman **`completed`** (ya se atendió) y **`confirmed`** (agendado y en pie).
+  `pending` queda **afuera del total** y se muestra aparte: todavía puede no
+  confirmarse. `cancelled` y `no_show` no existen para la plata
+- Por eso la tarjeta del tablero muestra dos números y no uno: "facturación" a
+  secas mezcla lo hecho con lo prometido
+- En los cortes (`revenueByService`, `revenueByProfessional`) el `share` se mide
+  **contra el total del corte**, no contra el más grande: una barra llena
+  significa "se lleva todo", no "es el mayor de la lista"
+- Empate en plata, desempata alfabético: si no, las filas bailan entre renders
 
 ## Responsive
 Verificado en 390 / 768 / 1024 / 1440, landing y panel. El sidebar del panel se
