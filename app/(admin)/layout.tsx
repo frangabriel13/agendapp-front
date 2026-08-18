@@ -23,6 +23,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: session } = useSession()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  /** La barra del tablero existe solo en Inicio, y de `lg` para arriba. */
+  const showTopBar = pathname === "/dashboard"
+
   /**
    * Los tokens viven en localStorage, así que el servidor no puede saber si hay
    * sesión: `useHasToken` devuelve false al renderizar en el servidor y al
@@ -58,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div
       data-app-shell
       className={cn(
-        "relative isolate flex h-screen gap-2.5 overflow-hidden p-2.5 text-neutral-900 antialiased",
+        "relative isolate flex h-screen gap-3 overflow-hidden p-3 text-neutral-900 antialiased",
         // El fondo tiene que ser netamente más oscuro que las tarjetas o nada
         // flota: con `neutral-100` la diferencia contra el blanco es del 4% y
         // el riel de íconos desaparece.
@@ -78,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
         {/* Siempre: abajo de `lg` el riel no está, y sin esto no hay ni menú ni
             cuenta en ninguna pantalla. */}
         <MobileBar
@@ -88,15 +91,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           onLogout={logout}
         />
 
-        {/* Solo en Inicio: es contexto del tablero, no chrome de la aplicación.
-            El resto de las pantallas trae su propio encabezado con `PageHeader`. */}
-        {pathname === "/dashboard" && <TopBar session={session} />}
-
         {/* Transparente a propósito: lo que flota son las tarjetas de adentro.
             `overflow-x-clip` recorta los halos sin volverse contenedor de scroll
             horizontal, que rompería las columnas fijas del calendario. */}
-        <main className="min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain">
-          {children}
+        <main className="scrollbar-none min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain">
+          {showTopBar ? (
+            /*
+             * La barra va adentro del scroll, no arriba de él: se desplaza con
+             * el contenido en vez de quedar clavada.
+             *
+             * El envoltorio se monta solo cuando hay barra. La agenda usa
+             * `h-full` contra `main`, y un div de más en el medio le rompe el
+             * alto.
+             */
+            <div className="flex flex-col gap-3">
+              <TopBar session={session} onLogout={logout} />
+              {children}
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
     </div>

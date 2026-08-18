@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { CalendarDays, CheckCircle2, Clock, Info, Wallet } from "lucide-react"
+import { CalendarDays, CheckCircle2, Clock, Wallet } from "lucide-react"
 import { Page } from "../ui/Page"
 import { formatPrice } from "@/lib/format"
 import { dateToStr } from "@/lib/time"
@@ -75,16 +75,7 @@ export default function DashboardPage() {
      */
     <Page width="full">
       <div className="space-y-3">
-        <StatTiles
-          stats={stats}
-          note={
-            <p className="flex items-center gap-1.5 text-xs text-neutral-500">
-              <Info size={13} aria-hidden />
-              Los turnos son datos de ejemplo hasta que la agenda esté conectada. El equipo y las
-              ausencias son reales.
-            </p>
-          }
-        />
+        <StatTiles stats={stats} />
 
         <AbsenceTimeline />
 

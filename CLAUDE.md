@@ -69,19 +69,33 @@ y las tarjetas son superficies blancas separadas por aire.
 - **`MobileBar`** — **en todas las pantallas**, solo debajo de `lg`: el botón de
   menú, en qué sección estás y la cuenta. Ahí el riel está oculto, así que sin
   esta barra no habría forma de navegar ni de cerrar sesión
-- **`TopBar`** — **solo en `/dashboard`**, y solo de `lg` para arriba: el nombre
-  del negocio, la fecha, las caras del equipo y "Nuevo turno". Es contexto del
-  tablero, no chrome de la aplicación; el resto de las pantallas trae su propio
-  encabezado con `PageHeader`. **No repite el menú del riel**: dos navegaciones
-  para las mismas cinco pantallas confunden más de lo que ayudan
-- **`AccountMenu`** — el avatar y su menú (Configuración, Cerrar sesión). Vive en
-  el riel y en `MobileBar`, **nunca en `TopBar`**: cerrar sesión tiene que poder
-  hacerse desde cualquier pantalla, y esa barra solo existe en Inicio
+- **`TopBar`** — **solo en `/dashboard`**, y solo de `lg` para arriba. Va
+  **adentro de `main`**, no arriba: scrollea con el contenido en vez de quedar
+  clavada. El envoltorio que la acompaña se monta solo cuando hay barra —la
+  agenda usa `h-full` contra `main` y un div de más en el medio le rompe el
+  alto—. Trae el nombre
+  del negocio, la fecha, las caras del equipo, "Nuevo turno", la cuenta y la
+  campanita. Es contexto del tablero, no chrome de la aplicación; el resto de las
+  pantallas trae su propio encabezado con `PageHeader`. **No repite el menú del
+  riel**: dos navegaciones para las mismas cinco pantallas confunden más de lo
+  que ayudan.
+  La campanita **no tiene sistema atrás todavía**: por eso no lleva puntito de
+  "sin leer" —sería inventar un número que nadie midió— y abre un panel que
+  aclara que no hay nada. Cuando exista el endpoint, se cambia solo ese panel
+- **`AccountMenu`** — el avatar y su menú (Configuración, Cerrar sesión). Está
+  **siempre** al pie del riel, y además en `TopBar` (Inicio) y en `MobileBar`.
+  En Inicio queda duplicado mientras estás arriba de todo, y es a propósito: la
+  barra scrollea, así que si la cuenta viviera solo ahí, cerrar sesión pediría
+  volver al tope de la página
 - **`nav.ts`** — las secciones. Las leen el riel, el cajón del teléfono y el
   título de `MobileBar`: tienen que decir lo mismo
 
 El fondo del shell es `bg-neutral-200` y no algo más claro: contra el blanco de
 las tarjetas, `neutral-100` deja 4% de diferencia y el riel desaparece.
+
+`main` lleva `.scrollbar-none` (definida en `globals.css`): scrollea igual pero
+sin barra a la vista. **El scroll horizontal del calendario sí la conserva**: el
+vertical se descubre solo con la rueda, el lateral no.
 
 El shell usa `h-screen` (no `min-h-screen`) y marca su raíz con `data-app-shell`.
 El contenido scrollea dentro de `main`; el riel y la barra quedan quietos.
@@ -91,10 +105,16 @@ El contenido scrollea dentro de `main`; el riel y la barra quedan quietos.
 Debajo de `lg` el riel se esconde y el menú vuelve a tener texto, en el cajón
 (`components/ui/sheet.tsx`) que abre el botón de la barra.
 
+**Un solo valor de aire: `3` (12px).** El `p` y el `gap` del shell, el `gap` entre
+la barra y el contenido, y el `gap` entre tarjetas son todos el mismo. Si aparece
+un `gap-2.5` o un `p-2` suelto en el chasis, está mal: se ven tres anchos
+distintos y el contenido deja de alinear con la barra.
+
 Las páginas van envueltas en `<Page>` (`app/(admin)/ui/Page.tsx`), que elige ancho
-y padding: `narrow` / `default` / `wide` centran la columna, `full` ocupa todo —es
-lo que usa el tablero, porque un calendario de catorce columnas dentro de una
-columna centrada se aprieta al pedo—. `<PageHeader>` está para las pantallas que
+y padding: `narrow` / `default` / `wide` centran la columna, `full` ocupa todo y
+**no trae padding propio** —es lo que usa el tablero, porque un calendario de
+catorce columnas dentro de una columna centrada se aprieta al pedo, y porque el
+padding lo pone el shell: así las tarjetas alinean al pixel con la barra—. `<PageHeader>` está para las pantallas que
 necesitan título propio; **el tablero no lo usa**: la barra de arriba ya dice en
 qué sección estás, y el título grande es el de la tarjeta principal
 (`<PanelHeader size="lg">`).
@@ -110,8 +130,6 @@ qué sección estás, y el título grande es el de la tarjeta principal
 | `UpcomingAppointments` | La jornada, con el próximo turno destacado — **mock** |
 | `TeamCard` | Equipo, ordenado por lo que hay que hacer — **API real** |
 | `QuickActions` | Saludo, atajos y estado de la suscripción — **API real** |
-
-El chip "Turnos de ejemplo" del encabezado avisa qué parte todavía no es real.
 
 **El calendario de ausencias** (`features/dashboard/lib/timeline.ts`, con tests):
 - La ventana son 14 días **a partir del lunes** de la semana actual, y se fija al

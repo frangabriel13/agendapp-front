@@ -8,10 +8,14 @@ const WIDTHS = {
   /** Grillas de varias columnas. */
   wide: "max-w-6xl p-5 sm:p-8",
   /**
-   * Todo el ancho, con el aire justo. Para tableros: un calendario de catorce
-   * columnas dentro de una columna centrada se aprieta al pedo.
+   * Todo el ancho y **sin padding propio**. Para tableros: un calendario de
+   * catorce columnas dentro de una columna centrada se aprieta al pedo.
+   *
+   * El aire lo pone el shell con su `gap`/`p`, y por eso las tarjetas quedan
+   * alineadas al pixel con la barra de arriba. Si esta variante trajera padding,
+   * el contenido quedaría metido para adentro respecto de la barra.
    */
-  full: "max-w-none p-1 sm:p-2",
+  full: "max-w-none",
 } as const
 
 interface PageProps {
