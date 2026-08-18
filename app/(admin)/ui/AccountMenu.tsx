@@ -18,16 +18,17 @@ interface Props {
   session: Session | undefined
   onLogout: () => void
   /** Dónde abrir el menú, según de qué borde cuelgue el disparador. */
-  side?: "right" | "top"
+  side?: "right" | "top" | "bottom"
   className?: string
 }
 
 /**
  * La cuenta: el avatar y lo que cuelga de él.
  *
- * Está en el riel y en la barra del teléfono, nunca en la barra del tablero.
- * Cerrar sesión tiene que poder hacerse desde cualquier pantalla, y la barra de
- * arriba solo existe en Inicio.
+ * Aparece en un solo lugar por pantalla, pero no siempre el mismo: en Inicio va
+ * en la barra de arriba, en el resto al pie del riel, y en el teléfono en
+ * `MobileBar`. La regla es que cerrar sesión tenga que poder hacerse desde
+ * cualquier pantalla, sin que el mismo control quede dibujado dos veces.
  */
 export function AccountMenu({ session, onLogout, side = "right", className }: Props) {
   const nombre = session ? `${session.user.firstName} ${session.user.lastName}`.trim() : null

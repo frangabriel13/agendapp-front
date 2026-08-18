@@ -15,8 +15,9 @@ import { NAV_ITEMS, SETTINGS_ITEM, type NavItem } from "./nav"
  * nada— y una etiqueta que aparece al pasar el mouse o al llegar con el
  * teclado, porque un ícono suelto solo se entiende cuando ya lo aprendiste.
  *
- * Abajo va la cuenta, y no en la barra de arriba: esa barra solo se monta en
- * Inicio, y cerrar sesión tiene que poder hacerse desde cualquier pantalla.
+ * Abajo va la cuenta, **siempre**. En Inicio la barra de arriba también la trae,
+ * pero esa barra scrollea con el contenido: apenas bajás, deja de estar. Cerrar
+ * sesión tiene que poder hacerse sin volver al tope de la página.
  */
 export function IconRail({
   pathname,

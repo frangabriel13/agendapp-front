@@ -150,6 +150,26 @@ html:has([data-app-shell]) {
  * `appearance: none` y se dibuja una igual a la de los íconos de la app.
  */
 /*
+ * Scroll sin barra a la vista.
+ *
+ * Solo esconde el indicador: la rueda, el teclado y el gesto del trackpad siguen
+ * funcionando igual. Va únicamente en el scroll vertical del panel, que se
+ * descubre solo; el horizontal del calendario **conserva la barra**, porque sin
+ * ella nadie se entera de que se puede correr a los costados.
+ *
+ * De paso desaparece la diferencia de ancho entre plataformas: en Windows la
+ * barra clásica se comía 15px del contenido y lo desalineaba con la barra de
+ * arriba.
+ */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/*
  * Rayado diagonal de los fines de semana en el calendario de ausencias.
  *
  * Va en CSS y no en clases: `repeating-linear-gradient` es un patrón, no un

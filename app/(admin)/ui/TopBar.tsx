@@ -2,7 +2,14 @@
 
 import { useMemo } from "react"
 import Link from "next/link"
-import { CalendarDays, Plus } from "lucide-react"
+import { Bell, CalendarDays, Plus } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { CtaLink } from "@/components/CtaLink"
 import { pillClasses, pillLinkClasses } from "@/components/Panel"
 import { cn } from "@/lib/utils"
@@ -10,6 +17,7 @@ import { useEmployees } from "@/features/employees/hooks/useEmployees"
 import { personColor } from "@/features/employees/lib/palette"
 import { fullName, initials } from "@/features/employees/lib/roles"
 import type { Employee, Session } from "@/types"
+import { AccountMenu } from "./AccountMenu"
 
 /** Cuántas caras entran antes de pasar a contarlas. */
 const AVATARS = 3
@@ -17,15 +25,24 @@ const AVATARS = 3
 /**
  * La barra del tablero. **Solo se monta en Inicio.**
  *
- * Es contexto del tablero, no chrome de la aplicación: de qué negocio se está
- * mirando el día, qué día es, quién está en el equipo y el atajo para cargar un
- * turno. Lo que sí tiene que estar en todas las pantallas —navegar y la cuenta—
- * vive en el riel y, abajo de `lg`, en `MobileBar`.
+ * Es contexto del tablero: de qué negocio se está mirando el día, qué día es,
+ * quién está en el equipo y el atajo para cargar un turno. A la derecha, lo de
+ * quien está usando el panel: su cuenta y las novedades.
+ *
+ * Cuando esta barra está, el riel **no** dibuja la cuenta: es el mismo control y
+ * no tiene sentido tenerlo dos veces en pantalla. Navegar sí queda siempre en el
+ * riel y, abajo de `lg`, en `MobileBar`.
  *
  * De `lg` para abajo no aparece: ahí ya está `MobileBar`, y dos barras apiladas
  * en un teléfono se comen la pantalla.
  */
-export function TopBar({ session }: { session: Session | undefined }) {
+export function TopBar({
+  session,
+  onLogout,
+}: {
+  session: Session | undefined
+  onLogout: () => void
+}) {
   const employees = useEmployees()
 
   const hoy = useMemo(() => {
@@ -60,8 +77,50 @@ export function TopBar({ session }: { session: Session | undefined }) {
           <Plus size={15} aria-hidden />
           Nuevo turno
         </CtaLink>
+
+        {/* La cuenta y las novedades, separadas de la acción: son de quien está
+            usando el panel, no del negocio que se está mirando. */}
+        <div className="ml-1 flex items-center gap-1 border-l border-black/[0.06] pl-3">
+          <AccountMenu session={session} onLogout={onLogout} side="bottom" />
+          <NotificationsMenu />
+        </div>
       </div>
     </header>
+  )
+}
+
+/**
+ * La campanita.
+ *
+ * Todavía no hay sistema de notificaciones: ningún endpoint, nada que contar.
+ * Por eso no lleva puntito de "sin leer" —sería mentir sobre algo que no se
+ * midió— y abre un panel que dice exactamente eso. Un botón que no hace nada
+ * al tocarlo se lee como roto; uno que se explica, no.
+ */
+function NotificationsMenu() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Notificaciones"
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-full text-neutral-500",
+          "transition-colors hover:bg-neutral-100 hover:text-neutral-900",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600",
+        )}
+      >
+        <Bell size={17} aria-hidden />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent side="bottom" align="end" className="w-64">
+        <DropdownMenuLabel className="text-[13px] font-medium text-neutral-900">
+          Notificaciones
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <p className="px-2 py-3 text-[13px] text-neutral-500">
+          Cuando haya novedades te avisamos acá.
+        </p>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
