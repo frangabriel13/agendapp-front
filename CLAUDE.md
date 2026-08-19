@@ -145,48 +145,59 @@ arriba se gana el lugar cuando dice algo que el detalle no puede: una comparaci�
 contra la semana pasada, plata, o algo accionable. Si vuelven con la Fase 5, que
 sea con eso.
 
-**El calendario de disponibilidad** (`TeamAvailability`, con
-`lib/timeline.ts` y `lib/availability.ts`, los dos con tests). Cada celda dice
-en una palabra qué tiene esa persona ese día: **Vacía**, **Disponible**,
-**Llena**, **No trabaja**, **Sin horario** — o una barra de ausencia encima.
-Palabra y no un número de turnos: lo que se decide mirando esto es "¿a quién le
-doy este turno?", y para eso "Disponible" contesta mientras que "3" obliga a
-saber cuántas horas trabaja esa persona para interpretarlo. Reglas:
+**El calendario de disponibilidad** (`TeamAvailability`). La lógica está partida
+en tres archivos, los tres con tests:
 
-- **`sin-horario` no es `no-trabaja`.** El primero dice que nadie le cargó los
-  horarios —es una tarea pendiente—; el segundo, que ese día no le toca.
-  Confundirlos haría que un equipo a medio configurar se viera como uno que no
-  trabaja nunca
+| Archivo | Qué contesta |
+|---|---|
+| `lib/timeline.ts` | Qué días entran en la ventana |
+| `lib/availability.ts` | Qué tiene cada persona cada día |
+| `lib/openDays.ts` | Qué días no abre el negocio |
+
+Cada celda muestra **el horario de esa persona y una barra de ocupación**: verde
+lo que ya tomó, violeta lo que se lleva una ausencia parcial, gris lo que queda
+libre. Palabra no: el horario es dato duro y la barra se lee de un vistazo.
+
+Reglas que no son obvias:
+
+- **El rayado gris sale de los horarios comerciales, no del fin de semana.** Un
+  día se raya cuando **ninguna sucursal** abre — y los feriados y días especiales
+  cuentan, con su nombre en el chip del día. `closedDays` devuelve vacío mientras
+  los horarios cargan: rayar la quincena entera diría "no abrimos nunca" cuando
+  lo que pasa es que todavía no llegó la respuesta
+- **Una ausencia parcial no tapa el día.** `absenceMinutesByDay` mide cuánto se
+  lleva la ausencia **del turno real de esa persona**: un permiso de 14 a 18 sobre
+  una jornada de 10 a 19 se lleva 240 de 540 minutos, así que no es completa y se
+  dibuja como tramo violeta dentro de la celda, **más el borde violeta**: el
+  tramo mide 4px de alto y escaneando la grilla no se ve. Taparle el día diría
+  que no vino, y atendió toda la mañana
+- Por eso `layoutAbsences` arma las barras con los días **completos**, y una misma
+  ausencia puede dar más de una barra —o ninguna—: la que arranca a las 14 del
+  lunes y termina el miércoles tapa martes y miércoles, y deja el lunes como celda
+- Un día que la persona no trabaja cuenta como completo: si no, unas vacaciones
+  que cruzan el domingo se dibujarían partidas en dos
+- Con dos tramos en un día se muestran **las puntas** (`09–20`), no el primero:
+  "09–13" cuando se queda hasta las 20 es peor que no decir nada
+- **`sin-horario` no es `no-trabaja`.** El primero es una tarea pendiente; el
+  segundo, que ese día no le toca
 - "Llena" no es "sin un minuto libre": con menos del 15% del día suelto no entra
   ningún servicio real. **Cuando el front consuma los servicios de la Fase 3, la
   regla buena es "no entra ni el más corto"** y esa constante se va
-- Los turnos cancelados no ocupan —ese lugar volvió a estar libre—; los "no
-  asistió" sí, porque nadie más pudo tomar ese horario
-- Los horarios se piden **de a una persona** (`useTeamSchedules`), igual que las
-  ausencias, y comparten `queryKey` con `useEmployeeSchedules`
-- La ventana son 14 días **a partir del lunes** de la semana actual, y se fija al
-  montar. Recalcularla en cada render correría el calendario al cruzar la medianoche
-- Trabaja sobre **días de calendario**, no instantes: una ausencia de dos horas
-  ocupa la columna de su día igual que una de dos semanas ocupa catorce
-- Lo que cruza el borde de la ventana se recorta y se dibuja con el borde recto
-  de ese lado (`continuesBefore` / `continuesAfter`)
-- Dos ausencias superpuestas de la misma persona van a filas distintas (`lane`)
-- El ancho de la columna de nombres es la variable CSS `--tl-name`, no una
-  constante de JS: la comparten el encabezado, las filas y la línea de hoy, y
-  además cambia por breakpoint
-- Las ausencias se piden **de a una persona** (`useTeamTimeOff`, N pedidos en
-  paralelo): la API no tiene un endpoint por tenant. Comparte `queryKey` con
-  `useTimeOff`, así guardar una ausencia refresca el diálogo y el panel juntos
-- **Hoy se marca con el borde, no con el relleno.** Relleno violeta significa
-  "tiene un turno"; pintar igual un día libre decía lo contrario de lo que pasa
-- La leyenda está arriba de la grilla y no en un tooltip: sin ella, un tablero
-  de celdas de colores hay que descifrarlo, y nadie lo hace
-- **`features/dashboard/lib/roster.ts` es un puente temporal que se borra con la
-  Fase 5.** Los turnos de ejemplo traen ids de profesionales inventados (`p1`,
-  `p2`…) que no existen en la API, así que se reparten por posición entre
-  quienes atienden —un `ADMINISTRATIVE` no atiende, pero sí falta, así que tiene
-  fila sin carga—. Cuando el backend exponga turnos, `professionalId` va a ser el
-  id del empleado y esto pasa a ser un `filter` directo
+- Los turnos cancelados no ocupan; los "no asistió" sí, porque nadie más pudo
+  tomar ese horario
+- **Hoy no se marca en la celda**: lo señala el chip violeta del encabezado, que
+  ya distingue la columna entera. Dos violetas distintos en la misma grilla
+  —"hoy" y "ausencia parcial"— hacían dudar de cuál era cuál
+- La leyenda va arriba de la grilla y no en un tooltip
+- Horarios, ausencias y calendarios de sucursal se piden **de a uno**
+  (`useTeamSchedules`, `useTeamTimeOff`, `useBranchCalendars`): la API no los
+  expone por tenant. Comparten `queryKey` con las pantallas que los editan, así
+  guardar un horario en `/equipo` o `/sucursales` refresca el tablero
+- **`lib/roster.ts` es un puente temporal que se borra con la Fase 5.** Los turnos
+  de ejemplo traen ids de profesionales inventados que no existen en la API, así
+  que se reparten por posición entre quienes atienden
+- Las fotos son marcadores: `avatarUrl` existe en la API pero todavía no hay
+  forma de subir una desde el panel. El aro del avatar lleva el color de la persona
 
 ## Reportes y facturación
 Las cuentas viven en `features/reports/lib/revenue.ts`, con tests, y **no** en las
@@ -325,9 +336,10 @@ no coinciden, se cambia el front.
 del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
 
 - **Corriendo en `http://localhost:3001`** (`NEXT_PUBLIC_API_URL`). Swagger en `/api`, spec en `/api-json`
-- **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/service-categories`, `/services`, `/resources`, `/health`
-- **Todavía no existe:** clientes (Fase 4), **turnos y disponibilidad (Fase 5)**, pagos (Fase 6), portal público (Fase 7)
-- **Catálogo (Fase 3, nuevo):** precios en **centavos** (`priceCents`); un servicio se presta por par `(empleado, sucursal)`, no solo por empleado; los recursos son feature de plan. Detalle en `docs/api-changelog.md`
+- **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/service-categories`, `/services`, `/resources`, `/customers`, `/customer-tags`, `/health`
+- **Todavía no existe:** **turnos y disponibilidad (Fase 5)**, pagos (Fase 6), portal público (Fase 7)
+- **Catálogo (Fase 3):** precios en **centavos** (`priceCents`); un servicio se presta por par `(empleado, sucursal)`, no solo por empleado; los recursos son feature de plan
+- **Clientes (Fase 4, nuevo):** `Patient` ahora es **`Customer`** (el tipo provisorio se reemplaza). Dos formas nuevas que se repiten en las fases que vienen: `GET /customers` devuelve **`{ data, meta }`** paginado (primer endpoint así de la API), y un **error puede traer campos extra** — el 409 de `POST /customers` manda `existingCustomer` con la ficha ya cargada, para ofrecer "¿es esta persona?" en vez de un cartel rojo. El teléfono lo compara el backend normalizado: **no normalizar en el front**. Detalle en `docs/api-changelog.md`
 - Levantarlo: `docker compose up -d && npm run seed:demo && npm run start:dev` desde `../agendapp-api`
 - Usuario de demo: `dueno@demo.test` / `demo1234`
 

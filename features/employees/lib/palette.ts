@@ -10,45 +10,19 @@
  * estén después, y el color dejaría de identificar a nadie.
  */
 export interface PersonColor {
-  /** Barra sólida sobre el calendario. Lleva el texto en blanco. */
-  bar: string
-  /** Chip dentro de la barra. */
-  chip: string
-  /** Círculo con las iniciales. */
+  /** Círculo del avatar: fondo tenue y trazo del mismo tono. */
   avatar: string
+  /** Aro alrededor del avatar. Es lo que identifica a la persona en la grilla. */
+  ring: string
 }
 
 const PALETTE: PersonColor[] = [
-  {
-    bar: "bg-gradient-to-r from-violet-500 to-violet-600",
-    chip: "bg-white/20 text-white",
-    avatar: "bg-violet-100 text-violet-700",
-  },
-  {
-    bar: "bg-gradient-to-r from-emerald-500 to-emerald-600",
-    chip: "bg-white/20 text-white",
-    avatar: "bg-emerald-100 text-emerald-700",
-  },
-  {
-    bar: "bg-gradient-to-r from-sky-500 to-sky-600",
-    chip: "bg-white/20 text-white",
-    avatar: "bg-sky-100 text-sky-700",
-  },
-  {
-    bar: "bg-gradient-to-r from-amber-500 to-amber-600",
-    chip: "bg-white/20 text-white",
-    avatar: "bg-amber-100 text-amber-700",
-  },
-  {
-    bar: "bg-gradient-to-r from-rose-500 to-rose-600",
-    chip: "bg-white/20 text-white",
-    avatar: "bg-rose-100 text-rose-700",
-  },
-  {
-    bar: "bg-gradient-to-r from-indigo-500 to-indigo-600",
-    chip: "bg-white/20 text-white",
-    avatar: "bg-indigo-100 text-indigo-700",
-  },
+  { avatar: "bg-violet-100 text-violet-700", ring: "ring-violet-400" },
+  { avatar: "bg-emerald-100 text-emerald-700", ring: "ring-emerald-400" },
+  { avatar: "bg-sky-100 text-sky-700", ring: "ring-sky-400" },
+  { avatar: "bg-amber-100 text-amber-700", ring: "ring-amber-400" },
+  { avatar: "bg-rose-100 text-rose-700", ring: "ring-rose-400" },
+  { avatar: "bg-indigo-100 text-indigo-700", ring: "ring-indigo-400" },
 ]
 
 export function personColor(id: string): PersonColor {

@@ -1,5 +1,10 @@
 import { timeToMinutes } from "@/lib/time"
-import type { Appointment, EmployeeShift } from "@/types"
+import { toDateInput, toTimeInput } from "@/features/employees/lib/timeOff"
+import type { Appointment, EmployeeShift, TimeOff } from "@/types"
+import type { TimelineDay } from "./timeline"
+
+/** Minutos de un día. Una ausencia sin fin conocido llega hasta acá. */
+const DIA_COMPLETO = 24 * 60
 
 /**
  * Qué tiene una persona un día.
@@ -68,10 +73,153 @@ export function dayStatus({ capacidad, ocupado, tieneHorarios }: DayInput): DayS
   return capacidad - ocupado <= capacidad * RESTO_MINIMO ? "llena" : "disponible"
 }
 
-export const STATUS_LABEL: Record<DayStatus, string> = {
-  "sin-horario": "Sin horario",
-  "no-trabaja": "No trabaja",
-  vacia: "Vacía",
-  disponible: "Disponible",
-  llena: "Llena",
+/** Qué se lleva una ausencia de un día concreto de una persona. */
+export interface AbsenceOnDay {
+  timeOff: TimeOff
+  /** Minutos del turno de trabajo que la ausencia ocupa. */
+  minutos: number
+  /**
+   * Se lleva todo lo que esa persona iba a trabajar.
+   *
+   * Un día que no trabaja cuenta como completa: si no, unas vacaciones que
+   * cruzan el domingo se dibujarían partidas en dos barras.
+   */
+  completa: boolean
+}
+
+/** Cuánto se solapan dos rangos de minutos. 0 si no se tocan. */
+function solape(desdeA: number, hastaA: number, desdeB: number, hastaB: number): number {
+  return Math.max(0, Math.min(hastaA, hastaB) - Math.max(desdeA, desdeB))
+}
+
+/**
+ * Cuánto se lleva cada ausencia de cada día, medido contra el horario real de
+ * la persona.
+ *
+ * Es lo que permite distinguir un turno médico de dos horas de unas vacaciones:
+ * el primero deja la mañana disponible y no puede tapar el día entero.
+ *
+ * Si dos ausencias caen el mismo día gana la que se lleva más tiempo: la grilla
+ * tiene una celda por día y hay que elegir cuál contar.
+ */
+export function absenceMinutesByDay(
+  items: TimeOff[],
+  days: TimelineDay[],
+  shifts: EmployeeShift[],
+): Map<string, AbsenceOnDay> {
+  const capacidad = minutesByWeekday(shifts)
+  const porDia = new Map<string, AbsenceOnDay>()
+
+  for (const timeOff of items) {
+    const primero = toDateInput(timeOff.startsAt)
+    const ultimo = toDateInput(timeOff.endsAt)
+
+    for (const day of days) {
+      if (day.key < primero || day.key > ultimo) continue
+
+      // Solo el primer y el último día están recortados por la hora; los del
+      // medio los ocupa enteros.
+      const desde = day.key === primero ? timeToMinutes(toTimeInput(timeOff.startsAt)) : 0
+      const hasta = day.key === ultimo ? timeToMinutes(toTimeInput(timeOff.endsAt)) : DIA_COMPLETO
+
+      const delDia = shifts.filter((shift) => shift.dayOfWeek === day.dayOfWeek)
+      const minutos = delDia.reduce(
+        (total, shift) =>
+          total + solape(desde, hasta, timeToMinutes(shift.startsAt), timeToMinutes(shift.endsAt)),
+        0,
+      )
+
+      const trabaja = capacidad.get(day.dayOfWeek) ?? 0
+      const entrada: AbsenceOnDay = {
+        timeOff,
+        minutos,
+        completa: trabaja <= 0 || minutos >= trabaja,
+      }
+
+      const previa = porDia.get(day.key)
+      if (!previa || entrada.minutos > previa.minutos) porDia.set(day.key, entrada)
+    }
+  }
+
+  return porDia
+}
+
+/** Una ausencia ya ubicada en la grilla. */
+export interface AbsenceSpan {
+  timeOff: TimeOff
+  /** Primera y última columna que ocupa. */
+  start: number
+  end: number
+  /** La ausencia sigue antes / después de lo que ocupa la barra. */
+  continuesBefore: boolean
+  continuesAfter: boolean
+  /** Fila dentro de la persona. Dos ausencias superpuestas no comparten fila. */
+  lane: number
+}
+
+/**
+ * Arma las barras a partir de los días que la ausencia se lleva **enteros**.
+ *
+ * Los días que solo se lleva a medias no entran: ahí la persona igual atendió, y
+ * taparle la celda diría que no vino. Eso se dibuja dentro de la celda.
+ *
+ * Por eso una ausencia puede producir más de una barra —o ninguna—: un permiso
+ * que arranca a las 14 del lunes y termina el miércoles tapa martes y miércoles,
+ * y el lunes queda como celda con un tramo bloqueado.
+ */
+export function layoutAbsences(
+  porDia: Map<string, AbsenceOnDay>,
+  days: TimelineDay[],
+): { spans: AbsenceSpan[]; lanes: number } {
+  const tramos: Omit<AbsenceSpan, "lane">[] = []
+
+  let inicio = -1
+  for (let i = 0; i <= days.length; i++) {
+    const actual = i < days.length ? porDia.get(days[i]!.key) : undefined
+    const abierta = inicio !== -1 ? porDia.get(days[inicio]!.key)!.timeOff : null
+    const sigue = actual?.completa === true && actual.timeOff === abierta
+
+    if (inicio !== -1 && !sigue) {
+      const timeOff = abierta!
+      tramos.push({
+        timeOff,
+        start: inicio,
+        end: i - 1,
+        // La ausencia sigue si su propio rango se estira más allá de la barra,
+        // sea por quedar fuera de la ventana o por un día tomado a medias.
+        continuesBefore: toDateInput(timeOff.startsAt) < days[inicio]!.key,
+        continuesAfter: toDateInput(timeOff.endsAt) > days[i - 1]!.key,
+      })
+      inicio = -1
+    }
+
+    if (actual?.completa === true && inicio === -1) inicio = i
+  }
+
+  // Reparto codicioso: cada barra va a la primera fila que ya se liberó.
+  const laneEnds: number[] = []
+  const spans = tramos.map((span) => {
+    let lane = laneEnds.findIndex((end) => end < span.start)
+    if (lane === -1) lane = laneEnds.length
+    laneEnds[lane] = span.end
+    return { ...span, lane }
+  })
+
+  return { spans, lanes: Math.max(1, laneEnds.length) }
+}
+
+/** Qué dice la barra: el motivo y cuánto dura. */
+export function describeAbsence(span: AbsenceSpan): { title: string; detail: string } {
+  const title = span.timeOff.reason?.trim() || "Ausencia"
+  const dias = span.end - span.start + 1
+  const parcial = span.continuesBefore || span.continuesAfter
+
+  if (dias > 1 || parcial) return { title, detail: `${dias} ${dias === 1 ? "día" : "días"}` }
+
+  return { title, detail: "Todo el día" }
+}
+
+/** El rango de una ausencia parcial, para el chip dentro de la celda. */
+export function absenceRange(timeOff: TimeOff): string {
+  return `${toTimeInput(timeOff.startsAt)}–${toTimeInput(timeOff.endsAt)}`
 }
