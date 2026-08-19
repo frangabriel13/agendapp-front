@@ -1,7 +1,5 @@
 import { WEEK_DAYS } from "@/lib/days"
-import { dateToStr, parseCalendarDay } from "@/lib/time"
-import { isAllDay, toDateInput, toTimeInput } from "@/features/employees/lib/timeOff"
-import type { TimeOff } from "@/types"
+import { dateToStr } from "@/lib/time"
 
 /** Una columna del calendario. */
 export interface TimelineDay {
@@ -62,90 +60,4 @@ export function rangeLabel(days: TimelineDay[]): string {
   return first.date.getMonth() === last.date.getMonth()
     ? `${first.date.getDate()} al ${withMonth(last.date)}`
     : `${withMonth(first.date)} al ${withMonth(last.date)}`
-}
-
-/** Una ausencia ya ubicada en la grilla. */
-export interface AbsenceSpan {
-  timeOff: TimeOff
-  /** Primera y última columna que ocupa, ya recortadas a la ventana. */
-  start: number
-  end: number
-  /** La ausencia empieza antes / termina después de lo que se ve. */
-  continuesBefore: boolean
-  continuesAfter: boolean
-  /** Fila dentro de la persona. Dos ausencias superpuestas no comparten fila. */
-  lane: number
-}
-
-/**
- * Ubica las ausencias de una persona en la ventana visible.
- *
- * Trabaja sobre días de calendario y no sobre instantes: una ausencia de dos
- * horas ocupa la columna de su día igual que una de dos semanas ocupa catorce.
- * Las que caen fuera de la ventana se descartan, y las que la cruzan se recortan
- * marcando por dónde siguen, para poder dibujarles el borde recto de ese lado.
- */
-export function layoutAbsences(
-  items: TimeOff[],
-  days: TimelineDay[],
-): { spans: AbsenceSpan[]; lanes: number } {
-  const first = days[0]?.key
-  const last = days[days.length - 1]?.key
-  if (first === undefined || last === undefined) return { spans: [], lanes: 1 }
-
-  const visible = items
-    .map((timeOff) => {
-      const from = toDateInput(timeOff.startsAt)
-      const to = toDateInput(timeOff.endsAt)
-      // "YYYY-MM-DD" ordena igual como texto que como fecha, así que alcanza
-      // con comparar las cadenas.
-      if (to < first || from > last) return null
-
-      const startIndex = days.findIndex((day) => day.key === from)
-      const endIndex = days.findIndex((day) => day.key === to)
-
-      return {
-        timeOff,
-        start: startIndex === -1 ? 0 : startIndex,
-        end: endIndex === -1 ? days.length - 1 : endIndex,
-        continuesBefore: from < first,
-        continuesAfter: to > last,
-      }
-    })
-    .filter((span) => span !== null)
-    .sort((a, b) => a.start - b.start || a.end - b.end)
-
-  // Reparto codicioso: cada ausencia va a la primera fila que ya se liberó.
-  // Ordenadas por inicio, alcanza con recordar dónde termina cada fila.
-  const laneEnds: number[] = []
-  const spans = visible.map((span) => {
-    let lane = laneEnds.findIndex((end) => end < span.start)
-    if (lane === -1) lane = laneEnds.length
-    laneEnds[lane] = span.end
-    return { ...span, lane }
-  })
-
-  return { spans, lanes: Math.max(1, laneEnds.length) }
-}
-
-/** Qué dice la barra: el motivo y cuánto dura. */
-export function describeAbsence(timeOff: TimeOff): { title: string; detail: string } {
-  const title = timeOff.reason?.trim() || "Ausencia"
-  const from = toDateInput(timeOff.startsAt)
-  const to = toDateInput(timeOff.endsAt)
-
-  if (from !== to) {
-    const millis = parseCalendarDay(to).getTime() - parseCalendarDay(from).getTime()
-    // `Math.round` y no una división exacta: el día del cambio de horario de
-    // verano dura 23 o 25 horas y truncaría mal.
-    const days = Math.round(millis / 86_400_000) + 1
-    return { title, detail: `${days} días` }
-  }
-
-  return {
-    title,
-    detail: isAllDay(timeOff.startsAt, timeOff.endsAt)
-      ? "Todo el día"
-      : `${toTimeInput(timeOff.startsAt)}–${toTimeInput(timeOff.endsAt)}`,
-  }
 }
