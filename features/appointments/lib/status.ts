@@ -1,11 +1,28 @@
 import type { AppointmentStatus } from "@/types"
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  pending: "Pendiente",
+  // "A confirmar" y no "Pendiente": nombra lo que hay que hacer con el turno, no
+  // el casillero en el que está. Lo leen el filtro de la agenda, el tablero del
+  // día, el modal y la lista de Inicio, así que el nombre es uno solo.
+  pending: "A confirmar",
   confirmed: "Confirmado",
-  completed: "Completado",
+  completed: "Atendido",
   cancelled: "Cancelado",
   no_show: "No asistió",
+}
+
+/**
+ * Los mismos nombres para encabezar un grupo.
+ *
+ * Van escritos y no armados con una "s": en castellano "a confirmar" ya vale
+ * para varios y "A confirmars" es lo que sale de pluralizar a mano.
+ */
+export const STATUS_PLURAL: Record<AppointmentStatus, string> = {
+  pending: "A confirmar",
+  confirmed: "Confirmados",
+  completed: "Atendidos",
+  cancelled: "Cancelados",
+  no_show: "No asistieron",
 }
 
 // Bloque del turno dentro del calendario semanal

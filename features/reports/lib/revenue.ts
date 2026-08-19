@@ -51,19 +51,30 @@ function totalDe(appointments: Appointment[]): number {
  * de la API, y la cuenta es la misma.
  */
 export function monthRevenue(appointments: Appointment[], month: string): Revenue {
-  const delMes = appointments.filter((appointment) => esDelMes(appointment, month))
+  return desglose(appointments.filter((appointment) => esDelMes(appointment, month)))
+}
 
+/**
+ * El mismo desglose, pero entre dos días de calendario.
+ *
+ * Existe aparte de `rangeRevenue` porque la agenda necesita ver lo pendiente al
+ * lado de lo agendado, y esa separación es justamente la regla de plata de la
+ * app: pedirla desde afuera sería recopiar acá qué estado suma y cuál no.
+ */
+export function rangeBreakdown(appointments: Appointment[], from: string, to: string): Revenue {
+  return desglose(appointments.filter((a) => a.date >= from && a.date <= to))
+}
+
+function desglose(appointments: Appointment[]): Revenue {
   const sumar = (status: AppointmentStatus) =>
-    delMes
+    appointments
       .filter((appointment) => appointment.status === status)
       .reduce((total, appointment) => total + appointment.service.price, 0)
 
   const atendido = sumar(ATENDIDO)
   const agendado = sumar(AGENDADO)
   const total = atendido + agendado
-  const turnos = delMes.filter(
-    (appointment) => appointment.status === ATENDIDO || appointment.status === AGENDADO,
-  ).length
+  const turnos = appointments.filter(esFacturable).length
 
   return {
     total,

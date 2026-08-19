@@ -210,4 +210,40 @@ function construirHistorial(): Appointment[] {
   return turnos
 }
 
-mockAppointments.push(...construirHistorial())
+/**
+ * Un poco de variedad, solo en la semana en curso.
+ *
+ * El generador pinta todo lo pasado como atendido y todo lo que viene como
+ * confirmado. Con eso, el tablero de la agenda no tiene nunca nada que confirmar
+ * ni ninguna baja, y dos de sus cuatro columnas se ven siempre vacías.
+ *
+ * Se tocan **tres turnos y nada más**, y todos de la semana en curso: la
+ * comparación contra el mes anterior está calibrada y unos pocos turnos fuera
+ * del total facturable no la mueven. Con más, el mes en curso caería solo porque
+ * el mock cambió de opinión.
+ */
+function darVariedad(turnos: Appointment[]): void {
+  const hoy = new Date()
+  const lunes = new Date(hoy)
+  lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7))
+  const domingo = new Date(lunes)
+  domingo.setDate(lunes.getDate() + 6)
+
+  const porVenir = turnos
+    .filter(
+      (t) =>
+        t.status === "confirmed" &&
+        t.date > fechaDe(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()) &&
+        t.date >= fechaDe(lunes.getFullYear(), lunes.getMonth(), lunes.getDate()) &&
+        t.date <= fechaDe(domingo.getFullYear(), domingo.getMonth(), domingo.getDate()),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+
+  if (porVenir[0]) porVenir[0].status = "pending"
+  if (porVenir[2]) porVenir[2].status = "pending"
+  if (porVenir[4]) porVenir[4].status = "cancelled"
+}
+
+const historial = construirHistorial()
+darVariedad(historial)
+mockAppointments.push(...historial)
