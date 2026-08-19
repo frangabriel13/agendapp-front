@@ -14,14 +14,23 @@ const DIA_COMPLETO = 24 * 60
  * no le toca. Confundirlos haría que un equipo a medio configurar se viera como
  * un equipo que no trabaja nunca.
  */
-export type DayStatus = "sin-horario" | "no-trabaja" | "vacia" | "disponible" | "llena"
+export type DayStatus =
+  | "sin-horario"
+  | "no-trabaja"
+  | "vacia"
+  | "disponible"
+  | "casi-llena"
+  | "llena"
 
 /**
- * Con menos de este resto libre, el día se da por lleno.
+ * Con menos de este resto libre, el día está *casi* lleno.
  *
- * Que sobren veinte minutos sueltos no significa que entre otra clienta: casi
- * ningún servicio dura tan poco. **Cuando el front consuma los servicios de la
- * Fase 3, la regla buena es "no entra ni el más corto"** y esta constante se va.
+ * Queda tiempo, pero no el suficiente para nadie: que sobren veinte minutos
+ * sueltos no significa que entre otra clienta, porque casi ningún servicio dura
+ * tan poco. Es distinto de `llena`, que es no tener un solo minuto.
+ *
+ * **Cuando el front consuma los servicios de la Fase 3, la regla buena es "no
+ * entra ni el más corto"** y esta constante se va.
  */
 const RESTO_MINIMO = 0.15
 
@@ -70,7 +79,8 @@ export function dayStatus({ capacidad, ocupado, tieneHorarios }: DayInput): DayS
   if (!tieneHorarios) return "sin-horario"
   if (capacidad <= 0) return "no-trabaja"
   if (ocupado <= 0) return "vacia"
-  return capacidad - ocupado <= capacidad * RESTO_MINIMO ? "llena" : "disponible"
+  if (ocupado >= capacidad) return "llena"
+  return capacidad - ocupado <= capacidad * RESTO_MINIMO ? "casi-llena" : "disponible"
 }
 
 /** Qué se lleva una ausencia de un día concreto de una persona. */

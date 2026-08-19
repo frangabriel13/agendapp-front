@@ -153,10 +153,20 @@ en tres archivos, los tres con tests:
 | `lib/timeline.ts` | Qué días entran en la ventana |
 | `lib/availability.ts` | Qué tiene cada persona cada día |
 | `lib/openDays.ts` | Qué días no abre el negocio |
+| `lib/absenceKind.ts` | De qué es la ausencia |
 
-Cada celda muestra **el horario de esa persona y una barra de ocupación**: verde
-lo que ya tomó, violeta lo que se lleva una ausencia parcial, gris lo que queda
-libre. Palabra no: el horario es dato duro y la barra se lee de un vistazo.
+Cada celda muestra **el horario de esa persona y una barra de ocupación**: la
+carga a la izquierda, el tramo que se lleva una ausencia parcial en el color de
+su tipo, gris lo que queda libre. Palabra no: el horario es dato duro y la barra
+se lee de un vistazo.
+
+**Dos escalas de color que no se pisan.** La *carga* es un semáforo —verde,
+amarillo, rojo— y vive en la barrita de abajo de la celda. El *tipo de ausencia*
+es una categoría, no un grado, y vive en las barras que cruzan la grilla:
+naranja vacaciones, celeste licencia médica, violeta día libre, gris pizarra lo
+que no se pudo clasificar. Naranja y amarillo son parientes, y aun así no se
+confunden porque nunca comparten forma: el tipo pinta un bloque con texto, la
+carga una línea de 4px.
 
 Reglas que no son obvias:
 
@@ -178,11 +188,27 @@ Reglas que no son obvias:
   que cruzan el domingo se dibujarían partidas en dos
 - Con dos tramos en un día se muestran **las puntas** (`09–20`), no el primero:
   "09–13" cuando se queda hasta las 20 es peor que no decir nada
-- **`sin-horario` no es `no-trabaja`.** El primero es una tarea pendiente; el
-  segundo, que ese día no le toca
-- "Llena" no es "sin un minuto libre": con menos del 15% del día suelto no entra
-  ningún servicio real. **Cuando el front consuma los servicios de la Fase 3, la
-  regla buena es "no entra ni el más corto"** y esa constante se va
+- **`sin-horario` no es `no-trabaja`.** El primero es una tarea pendiente —nadie
+  le cargó los horarios— y se dibuja punteado, apagado. El segundo es un dato
+  cargado: ese día no le toca, y la celda va **pintada** con la palabra
+  **"Franco"**. Un día que la persona no trabaja no es un hueco de información
+- **El franco del horario y el "día libre" cargado como ausencia se llaman
+  distinto a propósito.** El primero sale de los tramos semanales y dice
+  "Franco"; el segundo es una ausencia puntual y su barra dice "Día libre". Son
+  dos cosas distintas y llamarlas igual haría dudar de cuál se está mirando
+- **El tipo de ausencia se adivina del texto, y es un puente.** `absenceKind`
+  busca palabras clave en `reason` porque **la API no tiene campo de tipo**:
+  `TimeOff` solo trae texto libre. Falla con lo que no está en la lista —"me voy
+  a Brasil" cae en `otro`, barra gris con el texto tal cual— y eso es preferible
+  a pintarlo de vacaciones adivinando. **Cuando el backend agregue el campo, ese
+  archivo se borra entero**; por eso vive solo y es el único lugar del front que
+  hace la suposición
+- **La carga tiene tres escalones, no dos**: verde con lugar, amarillo
+  `casi-llena` —queda tiempo, pero menos del 15% del día y no entra ningún
+  servicio real— y rojo `llena`, que es no tener un solo minuto. Pintar los dos
+  últimos igual escondía justo la diferencia que decide si vale la pena llamar a
+  esa persona. **Cuando el front consuma los servicios de la Fase 3, el corte del
+  amarillo pasa a ser "no entra ni el más corto"** y esa constante se va
 - Los turnos cancelados no ocupan; los "no asistió" sí, porque nadie más pudo
   tomar ese horario
 - **Hoy no se marca en la celda**: lo señala el chip violeta del encabezado, que

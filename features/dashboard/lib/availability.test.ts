@@ -104,13 +104,22 @@ describe("dayStatus", () => {
     expect(dayStatus({ ...base, ocupado: 120 })).toBe("disponible")
   })
 
-  it("un resto que no alcanza para nadie cuenta como llena", () => {
-    // Quedan 60 minutos de 540: no entra ningún servicio real.
-    expect(dayStatus({ ...base, ocupado: 480 })).toBe("llena")
+  it("un resto que no alcanza para nadie es 'casi llena', no llena", () => {
+    // Quedan 60 minutos de 540: hay tiempo, pero no entra ningún servicio real.
+    expect(dayStatus({ ...base, ocupado: 480 })).toBe("casi-llena")
+  })
+
+  it("llena es no tener un solo minuto", () => {
+    expect(dayStatus({ ...base, ocupado: 540 })).toBe("llena")
   })
 
   it("sobrevendido no rompe: sigue siendo llena", () => {
     expect(dayStatus({ ...base, ocupado: 700 })).toBe("llena")
+  })
+
+  it("justo en el borde del resto mínimo todavía no está llena", () => {
+    // Quedan 81 de 540: un 15% exacto entra en "casi llena", no en "llena".
+    expect(dayStatus({ ...base, ocupado: 459 })).toBe("casi-llena")
   })
 })
 
