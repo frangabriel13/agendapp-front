@@ -38,7 +38,7 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/activar` | **Real.** Cierra la invitación: token del link + contraseña. Pública |
 | `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
 | `/dashboard` | **Mitad real.** Equipo y ausencias salen de la API; los turnos siguen en mock |
-| `/agenda` | Calendario semanal, sobre mock data |
+| `/agenda` | **Rediseñada**: resumen de la semana, tablero del día y calendario en mes/semana/día. Sobre mock data |
 | `/reportes` | Facturación del mes, por servicio y por profesional — sobre mock |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
 | `/configuracion` | **Real.** Negocio, marca, política de reservas y datos del plan |
@@ -72,9 +72,9 @@ y las tarjetas son superficies blancas separadas por aire.
   esta barra no habría forma de navegar ni de cerrar sesión
 - **`TopBar`** — **solo en `/dashboard`**, y solo de `lg` para arriba. Va
   **adentro de `main`**, no arriba: scrollea con el contenido en vez de quedar
-  clavada. El envoltorio que la acompaña se monta solo cuando hay barra —la
-  agenda usa `h-full` contra `main` y un div de más en el medio le rompe el
-  alto—. Trae el nombre
+  clavada. El envoltorio que la acompaña se monta solo cuando hay barra: un div
+  de más en el medio le rompe el alto a cualquier pantalla que mida contra
+  `main`. Trae el nombre
   del negocio, la fecha, las caras del equipo, "Nuevo turno", la cuenta y la
   campanita. Es contexto del tablero, no chrome de la aplicación; el resto de las
   pantallas trae su propio encabezado con `PageHeader`. **No repite el menú del
@@ -225,6 +225,64 @@ Reglas que no son obvias:
 - Las fotos son marcadores: `avatarUrl` existe en la API pero todavía no hay
   forma de subir una desde el panel. El aro del avatar lleva el color de la persona
 
+## La agenda
+`app/(admin)/agenda/page.tsx` compone **tres bandas**, cada una contestando una
+pregunta distinta:
+
+| Banda | Qué contesta | Componente |
+|---|---|---|
+| Resumen de la semana | Cómo viene | `WeekSummary` |
+| Hoy por estado | Qué hay que hacer | `DayBoard` |
+| Calendario | Cuándo es cada cosa | `AgendaCalendar` |
+
+**Las dos primeras miran siempre la semana y el día en curso; el calendario se
+mueve por su cuenta.** Si el resumen siguiera la navegación, los números
+cambiarían debajo del mouse al pasar de semana para mirar algo.
+
+Reglas que no son obvias:
+
+- **El color del bloque dice quién atiende, no cómo viene el turno.** Son dos
+  datos distintos y en una grilla de veinte bloques el color rinde mucho más
+  identificando a la persona: si dijera el estado, una semana normal sería una
+  pared verde con dos excepciones y no se podría seguir a nadie de una columna a
+  otra. El estado va en el **relleno** (`blockLook` en `lib/tone.ts`): sólido
+  confirmado, tinta clara y borde punteado a confirmar, apagado atendido, gris
+  lo que no se hizo
+- Los tonos salen del hexadecimal de la persona con `color-mix`, no de una
+  paleta paralela: el color es un dato suyo y tiene que haber uno solo. Cuando
+  salga de la API, `lib/tone.ts` no cambia
+- **La barra al pie del bloque mide cuánto del turno ya transcurrió**, no
+  progreso inventado: los días pasados llenos, el que está ocurriendo a medias,
+  lo que viene vacío. Da de un vistazo dónde está parado el día
+- **La vista mes mide contra el día más movido del mes, no contra un cupo.** La
+  agenda no conoce los horarios del equipo —eso lo sabe el calendario de Inicio,
+  que sí los pide a la API—, así que un "70% lleno" acá sería un número sin nada
+  atrás. Por eso tampoco usa el semáforo verde/amarillo/rojo de Inicio: sería la
+  misma escala diciendo otra cosa
+- `cancelled` y `no_show` comparten la cuarta columna del tablero: las dos
+  significan que el turno no se hizo, y separarlas daba una quinta columna casi
+  siempre vacía. La ficha sigue diciendo cuál de las dos es
+- **Un solo vocabulario**: los nombres de estado salen de `STATUS_LABELS` y
+  `STATUS_PLURAL` (`lib/status.ts`), que también leen el modal y la lista de
+  Inicio. `pending` es **"A confirmar"** y no "Pendiente" a propósito: nombra lo
+  que hay que hacer con el turno, no el casillero en el que está
+- `TimeGrid` es una sola grilla para semana y día —las dos son columnas de
+  tiempo con distinta cabecera—; en la vista día la columna es la persona
+- El alto de hora (`ALTO_HORA`) no es un número redondo por gusto: con menos, un
+  turno de una hora no tiene lugar para el nombre y el servicio en líneas
+  separadas y el texto queda cortado contra el borde. El bloque tiene **dos
+  anatomías** y elige por alto y por ancho: con la columna partida en dos, el
+  avatar y la duración no dejan lugar para el nombre, que es lo único que no se
+  puede perder
+- El scroll lateral vive dentro de `TimeGrid`, no en la página: en un teléfono la
+  semana scrollea al costado y las tres bandas quedan quietas. Verificado de 390
+  a 1920 en las tres vistas
+
+Las cuentas viven en `lib/agenda.ts`, con tests: `weekStats`, `boardColumns`,
+`elapsedFraction`, `monthCells`, `busiestDay`. La plata sale de `rangeBreakdown`
+(`features/reports/lib/revenue.ts`) y no se recalcula acá: qué estado suma y cuál
+no es una regla sola para toda la app.
+
 ## Reportes y facturación
 Las cuentas viven en `features/reports/lib/revenue.ts`, con tests, y **no** en las
 páginas: hoy los turnos salen de `mockData` y mañana de la API, y la cuenta es la
@@ -276,9 +334,11 @@ esconde por debajo de `lg` y pasa a un cajón (`components/ui/sheet.tsx`), con u
 barra superior que trae el botón de menú. El cajón lo cierra Radix al navegar
 —los enlaces llaman a `onNavigate`— y con Escape.
 
-El layout del panel usa `h-screen` y no `min-h-screen`: le da altura definida a la
-columna, que es lo que necesita la agenda para ocupar el alto restante con
-`h-full` y scrollear adentro en vez de estirar la página.
+El layout del panel usa `h-screen` y no `min-h-screen`: le da altura definida a
+la columna, así el contenido scrollea dentro de `main` en vez de estirar la
+página. **Ninguna pantalla mide contra `main` con `h-full` hoy**: el tablero y la
+agenda son bandas apiladas que scrollean. Si alguna vuelve a hacerlo, mirar la
+nota del envoltorio de `TopBar`.
 
 ## Diseño — un solo vocabulario
 
@@ -315,6 +375,7 @@ Los halos necesitan `relative isolate` en el ancestro, y `overflow-x-clip` (nunc
 - `lib/api.crosstab.test.ts` — la carrera entre pestañas, con dos instancias del módulo
 - `lib/errors.test.ts` — formateo de `ApiError`
 - `features/appointments/lib/week.test.ts` — semana y layout de turnos superpuestos
+- `features/appointments/lib/agenda.test.ts` — números de la semana, tablero del día, grilla del mes
 - `features/employees/lib/schedule.test.ts` — tramos de trabajo y solapamientos
 - `features/employees/lib/timeOff.test.ts` — ausencias: hora de pared vs instante
 - `features/branches/lib/businessHours.test.ts` — semana comercial y el `null` que rompe
@@ -342,6 +403,9 @@ ancho de pantalla). No hay script commiteado todavía.
 - `features/auth/hooks/useAuth.ts` — `useSession`, `useHasToken`, `useLogin`, `useRegister`, `useLogout`, `canManage`
 - `features/auth/components/` — `AuthCard` (cascarón), `AuthNotice` (aviso "próximamente"), `LoginForm`
 - `features/appointments/lib/week.ts` — `getWeekDates` y `layoutDay`, con tests
+- `features/appointments/lib/agenda.ts` — las cuentas de la agenda, con tests
+- `features/appointments/lib/tone.ts` — el color de la persona convertido en los
+  cuatro rellenos del bloque
 - `features/appointments/data/mockData.ts` — Datos de prueba hasta que exista la Fase 5.
   Trae **el mes en curso y el anterior**, no solo hoy: sin historial, la tarjeta de
   facturación y `/reportes` quedan vacías y no se puede ni mirar cómo se ven.
@@ -362,10 +426,11 @@ no coinciden, se cambia el front.
 del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
 
 - **Corriendo en `http://localhost:3001`** (`NEXT_PUBLIC_API_URL`). Swagger en `/api`, spec en `/api-json`
-- **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/service-categories`, `/services`, `/resources`, `/customers`, `/customer-tags`, `/health`
-- **Todavía no existe:** **turnos y disponibilidad (Fase 5)**, pagos (Fase 6), portal público (Fase 7)
+- **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/service-categories`, `/services`, `/resources`, `/customers`, `/customer-tags`, `/appointments`, `/health`
+- **Todavía no existe:** pagos y cobro de señas (Fase 6), portal público (Fase 7)
 - **Catálogo (Fase 3):** precios en **centavos** (`priceCents`); un servicio se presta por par `(empleado, sucursal)`, no solo por empleado; los recursos son feature de plan
-- **Clientes (Fase 4, nuevo):** `Patient` ahora es **`Customer`** (el tipo provisorio se reemplaza). Dos formas nuevas que se repiten en las fases que vienen: `GET /customers` devuelve **`{ data, meta }`** paginado (primer endpoint así de la API), y un **error puede traer campos extra** — el 409 de `POST /customers` manda `existingCustomer` con la ficha ya cargada, para ofrecer "¿es esta persona?" en vez de un cartel rojo. El teléfono lo compara el backend normalizado: **no normalizar en el front**. Detalle en `docs/api-changelog.md`
+- **Turnos (Fase 5, nuevo):** la agenda ya no necesita mock. `GET /appointments/availability` da los huecos libres con todo restado; `POST /appointments` acepta cualquier horario que **entre** en el tiempo libre (no hace falta un slot exacto). **El precio se congela al reservar**: mostrar `totalPriceCents` del turno, nunca el del servicio. **Un 409 al agendar es un caso normal** (alguien tomó el hueco primero), no un error a reintentar. Las series recurrentes **saltean** las fechas ocupadas y las devuelven en `skipped`. Detalle en `docs/api-changelog.md`
+- **Clientes (Fase 4):** `Patient` ahora es **`Customer`** (el tipo provisorio se reemplaza). Dos formas nuevas que se repiten en las fases que vienen: `GET /customers` devuelve **`{ data, meta }`** paginado (primer endpoint así de la API), y un **error puede traer campos extra** — el 409 de `POST /customers` manda `existingCustomer` con la ficha ya cargada, para ofrecer "¿es esta persona?" en vez de un cartel rojo. El teléfono lo compara el backend normalizado: **no normalizar en el front**. Detalle en `docs/api-changelog.md`
 - Levantarlo: `docker compose up -d && npm run seed:demo && npm run start:dev` desde `../agendapp-api`
 - Usuario de demo: `dueno@demo.test` / `demo1234`
 
@@ -379,7 +444,7 @@ del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
    **Sin ese re-chequeo el lock no sirve de nada.** Ver `lib/api.crosstab.test.ts`
 3. El backend corre con `forbidNonWhitelisted`: **un campo de más en el body devuelve 400**. Mandar solo lo que se edita
 
-No reemplazar el mock de la agenda hasta que exista la Fase 5.
+El mock de la agenda ya se puede reemplazar: la Fase 5 está.
 
 ## Convenciones
 - Componentes interactivos (useState, eventos): agregar "use client" arriba
@@ -411,7 +476,7 @@ Relevada y no atendida todavía:
   `aria-label`, pero son 84 paradas de tabulación
 - `tsconfig` sin `noUncheckedIndexedAccess`
 - `/registro` y `/olvide-contrasena` siguen siendo carteles de "próximamente"
-- `/dashboard` y `/agenda` corren sobre `mockData`: el backend no tiene turnos todavía
+- `/dashboard` y `/agenda` corren sobre `mockData`: **el backend ya tiene turnos (Fase 5)**, falta cablearlos
 - `formatPrice` tiene la moneda fija en ARS; debería salir de `tenant.currency`
 - `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
   ausencias del tenant juntas. Alcanza para los planes actuales

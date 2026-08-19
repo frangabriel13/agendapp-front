@@ -24,6 +24,131 @@ como error de compilación en vez de como bug en el navegador.
 
 ---
 
+## Fase 5 — Turnos, disponibilidad y recurrencia (2026-08-19)
+
+8 endpoints nuevos. **No rompe nada de lo que ya estaba.** Es la fase que
+**reemplaza el mock de la agenda**: a partir de acá `/dashboard` y `/agenda`
+pueden correr sobre datos reales.
+
+### Nuevo
+
+| Área | Qué trae |
+|---|---|
+| `/appointments` (8) | Disponibilidad, agendar, agenda por rango, ver uno, notas, estados, reprogramar, series repetidas |
+
+### ⚠️ Cambios que rompen
+
+Ninguno en endpoints existentes. Lo que sí cambia es que **el mock de turnos ya
+no tiene excusa**: los tipos provisorios de la agenda hay que reemplazarlos por
+los generados desde el OpenAPI.
+
+### Lo primero: mirar los huecos antes de reservar
+
+`GET /appointments/availability?branchId=&serviceId=&date=YYYY-MM-DD`
+
+Devuelve los slots libres del día con todo ya restado: horario del local,
+horario del profesional, ausencias, turnos tomados y recursos ocupados. Cada
+slot dice **quiénes** lo tienen libre, así que sirve igual para "¿a qué hora
+puede Lucía?" como para "¿a qué hora hay lugar?".
+
+```jsonc
+{
+  "date": "2026-09-07",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "durationMinutes": 45, "bufferAfterMinutes": 10,
+  "branchClosed": false,
+  "slots": [{
+    "startsAt": "2026-09-07T12:00:00.000Z",
+    "endsAt": "2026-09-07T12:55:00.000Z",
+    "employees": [{ "employeeId": "...", "employeeName": "Lucía Fernández" }]
+  }]
+}
+```
+
+Cuatro cosas que van a parecer bugs y no lo son:
+
+1. **Los horarios pueden quedar "feos": 09:00, 09:55, 10:50.** Los slots duran
+   `duración + buffer` y van pegados uno atrás del otro. Si preferís una grilla
+   redonda (09:00, 09:15, 09:30…) avisá: es un cambio de una línea en el
+   backend, no algo que haya que resolver en el front.
+2. **El último turno del día termina antes del cierre.** El buffer es tiempo
+   ocupado, así que entra dentro del slot.
+3. **`branchClosed` distingue "cerrado" de "sin lugar".** Los dos dan
+   `slots: []` pero el cartel es distinto.
+4. **No recorta los slots que ya pasaron.** Filtrar por `startsAt > ahora` es
+   tarea del front.
+
+### Agendar
+
+`POST /appointments` — **no hace falta usar un slot de la lista**: alcanza con
+que el horario entre en el tiempo libre. Eso permite cargar a alguien que llegó
+sin turno a las 09:07. El `endsAt` lo calcula el servidor.
+
+**El precio y la duración se congelan al reservar.** Para mostrar el precio de
+un turno usar `totalPriceCents` del turno, **nunca** el del servicio: si el
+negocio cambia la lista de precios, los turnos viejos siguen valiendo lo que
+valían.
+
+⚠️ **Un 409 al agendar es un caso normal, no un error de la app.** Si dos
+personas reservan el mismo hueco a la vez, una lo consigue y la otra recibe 409
+con un mensaje que dice qué se pisó. Lo correcto es refrescar la disponibilidad
+y ofrecer otro horario — reintentar el mismo POST va a fallar igual.
+
+### La agenda del calendario
+
+`GET /appointments?from=2026-09-07&to=2026-09-13` — rango de días inclusive (no
+paginado: un calendario pide "esta semana"), hasta 92 días. Filtros: `branchId`,
+`employeeId`, `customerId`, `status` (repetible).
+
+### Estados
+
+`PATCH /appointments/:id/status`. El camino es fijo:
+
+| Desde | Puede pasar a |
+|---|---|
+| `PENDING_PAYMENT` | `CONFIRMED`, cancelado |
+| `CONFIRMED` | `ATTENDED`, `NO_SHOW`, cancelado |
+| el resto | nada: son finales |
+
+Una transición inválida da **409**, no 400 — o sea que los botones que no
+corresponden conviene deshabilitarlos según el estado actual.
+
+Al cancelar la respuesta trae `refund` con qué corresponde devolver según la
+política del negocio (`{ type, amountCents, withinPolicy, reason }`). **No mueve
+plata** —eso es la Fase 6— pero el `reason` está redactado para mostrarse tal
+cual. En los cambios que no son cancelación, `refund` viene `null`.
+
+### Reprogramar y series
+
+`POST /appointments/:id/reschedule` devuelve **el turno nuevo**; el viejo queda
+en `RESCHEDULED` y los dos quedan enlazados (`rescheduledFromId` /
+`rescheduledToId`). No se edita el original: el historial tiene que mostrar que
+hubo un cambio.
+
+`POST /appointments/recurring` genera series semanales, quincenales o mensuales.
+⚠️ **Las fechas que no entran se saltean, no cancelan la serie**: la respuesta
+trae `created` y `skipped`, cada una con su motivo. **Hay que mostrar
+`skipped`** — son las fechas que alguien tiene que resolver a mano. Si no entró
+ninguna, ahí sí es 409.
+
+### El seed de demo ahora trae agenda
+
+`npm run seed:demo` carga 4 turnos ubicados **relativos a hoy** (el próximo
+lunes y miércoles), así la agenda siempre tiene algo. Hay uno esperando seña y
+uno cancelado, para ver los dos estados.
+
+### Qué se puede construir
+
+**La agenda de verdad**: calendario semanal con turnos reales, alta con
+selección de hueco libre, cancelar, marcar atendido o ausente, reprogramar,
+turnos recurrentes.
+
+### Todavía no
+
+Cobro de señas y pagos (Fase 6), portal público de reservas (Fase 7).
+
+---
+
 ## Fase 4 — Clientes (2026-08-19)
 
 12 endpoints nuevos. **No rompe nada de lo que ya estaba** — Fases 0 a 3 siguen
