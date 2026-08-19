@@ -26,6 +26,7 @@ import {
   type AbsenceSpan,
   type DayStatus,
 } from "../lib/availability"
+import { absenceKind, KIND_LABEL, type AbsenceKind } from "../lib/absenceKind"
 import { closedDays, type ClosedDay } from "../lib/openDays"
 import { appointmentsByEmployee } from "../lib/roster"
 import { buildDays, rangeLabel, type TimelineDay } from "../lib/timeline"
@@ -194,12 +195,21 @@ function columns(count: number): React.CSSProperties {
  */
 function Leyenda() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-4 text-[11px] text-neutral-500">
-      <Item muestra="bg-emerald-500">con lugar</Item>
-      <Item muestra="bg-orange-500">casi sin lugar</Item>
-      <Item muestra="bg-violet-500">ausente</Item>
-      <Item muestra="hatch-diagonal bg-neutral-200 border border-black/[0.05]">cerrado o feriado</Item>
-      <Item muestra="border border-dashed border-black/15 bg-white">ese día no trabaja</Item>
+    <div className="space-y-1.5 px-5 pb-4 text-[11px] text-neutral-500">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <span className="text-neutral-400">Carga:</span>
+        <Item muestra="bg-emerald-500">con lugar</Item>
+        <Item muestra="bg-amber-400">casi sin lugar</Item>
+        <Item muestra="bg-red-500">lleno</Item>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <span className="text-neutral-400">Ausencias:</span>
+        <Item muestra={KIND_MUESTRA.vacaciones}>vacaciones</Item>
+        <Item muestra={KIND_MUESTRA.medica}>licencia médica</Item>
+        <Item muestra={KIND_MUESTRA.libre}>día libre</Item>
+        <Item muestra="hatch-diagonal border border-black/[0.05] bg-neutral-200">cerrado o feriado</Item>
+        <Item muestra="border border-slate-200 bg-slate-100">franco</Item>
+      </div>
     </div>
   )
 }
@@ -370,13 +380,26 @@ function Celda({
     tieneHorarios,
   })
 
-  if (estado === "sin-horario" || estado === "no-trabaja") {
+  if (estado === "sin-horario") {
     return (
       <div
         style={posicion}
         className={cn(marco, "border-dashed border-black/10 bg-white text-[10px] text-neutral-400")}
       >
-        {estado === "sin-horario" && <span>Sin horario</span>}
+        <span>Sin horario</span>
+      </div>
+    )
+  }
+
+  // El día que no le toca trabajar sí se pinta, pero apagado: es su horario de
+  // siempre, no algo que alguien tuvo que dar de alta.
+  if (estado === "no-trabaja") {
+    return (
+      <div
+        style={posicion}
+        className={cn(marco, "border-slate-200 bg-slate-100 text-[10px] font-medium text-slate-500")}
+      >
+        <span>Franco</span>
       </div>
     )
   }
@@ -396,25 +419,74 @@ function Celda({
         // Hoy no lleva marca en la celda: el chip violeta del encabezado ya
         // señala la columna entera, y dos violetas distintos en la misma grilla
         // harían dudar de cuál es cuál.
-        ausencia ? "border-violet-300" : "border-black/[0.06]",
+        ausencia ? KIND_BORDE[absenceKind(ausencia.timeOff.reason)] : "border-black/[0.06]",
       )}
     >
       <span className="text-[11px] leading-none font-medium text-neutral-700">{jornada(shifts)}</span>
 
       <span aria-hidden className="flex h-1 w-full overflow-hidden rounded-full bg-neutral-200">
-        <span
-          className={cn("h-full", estado === "llena" ? "bg-orange-500" : "bg-emerald-500")}
-          style={{ width: porcentaje(ocupado) }}
-        />
+        <span className={cn("h-full", COLOR_CARGA[estado])} style={{ width: porcentaje(ocupado) }} />
         <span className="h-full bg-violet-500" style={{ width: porcentaje(bloqueado) }} />
       </span>
 
       <span className="sr-only">
-        {estado === "llena" ? "Sin lugar" : estado === "vacia" ? "Sin turnos" : "Con lugar"}
+        {LABEL_CARGA[estado]}
         {ausencia ? `, ausente ${absenceRange(ausencia.timeOff)}` : ""}
       </span>
     </div>
   )
+}
+
+/**
+ * Cada tipo de ausencia con su color.
+ *
+ * Los tonos no se pisan con la escala de carga —verde, amarillo, rojo— porque
+ * conviven en la misma grilla: si una ausencia fuera amarilla, se leería como un
+ * día casi lleno.
+ */
+const KIND_BAR: Record<AbsenceKind, string> = {
+  vacaciones: "bg-gradient-to-r from-orange-400 to-orange-500",
+  medica: "bg-gradient-to-r from-sky-400 to-sky-500",
+  libre: "bg-gradient-to-r from-violet-500 to-violet-600",
+  otro: "bg-gradient-to-r from-slate-400 to-slate-500",
+}
+
+/** El mismo color, plano, para la leyenda y el borde de una ausencia parcial. */
+const KIND_MUESTRA: Record<AbsenceKind, string> = {
+  vacaciones: "bg-orange-500",
+  medica: "bg-sky-500",
+  libre: "bg-violet-500",
+  otro: "bg-slate-500",
+}
+
+const KIND_BORDE: Record<AbsenceKind, string> = {
+  vacaciones: "border-orange-300",
+  medica: "border-sky-300",
+  libre: "border-violet-300",
+  otro: "border-slate-300",
+}
+
+/**
+ * Tres escalones y no dos: "casi sin lugar" todavía deja entrar algo corto, y
+ * "lleno" no deja nada. Pintarlos igual esconde justo la diferencia que decide
+ * si vale la pena llamar a esa persona.
+ */
+const COLOR_CARGA: Record<DayStatus, string> = {
+  "sin-horario": "bg-neutral-300",
+  "no-trabaja": "bg-neutral-300",
+  vacia: "bg-emerald-500",
+  disponible: "bg-emerald-500",
+  "casi-llena": "bg-amber-400",
+  llena: "bg-red-500",
+}
+
+const LABEL_CARGA: Record<DayStatus, string> = {
+  "sin-horario": "Sin horario cargado",
+  "no-trabaja": "No trabaja",
+  vacia: "Sin turnos",
+  disponible: "Con lugar",
+  "casi-llena": "Casi sin lugar",
+  llena: "Lleno",
 }
 
 /**
@@ -437,6 +509,7 @@ function jornada(shifts: { startsAt: string; endsAt: string }[]): string {
 
 function AbsenceBar({ span }: { span: AbsenceSpan }) {
   const { title, detail } = describeAbsence(span)
+  const kind = absenceKind(span.timeOff.reason)
   const columnas = span.end - span.start + 1
 
   /**
@@ -450,10 +523,10 @@ function AbsenceBar({ span }: { span: AbsenceSpan }) {
   return (
     <div
       style={{ gridColumn: `${span.start + 1} / ${span.end + 2}`, gridRow: span.lane + 1 }}
-      title={`${title} · ${detail}`}
+      title={`${KIND_LABEL[kind]}: ${title} · ${detail}`}
       className={cn(
         "z-10 flex items-center gap-2 overflow-hidden text-white",
-        "bg-gradient-to-r from-violet-500 to-violet-600",
+        KIND_BAR[kind],
         "shadow-[0_6px_16px_-8px_rgba(0,0,0,0.45)]",
         showTitle ? "px-2.5" : "justify-center px-1",
         // El borde recto avisa que la ausencia sigue más allá de la barra.
