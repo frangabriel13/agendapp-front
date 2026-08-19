@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { Page } from "../ui/Page"
 import { dateToStr } from "@/lib/time"
 import { mockAppointments } from "@/features/appointments/data/mockData"
-import { AbsenceTimeline } from "@/features/dashboard/components/AbsenceTimeline"
+import { TeamAvailability } from "@/features/dashboard/components/TeamAvailability"
 import { RevenueCard } from "@/features/dashboard/components/RevenueCard"
 import { TeamCard } from "@/features/dashboard/components/TeamCard"
 import { UpcomingAppointments } from "@/features/dashboard/components/UpcomingAppointments"
@@ -29,7 +29,7 @@ export default function DashboardPage() {
      * franja entera de alto para decir dos veces lo mismo.
      */
     <Page width="full" className="flex flex-1 flex-col gap-3">
-      <AbsenceTimeline />
+      <TeamAvailability appointments={mockAppointments} />
 
       {/*
         Tres columnas de igual peso: ninguna es "la principal".

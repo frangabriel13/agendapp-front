@@ -9,8 +9,17 @@ import { apiErrorMessage } from "@/lib/errors"
 import { useEmployees } from "@/features/employees/hooks/useEmployees"
 import { personColor, type PersonColor } from "@/features/employees/lib/palette"
 import { ALL_ROLE_LABELS, fullName, initials } from "@/features/employees/lib/roles"
-import type { Employee } from "@/types"
+import type { Appointment, Employee } from "@/types"
 import { useTeamTimeOff } from "../hooks/useTeamTimeOff"
+import { useTeamSchedules } from "../hooks/useTeamSchedules"
+import {
+  bookedMinutesByDay,
+  dayStatus,
+  minutesByWeekday,
+  STATUS_LABEL,
+  type DayStatus,
+} from "../lib/availability"
+import { appointmentsByEmployee } from "../lib/roster"
 import {
   buildDays,
   describeAbsence,
@@ -38,13 +47,17 @@ const NAME_WIDTH = "w-[var(--tl-name)]"
 const MIN_WIDTH = "min-w-[64rem]"
 
 /**
- * Quién falta y cuándo, sobre dos semanas.
+ * Cómo viene cada persona del equipo, día por día, sobre dos semanas.
  *
- * Es lo primero del panel porque es la pregunta que no se puede contestar desde
- * la agenda: la agenda muestra los turnos que hay, no los días en que alguien no
- * va a estar para tomarlos.
+ * Cada celda dice una de tres cosas: **ausente** (barra de color), **con
+ * turnos** (cuántos) o **libre**. Es lo primero del panel porque es la pregunta
+ * que no se puede contestar desde la agenda: la agenda muestra los turnos que
+ * hay: no muestra quién tiene el día libre ni quién no va a venir.
+ *
+ * Los turnos llegan por props y las ausencias las pide el componente: unos
+ * todavía son de ejemplo y las otras ya salen de la API.
  */
-export function AbsenceTimeline() {
+export function TeamAvailability({ appointments }: { appointments: Appointment[] }) {
   const employees = useEmployees()
 
   const team = useMemo(
@@ -56,22 +69,40 @@ export function AbsenceTimeline() {
   )
 
   const timeOff = useTeamTimeOff(team)
+  const schedules = useTeamSchedules(team)
 
   // La ventana se fija al montar: si se recalculara en cada render, cruzar la
   // medianoche con el panel abierto correría el calendario debajo del mouse.
   const days = useMemo(() => buildDays(new Date(), DAY_COUNT), [])
   const todayIndex = days.findIndex((day) => day.isToday)
 
-  const rows = team.map((employee) => ({
-    employee,
-    ...layoutAbsences(timeOff.byEmployee.get(employee.id) ?? [], days),
-  }))
-  const sinAusencias = rows.length > 0 && rows.every((row) => row.spans.length === 0)
+  const porEmpleado = appointmentsByEmployee(team, appointments)
+
+  const rows = team.map((employee) => {
+    const shifts = schedules.byEmployee.get(employee.id) ?? []
+    const capacidad = minutesByWeekday(shifts)
+    const ocupado = bookedMinutesByDay(porEmpleado.get(employee.id) ?? [])
+
+    return {
+      employee,
+      estados: new Map(
+        days.map((day) => [
+          day.key,
+          dayStatus({
+            capacidad: capacidad.get(day.dayOfWeek) ?? 0,
+            ocupado: ocupado.get(day.key) ?? 0,
+            tieneHorarios: shifts.length > 0,
+          }),
+        ]),
+      ),
+      ...layoutAbsences(timeOff.byEmployee.get(employee.id) ?? [], days),
+    }
+  })
 
   return (
     <Panel className="shrink-0">
       <PanelHeader
-        title="Ausencias del equipo"
+        title="Disponibilidad del equipo"
         size="lg"
         action={
           <>
@@ -83,6 +114,8 @@ export function AbsenceTimeline() {
           </>
         }
       />
+
+      {team.length > 0 && <Leyenda />}
 
       {employees.isPending && <TimelineSkeleton />}
 
@@ -133,8 +166,15 @@ export function AbsenceTimeline() {
 
               <div className="relative mt-2 space-y-1.5">
                 {todayIndex !== -1 && <TodayLine index={todayIndex} total={days.length} />}
-                {rows.map(({ employee, spans, lanes }) => (
-                  <Row key={employee.id} employee={employee} spans={spans} lanes={lanes} days={days} />
+                {rows.map(({ employee, spans, lanes, estados }) => (
+                  <Row
+                    key={employee.id}
+                    employee={employee}
+                    spans={spans}
+                    lanes={lanes}
+                    days={days}
+                    estados={estados}
+                  />
                 ))}
               </div>
             </div>
@@ -147,14 +187,45 @@ export function AbsenceTimeline() {
             </p>
           )}
 
-          {!timeOff.isPending && !timeOff.isError && sinAusencias && (
-            <p className="px-5 pb-5 text-center text-[13px] text-neutral-400">
-              Nadie tiene ausencias cargadas en estas dos semanas.
-            </p>
-          )}
         </>
       )}
     </Panel>
+  )
+}
+
+/**
+ * Qué significa cada estado.
+ *
+ * Va arriba de la grilla y no en un tooltip: aunque las celdas digan la palabra,
+ * "Vacía" y "Sin horario" se parecen lo suficiente como para que convenga
+ * aclarar la diferencia una vez.
+ */
+function Leyenda() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-4 text-[11px] text-neutral-500">
+      <Item estado="vacia">sin turnos</Item>
+      <Item estado="disponible">con lugar</Item>
+      <Item estado="llena">sin lugar</Item>
+      <Item estado="no-trabaja">ese día no trabaja</Item>
+      <Item estado="sin-horario">falta cargarle horarios</Item>
+      <span className="flex items-center gap-1.5">
+        {/* Barra y no cuadrado: en la grilla la ausencia se reconoce por la
+            forma —una barra que cruza varios días—, no por el color, que es el
+            de cada persona. */}
+        <span aria-hidden className="h-2.5 w-6 rounded-full bg-gradient-to-r from-violet-500 to-violet-600" />
+        Ausencia
+      </span>
+    </div>
+  )
+}
+
+function Item({ estado, children }: { estado: DayStatus; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden className={cn("size-2.5 rounded-[4px] border", ESTADO_CLASES[estado])} />
+      <span className="font-medium text-neutral-600">{STATUS_LABEL[estado]}</span>
+      <span className="text-neutral-400">· {children}</span>
+    </span>
   )
 }
 
@@ -188,9 +259,11 @@ interface RowProps {
   spans: AbsenceSpan[]
   lanes: number
   days: TimelineDay[]
+  /** Estado de cada día, por clave "YYYY-MM-DD". */
+  estados: Map<string, DayStatus>
 }
 
-function Row({ employee, spans, lanes, days }: RowProps) {
+function Row({ employee, spans, lanes, days, estados }: RowProps) {
   const color = personColor(employee.id)
 
   return (
@@ -220,7 +293,12 @@ function Row({ employee, spans, lanes, days }: RowProps) {
         style={{ ...columns(days.length), gridTemplateRows: `repeat(${lanes}, 2.75rem)` }}
       >
         {days.map((day, index) => (
-          <div key={day.key} style={{ gridColumn: index + 1, gridRow: "1 / -1" }} className={cellClasses(day)} />
+          <Celda
+            key={day.key}
+            day={day}
+            column={index + 1}
+            estado={estados.get(day.key) ?? "sin-horario"}
+          />
         ))}
         {spans.map((span) => (
           <AbsenceBar key={span.timeOff.id} span={span} color={color} />
@@ -231,21 +309,46 @@ function Row({ employee, spans, lanes, days }: RowProps) {
 }
 
 /**
- * El fondo de un día.
+ * Un día de una persona, en una palabra.
  *
- * Los tres casos son excluyentes a propósito: si se acumularan las clases de
- * fondo, cuál gana lo decidiría el orden en que Tailwind las emite, que no es
- * el orden en que están escritas acá.
+ * Palabra y no un número de turnos: lo que se decide mirando esto es "¿a quién
+ * le doy este turno?", y para eso "Disponible" contesta y "3" obliga a saber
+ * cuántas horas trabaja esa persona para interpretarlo.
  */
-function cellClasses(day: TimelineDay): string {
-  return cn(
-    "rounded-xl border",
-    day.isToday
-      ? "border-violet-200 bg-violet-50"
-      : day.isWeekend
-        ? "hatch-diagonal border-black/[0.05] bg-neutral-200/70"
-        : "border-black/[0.05] bg-neutral-100",
+function Celda({
+  day,
+  column,
+  estado,
+}: {
+  day: TimelineDay
+  column: number
+  estado: DayStatus
+}) {
+  return (
+    <div
+      style={{ gridColumn: column, gridRow: "1 / -1" }}
+      className={cn(
+        "flex items-center justify-center overflow-hidden rounded-xl border px-1 text-center",
+        "text-[10px] leading-tight font-medium",
+        // Excluyentes a propósito: si se acumularan las clases de fondo, cuál
+        // gana lo decidiría el orden en que Tailwind las emite, no el orden acá.
+        ESTADO_CLASES[estado],
+        // Hoy se marca con el borde y no con el relleno: el relleno ya significa
+        // otra cosa.
+        day.isToday && "border-violet-400 ring-1 ring-violet-300",
+      )}
+    >
+      <span className="truncate">{STATUS_LABEL[estado]}</span>
+    </div>
   )
+}
+
+const ESTADO_CLASES: Record<DayStatus, string> = {
+  "sin-horario": "border-dashed border-black/10 bg-white text-neutral-400",
+  "no-trabaja": "hatch-diagonal border-black/[0.05] bg-neutral-200/70 text-neutral-400",
+  vacia: "border-black/[0.06] bg-neutral-100 text-neutral-500",
+  disponible: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  llena: "border-amber-200 bg-amber-100 text-amber-800",
 }
 
 function AbsenceBar({ span, color }: { span: AbsenceSpan; color: PersonColor }) {

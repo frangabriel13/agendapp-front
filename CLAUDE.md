@@ -126,7 +126,7 @@ qué sección estás, y el título grande es el de la tarjeta principal
 
 | Bloque | Datos |
 |---|---|
-| `AbsenceTimeline` | Equipo y ausencias — **API real** |
+| `TeamAvailability` | Equipo, ausencias y horarios **reales**; los turnos que ocupan, **mock** |
 | `UpcomingAppointments` | La jornada, con el próximo turno destacado — **mock** |
 | `TeamCard` | Equipo, ordenado por lo que hay que hacer — **API real** |
 | `RevenueCard` | Tres cortes de plata: el mes, lo que va de la semana y hoy — **mock** |
@@ -145,7 +145,25 @@ arriba se gana el lugar cuando dice algo que el detalle no puede: una comparaci�
 contra la semana pasada, plata, o algo accionable. Si vuelven con la Fase 5, que
 sea con eso.
 
-**El calendario de ausencias** (`features/dashboard/lib/timeline.ts`, con tests):
+**El calendario de disponibilidad** (`TeamAvailability`, con
+`lib/timeline.ts` y `lib/availability.ts`, los dos con tests). Cada celda dice
+en una palabra qué tiene esa persona ese día: **Vacía**, **Disponible**,
+**Llena**, **No trabaja**, **Sin horario** — o una barra de ausencia encima.
+Palabra y no un número de turnos: lo que se decide mirando esto es "¿a quién le
+doy este turno?", y para eso "Disponible" contesta mientras que "3" obliga a
+saber cuántas horas trabaja esa persona para interpretarlo. Reglas:
+
+- **`sin-horario` no es `no-trabaja`.** El primero dice que nadie le cargó los
+  horarios —es una tarea pendiente—; el segundo, que ese día no le toca.
+  Confundirlos haría que un equipo a medio configurar se viera como uno que no
+  trabaja nunca
+- "Llena" no es "sin un minuto libre": con menos del 15% del día suelto no entra
+  ningún servicio real. **Cuando el front consuma los servicios de la Fase 3, la
+  regla buena es "no entra ni el más corto"** y esa constante se va
+- Los turnos cancelados no ocupan —ese lugar volvió a estar libre—; los "no
+  asistió" sí, porque nadie más pudo tomar ese horario
+- Los horarios se piden **de a una persona** (`useTeamSchedules`), igual que las
+  ausencias, y comparten `queryKey` con `useEmployeeSchedules`
 - La ventana son 14 días **a partir del lunes** de la semana actual, y se fija al
   montar. Recalcularla en cada render correría el calendario al cruzar la medianoche
 - Trabaja sobre **días de calendario**, no instantes: una ausencia de dos horas
@@ -159,6 +177,16 @@ sea con eso.
 - Las ausencias se piden **de a una persona** (`useTeamTimeOff`, N pedidos en
   paralelo): la API no tiene un endpoint por tenant. Comparte `queryKey` con
   `useTimeOff`, así guardar una ausencia refresca el diálogo y el panel juntos
+- **Hoy se marca con el borde, no con el relleno.** Relleno violeta significa
+  "tiene un turno"; pintar igual un día libre decía lo contrario de lo que pasa
+- La leyenda está arriba de la grilla y no en un tooltip: sin ella, un tablero
+  de celdas de colores hay que descifrarlo, y nadie lo hace
+- **`features/dashboard/lib/roster.ts` es un puente temporal que se borra con la
+  Fase 5.** Los turnos de ejemplo traen ids de profesionales inventados (`p1`,
+  `p2`…) que no existen en la API, así que se reparten por posición entre
+  quienes atienden —un `ADMINISTRATIVE` no atiende, pero sí falta, así que tiene
+  fila sin carga—. Cuando el backend exponga turnos, `professionalId` va a ser el
+  id del empleado y esto pasa a ser un `filter` directo
 
 ## Reportes y facturación
 Las cuentas viven en `features/reports/lib/revenue.ts`, con tests, y **no** en las
