@@ -12,6 +12,8 @@ export interface TimelineDay {
   short: string
   /** "1" */
   number: string
+  /** 0 = domingo, como `Date.getDay()`. Lo usan los horarios del empleado. */
+  dayOfWeek: number
   isToday: boolean
   /**
    * Sábado o domingo. **No dice que el negocio esté cerrado** —eso depende de
@@ -39,6 +41,7 @@ export function buildDays(today: Date, count: number): TimelineDay[] {
     return {
       key,
       date,
+      dayOfWeek,
       short: WEEK_DAYS.find((day) => day.value === dayOfWeek)!.short,
       number: String(date.getDate()),
       isToday: key === todayKey,
