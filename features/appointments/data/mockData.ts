@@ -1,4 +1,4 @@
-import type { Appointment, AppointmentStatus, Professional, Service } from "@/types"
+import type { Appointment, AppointmentStatus, Professional, MockService } from "@/types"
 
 export const mockProfessionals: Professional[] = [
   { id: "p1", name: "Valentina", email: "vale@demo.com", specialty: "HIFU & Liposonix", branchId: "b1", color: "#7c3aed" },
@@ -6,7 +6,7 @@ export const mockProfessionals: Professional[] = [
   { id: "p3", name: "Sofía", email: "sofi@demo.com", specialty: "Corporales", branchId: "b1", color: "#059669" },
 ]
 
-export const mockServices: Service[] = [
+export const mockServices: MockService[] = [
   { id: "s1", name: "HIFU Facial", duration: 60, price: 45000 },
   { id: "s2", name: "Liposonix Abdomen", duration: 90, price: 65000 },
   { id: "s3", name: "Limpieza profunda", duration: 60, price: 18000 },

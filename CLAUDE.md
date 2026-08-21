@@ -42,6 +42,8 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/dashboard` | **Mitad real.** Equipo y ausencias salen de la API; los turnos siguen en mock |
 | `/agenda` | **Rediseñada**: resumen de la semana, tablero del día y calendario en mes/semana/día. Sobre mock data |
 | `/reportes` | Facturación del mes, por servicio y por profesional — sobre mock |
+| `/servicios` | **Real.** Catálogo en tres solapas: servicios, categorías y recursos |
+| `/clientes` | **Real.** Listado paginado, búsqueda, etiquetas y el duplicado de teléfono |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
 | `/configuracion` | **Real.** Negocio, marca, política de reservas y datos del plan |
 
@@ -379,6 +381,10 @@ Los halos necesitan `relative isolate` en el ancestro, y `overflow-x-clip` (nunc
 - `features/auth/utils/validators.test.ts` — email y la regla de contraseña que
   comparten `/activar` y `/restablecer`
 - `features/appointments/lib/week.test.ts` — semana y layout de turnos superpuestos
+- `features/catalog/lib/money.test.ts` — centavos, el round-trip por el input y la seña
+- `features/catalog/lib/assignments.test.ts` — la grilla de (empleado, sucursal)
+- `lib/pagination.test.ts` — la ventana de páginas, el rango y a dónde ir tras borrar
+- `features/customers/lib/customer.test.ts` — nombre, iniciales y la edad sin UTC
 - `features/appointments/lib/agenda.test.ts` — números de la semana, tablero del día, grilla del mes
 - `features/employees/lib/schedule.test.ts` — tramos de trabajo y solapamientos
 - `features/employees/lib/timeOff.test.ts` — ausencias: hora de pared vs instante
@@ -411,6 +417,7 @@ ancho de pantalla). No hay script commiteado todavía.
 - `features/appointments/lib/tone.ts` — el color de la persona convertido en los
   cuatro rellenos del bloque
 - `features/appointments/data/mockData.ts` — Datos de prueba hasta que exista la Fase 5.
+  Su tipo es `MockService` (pesos enteros), **no** `Service` (el del catálogo, en centavos)
   Trae **el mes en curso y el anterior**, no solo hoy: sin historial, la tarjeta de
   facturación y `/reportes` quedan vacías y no se puede ni mirar cómo se ven.
   **Las fechas se generan relativas a hoy**, nunca escritas a mano: un mock con
@@ -486,7 +493,9 @@ Relevada y no atendida todavía:
 - **El 402 no está manejado.** Nace recién cuando se cableen los turnos: hoy
   ningún endpoint que lo devuelva se llama desde el front
 - `/dashboard` y `/agenda` corren sobre `mockData`: **el backend ya tiene turnos (Fase 5)**, falta cablearlos
-- `formatPrice` tiene la moneda fija en ARS; debería salir de `tenant.currency`
+- `formatPrice` (`lib/format.ts`) tiene la moneda fija en ARS y recibe **pesos**;
+  el catálogo ya usa `formatCents`, que lee la moneda. Falta migrar las pantallas
+  del mock cuando dejen de serlo
 - `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
   ausencias del tenant juntas. Alcanza para los planes actuales
 
@@ -499,6 +508,89 @@ Relevada y no atendida todavía:
 
 La regla de contraseña vive en `validateNewPassword`; `newPasswordSchema` la reusa
 con un `superRefine` en vez de reescribirla, para que no se desincronice.
+
+## Clientes — el teléfono es la identidad
+`/clientes` es la primera pantalla **paginada** y la primera que trata un error
+del backend como una salida en vez de un cartel.
+
+1. **El 409 de teléfono repetido no es un fallo.** El cuerpo del error trae
+   `existingCustomer` con la ficha ya cargada, y con eso la pantalla pregunta
+   *"¿es esta persona?"* y ofrece abrirla. Para que eso funcione, `ApiError`
+   ahora **guarda el cuerpo crudo** y `errorDetail(error, 409, "existingCustomer")`
+   lo lee. `errorDetail` exige el `statusCode` a propósito: sin ese chequeo, un
+   500 con un cuerpo raro se leería como un duplicado
+2. **No hay merge automático, y es una decisión.** Dos personas pueden compartir
+   teléfono —una madre y su hija—, así que unir historiales lo decide quien
+   atiende. `PATCH` pasa por el mismo chequeo: cambiar un teléfono a uno ya usado
+   también da 409
+3. **El teléfono se manda tal como lo tipearon.** El backend guarda el texto
+   original y compara solo los últimos 10 dígitos, así que `+54 9 11 4123-5566` y
+   `011 4123-5566` son la misma persona. **No normalizar en el front** sería una
+   segunda regla que se desincroniza
+4. **La búsqueda es una sola caja**: el backend cruza nombre, apellido, email y
+   teléfono. Va con `useDebounced` porque es una consulta pesada y una request
+   por tecla devuelve respuestas desordenadas
+5. **`keepPreviousData` no es cosmético.** Sin él, cada tecla vacía la tabla y el
+   scroll salta al principio
+6. **La paginación vive en `lib/pagination.ts`, no en la pantalla**: la misma
+   forma `{ data, meta }` se repite en el historial de turnos y de pagos.
+   `pageAfterRemoval` existe porque borrar el último de una página la dejaba
+   vacía con una paginación que decía que había páginas
+7. **La edad se calcula por partes de fecha, sin `new Date(cadena)`.**
+   `new Date("1995-11-02")` es medianoche **UTC**, o sea el 1 de noviembre a las
+   21:00 acá: la edad daba un año de más durante todo el día del cumpleaños. Es
+   la misma trampa de los feriados
+8. **Permisos partidos**: cargar y editar lo puede hacer cualquier empleado —quien
+   atiende el mostrador no siempre es administrativo—; **dar de baja** y
+   **administrar etiquetas** son `OWNER` / `ADMINISTRATIVE`
+9. Dar de baja una etiqueta **la saca de todos los clientes**, y dar de baja un
+   cliente **libera su teléfono** para una ficha nueva
+
+⚠️ **El backend limita las escrituras: ~10 por ventana, después 429.** No es un
+bug del front. Importa si alguna vez se hace una importación masiva de clientes:
+hay que espaciar los pedidos y tratar el 429 como "esperá", no como un fallo.
+
+## El catálogo — la plata va en centavos
+`/servicios` son tres solapas y no tres pantallas: son tres entidades que solo
+tienen sentido juntas. Tampoco son un diálogo dentro de servicios —como los
+horarios dentro de una sucursal— porque cada una es un ABM completo, no la
+configuración de otra cosa.
+
+**El error más caro de toda la app vive acá: el backend guarda centavos.**
+`priceCents: 1500000` son $15.000. La conversión está encerrada en
+`features/catalog/lib/money.ts` y **nadie multiplica por 100 a mano**. Ojo con
+`formatPrice` de `lib/format.ts`: ese recibe **pesos enteros** y lo usan las
+pantallas del mock. Mezclarlos es exactamente cómo se cuela un factor 100.
+
+1. **El ida y vuelta por el input tiene que cerrar, y ya se rompió una vez.**
+   `centsToInput` devolvía `String(cents/100)` —o sea `"2500.5"`— y
+   `inputToCents` leía el punto como separador de miles: abrir un servicio con
+   seña de $2.500,50 y guardarlo **sin tocar nada** la dejaba en $25.005. Hay un
+   test de round-trip para esto; no lo saques
+2. **El punto se desambigua por cuántos dígitos lo siguen.** "15.000" son quince
+   mil, "2.5" son dos con cincuenta: nadie deja menos de tres cifras después de
+   un separador de miles
+3. **La seña no puede superar el precio, ni indirectamente.** Bajar el precio por
+   debajo de una seña ya cargada da 400 aunque el body no toque la seña, y ese
+   error no señala ningún campo: `checkDeposit` lo ataja antes de viajar
+4. **Un servicio se presta por par `(empleado, sucursal)`**, no por persona.
+   `PUT /services/:id/employees` valida cada par contra las sucursales del
+   empleado y da 400 si no trabaja ahí, así que la grilla **apaga** esas casillas
+   en vez de dejarlas marcar. La lógica está en `lib/assignments.ts`, testeada
+5. **Saber dónde trabaja cada uno cuesta un pedido por empleado.** `GET
+   /employees` no trae `branchIds`; solo el detalle. Es la misma deuda que
+   `useTeamTimeOff` y alcanza igual. Comparte clave con `useEmployeeDetail`, así
+   que si `/equipo` ya los pidió, sale de la caché
+6. **Dar de baja una categoría no borra sus servicios**: quedan con
+   `category: null`. El diálogo de confirmación lo dice con el número exacto
+7. **Los recursos son feature de plan.** Con el Básico, `POST /resources` da 403
+   con el mensaje ya redactado por el backend, que se muestra tal cual. El gate
+   corre **solo en el alta**: quien baja de plan sigue editando lo que tenía
+8. **El nombre del recurso es único por sucursal**, así que la sucursal no se
+   puede cambiar al editar: movería el recurso a un nombre que quizás ya existe
+9. En el alta los campos opcionales se **omiten** y en la edición viajan como
+   `null`. Es a propósito: el backend corre con `forbidNonWhitelisted`, y sin el
+   `null` explícito no habría forma de sacarle la seña a un servicio
 
 ## Las pantallas de los mails
 Cuatro rutas públicas que reciben un link que mandó el backend. Todas usan
@@ -593,10 +685,10 @@ Acordado con Franco, en orden:
 
 ---
 
-**⚠️ El backend viene dos fases adelante.** Cerró la Fase 6 (pagos y suscripción) y
-el front quedó en la 2: **36 de 84 endpoints cableados**. Auth, negocio, sucursales
-y equipo están completos; **catálogo, clientes, turnos, pagos y suscripción no
-tienen ninguna pantalla que los toque**. Nada de lo que sigue necesita tocar el
+**⚠️ El backend cerró la Fase 6 (pagos y suscripción).** El front venía dos fases
+atrás y ya recuperó la 3 y la 4: **64 de 86 endpoints cableados**. Auth, negocio,
+sucursales, equipo, catálogo y clientes están completos; siguen **sin ninguna
+pantalla que los toque: turnos, pagos y suscripción**. Nada de lo que sigue necesita tocar el
 backend: los endpoints existen, andan y están testeados. El detalle de cada uno,
 en `docs/api-contract.md`; qué cambió y qué rompe, en `docs/api-changelog.md`.
 
@@ -622,9 +714,11 @@ se hace ahí:
   el pie del panel cuando el tenant está `PAST_DUE`. No dice cuántos días quedan
   ni ofrece pagar
 
-### 10. `/servicios` — la llave de todo lo demás
-Sin catálogo cargado no hay turno que reservar, cotizar ni cobrar. Es la pantalla
-más grande de las que faltan: `service-categories`, `services` y `resources`.
+### 10. ~~`/servicios`~~ ✅ hecho
+Catálogo completo en tres solapas. Las trampas quedaron en "El catálogo — la
+plata va en centavos", más arriba. **Queda pendiente de ese punto:** sacarle a
+`formatPrice` la moneda fija en ARS y leerla de `tenant.currency` — el catálogo
+ya lo hace con `formatCents`, las pantallas del mock todavía no.
 
 - Precios en **centavos** (`priceCents`). Acá es donde conviene sacarle a
   `formatPrice` la moneda fija en ARS y leerla de `tenant.currency`
@@ -634,14 +728,11 @@ más grande de las que faltan: `service-categories`, `services` y `resources`.
 - Los recursos son feature de plan: crear de más devuelve 403 con el mensaje ya
   redactado por el backend, que se muestra tal cual
 
-### 11. `/clientes`
-- `GET /customers` devuelve **`{ data, meta }`**: es el primer endpoint paginado de
-  la API, hace falta paginación de verdad y no un `slice`
-- El **409 de `POST /customers` trae `existingCustomer`** con la ficha ya cargada.
-  Eso es para ofrecer "¿es esta persona?", no para tirar un cartel rojo
-- El teléfono lo compara el backend normalizado: **no normalizar en el front**
-- Etiquetas: `customer-tags` + `PUT /customers/:id/tags`, que **reemplaza todo**,
-  igual que sucursales y horarios de empleado
+### 11. ~~`/clientes`~~ ✅ hecho
+Listado paginado, búsqueda cruzada, etiquetas y el duplicado de teléfono como
+pregunta. Las trampas quedaron en "Clientes — el teléfono es la identidad", más
+arriba. **La paginación quedó resuelta para las que vienen**: `lib/pagination.ts`
+y el componente `Pagination`, que solo recibe un `meta` y no sabe de clientes.
 
 ### 12. Turnos reales — matar el mock
 El más grande. Borra `features/appointments/data/mockData.ts` y `lib/roster.ts`, y

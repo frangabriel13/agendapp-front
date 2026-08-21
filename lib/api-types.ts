@@ -98,6 +98,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pide el link para restablecer la contraseña
+         * @description Responde 204 exista o no la cuenta, a propósito: contestar distinto convertiría el endpoint en un enumerador de emails registrados. Emitir un link nuevo revoca el anterior.
+         */
+        post: operations["AuthController_forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Canjea el link y deja una contraseña nueva
+         * @description El token sirve una sola vez. Cierra todas las sesiones abiertas del usuario.
+         */
+        post: operations["AuthController_resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirma la casilla con el link que llegó por mail */
+        post: operations["AuthController_verifyEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reenvía el mail de verificación */
+        post: operations["AuthController_resendEmailVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/password": {
         parameters: {
             query?: never;
@@ -474,6 +548,562 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/service-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista las categorías del negocio
+         * @description Ordenadas por `displayOrder` y, a igual valor, alfabético.
+         */
+        get: operations["ServiceCategoriesController_findAll"];
+        put?: never;
+        /** Crea una categoría de servicios */
+        post: operations["ServiceCategoriesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/service-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devuelve una categoría */
+        get: operations["ServiceCategoriesController_findOne"];
+        put?: never;
+        post?: never;
+        /**
+         * Da de baja una categoría
+         * @description Baja lógica. Los servicios de la categoría NO se borran: quedan sin categoría y se los puede reasignar.
+         */
+        delete: operations["ServiceCategoriesController_remove"];
+        options?: never;
+        head?: never;
+        /** Edita una categoría */
+        patch: operations["ServiceCategoriesController_update"];
+        trace?: never;
+    };
+    "/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista los servicios del negocio */
+        get: operations["ServicesController_findAll"];
+        put?: never;
+        /**
+         * Crea un servicio
+         * @description El precio y la seña van en **centavos**. La duración y el buffer son los que la agenda va a usar para armar los slots.
+         */
+        post: operations["ServicesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/services/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devuelve un servicio */
+        get: operations["ServicesController_findOne"];
+        put?: never;
+        post?: never;
+        /**
+         * Da de baja un servicio
+         * @description Baja lógica. Para sacarlo de la reserva sin perder el historial, mejor desactivarlo con `PATCH { isActive: false }`.
+         */
+        delete: operations["ServicesController_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Edita un servicio
+         * @description Quién lo presta NO se edita acá: va por `PUT /services/:id/employees`.
+         */
+        patch: operations["ServicesController_update"];
+        trace?: never;
+    };
+    "/services/{id}/employees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quién presta el servicio y en qué sucursal */
+        get: operations["ServicesController_findEmployees"];
+        /**
+         * Define quién presta el servicio y dónde
+         * @description Reemplaza la lista completa. Cada empleado tiene que estar asignado a la sucursal que se le indica (`PUT /employees/:id/branches`).
+         */
+        put: operations["ServicesController_setEmployees"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/services/{id}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qué recursos necesita el servicio */
+        get: operations["ServicesController_findResources"];
+        /**
+         * Define qué recursos necesita el servicio
+         * @description Reemplaza la lista completa. No se valida contra las sucursales donde se presta: esa intersección la resuelve la disponibilidad.
+         */
+        put: operations["ServicesController_setResources"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista los recursos del negocio */
+        get: operations["ResourcesController_findAll"];
+        put?: never;
+        /**
+         * Crea un recurso en una sucursal
+         * @description Camillas, sillones, salas. Requiere un plan que incluya recursos.
+         */
+        post: operations["ResourcesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devuelve un recurso */
+        get: operations["ResourcesController_findOne"];
+        put?: never;
+        post?: never;
+        /**
+         * Da de baja un recurso
+         * @description Baja lógica. Para sacarlo de la reserva sin perder el historial, mejor desactivarlo con `PATCH { isActive: false }`.
+         */
+        delete: operations["ResourcesController_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Edita un recurso
+         * @description La sucursal NO se cambia: un recurso mudado es, para la agenda, otro recurso. Dar de baja el viejo y crear uno nuevo.
+         */
+        patch: operations["ResourcesController_update"];
+        trace?: never;
+    };
+    "/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca clientes, paginado
+         * @description `search` cruza nombre, apellido, email y teléfono. Los teléfonos se comparan normalizados, así que da igual cómo se tipeen. Pedir una página más allá del final devuelve `data: []`, no un 404.
+         */
+        get: operations["CustomersController_findAll"];
+        put?: never;
+        /**
+         * Da de alta un cliente
+         * @description Si el teléfono ya está cargado en el negocio, responde **409** con la ficha existente en `existingCustomer` y no crea nada. No hay merge automático a propósito: dos personas pueden compartir teléfono, así que la decisión es del mostrador. Con ese cuerpo alcanza para ofrecer "¿es esta persona?" sin ir a buscarla con otra request.
+         */
+        post: operations["CustomersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devuelve un cliente con sus etiquetas */
+        get: operations["CustomersController_findOne"];
+        put?: never;
+        post?: never;
+        /**
+         * Da de baja un cliente
+         * @description Baja lógica: el historial de turnos queda. Libera el teléfono para una ficha nueva.
+         */
+        delete: operations["CustomersController_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Edita un cliente
+         * @description El teléfono se puede cambiar, pero pasa por el mismo chequeo que el alta: si el número nuevo ya es de otra ficha, 409.
+         */
+        patch: operations["CustomersController_update"];
+        trace?: never;
+    };
+    "/customers/{id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Etiquetas puestas a un cliente */
+        get: operations["CustomersController_findTags"];
+        /**
+         * Reemplaza las etiquetas de un cliente
+         * @description Se manda el set completo, no un delta: lo que no está en `tagIds` se saca. `[]` deja al cliente sin etiquetas.
+         */
+        put: operations["CustomersController_setTags"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customer-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista las etiquetas del negocio
+         * @description Alfabético, con cuántos clientes vivos tiene cada una. Sin paginar: son pocas por definición.
+         */
+        get: operations["CustomerTagsController_findAll"];
+        put?: never;
+        /**
+         * Crea una etiqueta de clientes
+         * @description "VIP", "Debe seña", "Alérgica al amoníaco".
+         */
+        post: operations["CustomerTagsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customer-tags/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devuelve una etiqueta */
+        get: operations["CustomerTagsController_findOne"];
+        put?: never;
+        post?: never;
+        /**
+         * Da de baja una etiqueta
+         * @description Se la saca de todos los clientes que la tenían. Mirá `customerCount` antes de llamar: conviene avisar si está en uso.
+         */
+        delete: operations["CustomerTagsController_remove"];
+        options?: never;
+        head?: never;
+        /** Edita una etiqueta */
+        patch: operations["CustomerTagsController_update"];
+        trace?: never;
+    };
+    "/appointments/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Huecos libres para reservar un servicio un día dado
+         * @description Cruza el horario de la sucursal con el del profesional y le resta ausencias, turnos ya tomados y recursos ocupados. Los slots duran `durationMinutes + bufferAfterMinutes`: el buffer es tiempo en el que el profesional sigue ocupado, así que el último turno del día termina antes del cierre.
+         *
+         *     Sin `employeeId` responde por todos los que prestan el servicio en esa sucursal, y cada slot dice quiénes lo tienen libre.
+         *
+         *     **No recorta los slots que ya pasaron**: describe lo que el horario permite, no lo que todavía se puede reservar. Una pantalla de reserva para el público tiene que filtrarlos.
+         */
+        get: operations["AppointmentsController_findAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * La agenda de un rango de fechas
+         * @description Pensado para un calendario: se pide un rango (`from`/`to`, inclusive, en días del calendario del negocio) y vienen todos los turnos que lo tocan, ordenados por hora. Un turno que arranca el día anterior y termina dentro del rango también viene.
+         */
+        get: operations["AppointmentsController_findAll"];
+        put?: never;
+        /**
+         * Agenda un turno
+         * @description El horario de fin lo calcula el servidor sumando duración y buffer de cada servicio. El precio y la duración se **congelan** en el turno: si mañana cambia la lista de precios, este turno sigue valiendo lo que valía.
+         *
+         *     No hace falta que el horario coincida con un slot de `/availability`: alcanza con que entre en el tiempo libre del profesional. Eso permite agendar a las 09:07 a alguien que llegó sin turno.
+         */
+        post: operations["AppointmentsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Agenda una serie de turnos repetidos
+         * @description Genera `occurrences` turnos a partir de `startsAt`, **contando ese primero**. La serie repite una hora de pared: "los lunes a las 10" siguen siendo las 10 aunque en el medio cambie el horario de verano.
+         *
+         *     **Los que no entran se saltean, no tumban la serie.** Si una fecha cae en un feriado o en un hueco ya tomado, viene en `skipped` con el motivo y el resto se crea igual. Conviene mostrar esa lista: son las fechas que hay que resolver a mano.
+         *
+         *     Si no entró ninguna, la respuesta es 409 con los motivos.
+         */
+        post: operations["AppointmentsController_createRecurring"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devuelve un turno */
+        get: operations["AppointmentsController_findOne"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edita las notas de un turno
+         * @description Es lo único editable. Mover el horario es reprogramar, y cambiar el estado tiene su propio endpoint.
+         */
+        patch: operations["AppointmentsController_update"];
+        trace?: never;
+    };
+    "/appointments/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Confirma, cancela o cierra un turno
+         * @description Las transiciones válidas son:
+         *
+         *     - `pending_payment` → `confirmed`, o cancelado
+         *     - `confirmed` → `attended`, `no_show`, o cancelado
+         *     - el resto son finales
+         *
+         *     Al cancelar, la respuesta trae en `refund` qué corresponde devolver según la política del negocio. **No mueve plata**: eso es la Fase 6.
+         */
+        patch: operations["AppointmentsController_changeStatus"];
+        trace?: never;
+    };
+    "/appointments/{id}/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mueve un turno a otro horario
+         * @description Crea un turno nuevo y deja el viejo en `rescheduled`, enlazados por `rescheduledFromId` / `rescheduledToId`. No se edita el original a propósito: así el historial dice que hubo un cambio.
+         *
+         *     Los servicios se copian **con el precio que tenían**: la clienta ya lo había acordado.
+         */
+        post: operations["AppointmentsController_reschedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/me/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado de la suscripción y su historial de cobros
+         * @description `blocked` dice si el negocio ya no puede agendar. Deber no alcanza: hay que pasar los `graceDays` de tolerancia.
+         */
+        get: operations["SubscriptionsController_findCurrent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/me/subscription/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Genera el link para pagar el mes
+         * @description Pedirlo dos veces devuelve el mismo link (`reused: true`) en vez de generar dos cobros del mismo período. La suscripción se reactiva cuando llega el aviso del proveedor, no acá.
+         */
+        post: operations["SubscriptionsController_createCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointmentId}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Los pagos del turno y el saldo que dejan
+         * @description El saldo no está guardado en ningún lado: se calcula sumando los pagos acreditados y restando las devoluciones.
+         */
+        get: operations["PaymentsController_findAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointmentId}/payments/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Genera el link de pago online
+         * @description Crea el cobro en estado pendiente y devuelve a dónde mandar al cliente. Pedirlo dos veces por el mismo concepto y monto devuelve el mismo link (`reused: true`) en vez de generar otro. El turno se confirma cuando llega el aviso del proveedor, no acá.
+         */
+        post: operations["PaymentsController_createCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/appointments/{appointmentId}/payments/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registra un pago en efectivo, transferencia o una devolución
+         * @description Nace acreditado: quien lo carga está viendo la plata. Queda asentado quién lo registró, que es el único rastro de un movimiento que ningún sistema externo puede confirmar.
+         */
+        post: operations["PaymentsController_recordManual"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/mercadopago": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aviso de pago de Mercado Pago
+         * @description No lo llama el frontend: lo llama Mercado Pago. Está en el spec igual porque es parte del contrato de quien configura el webhook, y ocultarlo no lo haría más seguro — de eso se ocupa la firma.
+         */
+        post: operations["WebhooksController_mercadoPago"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -555,6 +1185,23 @@ export interface components {
             user: components["schemas"]["MeUserDto"];
             tenant: components["schemas"]["MeTenantDto"];
             employee: components["schemas"]["MeEmployeeDto"];
+        };
+        ForgotPasswordDto: {
+            /** @example ana@peluqueriaana.com */
+            email: string;
+        };
+        ResetPasswordDto: {
+            /** @description El token del link que llegó por mail (`<id>.<secret>`). */
+            token: string;
+            /**
+             * @description Mínimo 8 caracteres, con al menos una letra y un número.
+             * @example clave1234
+             */
+            password: string;
+        };
+        VerifyEmailDto: {
+            /** @description El token del link de verificación (`<id>.<secret>`). */
+            token: string;
         };
         ChangePasswordDto: {
             /** @example clave1234 */
@@ -887,6 +1534,8 @@ export interface components {
              * @description Cuándo deja de servir el link.
              */
             expiresAt: string;
+            /** @description Si el mail con el link salió. En `false` el alta igual se hizo: el link de `activationUrl` sigue siendo válido y hay que hacérselo llegar al empleado por otro medio. */
+            emailSent: boolean;
         };
         EmployeeDetailResponseDto: {
             id: string;
@@ -968,6 +1617,666 @@ export interface components {
             endsAt: string;
             /** @example Vacaciones */
             reason?: Record<string, never>;
+        };
+        CreateServiceCategoryDto: {
+            /** @example Color */
+            name: string;
+            /** @example 0 */
+            displayOrder?: number;
+        };
+        ServiceCategoryResponseDto: {
+            id: string;
+            /** @example Color */
+            name: string;
+            /**
+             * @description Orden en que se muestran las categorías. A igual valor, alfabético.
+             * @example 0
+             */
+            displayOrder: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateServiceCategoryDto: {
+            /** @example Color */
+            name?: string;
+            /** @example 0 */
+            displayOrder?: number;
+        };
+        CreateServiceDto: {
+            /** @example Corte de dama */
+            name: string;
+            description?: Record<string, never>;
+            /** @description Categoría a la que pertenece. Sin ella queda sin agrupar. */
+            categoryId?: Record<string, never>;
+            /** @example 45 */
+            durationMinutes: number;
+            /**
+             * @description En **centavos**. 0 es válido (una consulta sin cargo).
+             * @example 1500000
+             */
+            priceCents: number;
+            /**
+             * @description Seña en centavos. No puede superar al precio.
+             * @example 500000
+             */
+            depositAmountCents?: Record<string, never>;
+            /** @example 10 */
+            bufferAfterMinutes?: number;
+            /**
+             * @description Formato `#RRGGBB`.
+             * @example #7C3AED
+             */
+            color?: Record<string, never>;
+        };
+        ServiceCategorySummaryDto: {
+            id: string;
+            /** @example Color */
+            name: string;
+        };
+        ServiceResponseDto: {
+            id: string;
+            /** @example Corte de dama */
+            name: string;
+            description: string | null;
+            /** @description Queda en `null` si se dio de baja la categoría. */
+            category: components["schemas"]["ServiceCategorySummaryDto"] | null;
+            /**
+             * @description Cuánto ocupa el turno. Define los slots de la agenda.
+             * @example 45
+             */
+            durationMinutes: number;
+            /**
+             * @description En **centavos**. 1500000 = $15.000.
+             * @example 1500000
+             */
+            priceCents: number;
+            /**
+             * @description Seña en centavos. `null` = el servicio no pide seña.
+             * @example 500000
+             */
+            depositAmountCents: number | null;
+            /**
+             * @description Minutos de limpieza o preparación después del turno.
+             * @example 10
+             */
+            bufferAfterMinutes: number;
+            /** @example #7C3AED */
+            color: string | null;
+            /** @description Un servicio inactivo no se puede reservar, pero no se borra. */
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateServiceDto: {
+            /** @example Corte de dama */
+            name?: string;
+            /** @description `null` borra la descripción. */
+            description?: Record<string, never> | null;
+            /** @description `null` deja el servicio sin categoría. */
+            categoryId?: Record<string, never> | null;
+            /** @example 45 */
+            durationMinutes?: number;
+            /** @example 1500000 */
+            priceCents?: number;
+            /**
+             * @description `null` saca la seña.
+             * @example 500000
+             */
+            depositAmountCents?: Record<string, never> | null;
+            /** @example 10 */
+            bufferAfterMinutes?: number;
+            /**
+             * @description `null` saca el color.
+             * @example #7C3AED
+             */
+            color?: Record<string, never> | null;
+            /** @description Desactivarlo lo saca de la reserva sin perder el historial. */
+            isActive?: boolean;
+        };
+        ServiceEmployeeResponseDto: {
+            employeeId: string;
+            /** @example Lucía Fernández */
+            employeeName: string;
+            branchId: string;
+            /** @example Sucursal Centro */
+            branchName: string;
+        };
+        ServiceEmployeeDto: {
+            employeeId: string;
+            branchId: string;
+        };
+        SetServiceEmployeesDto: {
+            /** @description Reemplaza la lista completa. Un array vacío deja el servicio sin nadie que lo preste (no se puede reservar hasta asignar a alguien). */
+            assignments: components["schemas"]["ServiceEmployeeDto"][];
+        };
+        ServiceResourceResponseDto: {
+            resourceId: string;
+            /** @example Camilla 1 */
+            resourceName: string;
+            branchId: string;
+            /** @example Sucursal Centro */
+            branchName: string;
+        };
+        SetServiceResourcesDto: {
+            /** @description Reemplaza la lista completa. Un array vacío deja el servicio sin requisitos de recursos. */
+            resourceIds: string[];
+        };
+        CreateResourceDto: {
+            /** @example Camilla 1 */
+            name: string;
+            /** @description Sucursal donde está el recurso. */
+            branchId: string;
+            description?: Record<string, never>;
+        };
+        ResourceBranchSummaryDto: {
+            id: string;
+            /** @example Sucursal Centro */
+            name: string;
+        };
+        ResourceResponseDto: {
+            id: string;
+            /** @example Camilla 1 */
+            name: string;
+            description: string | null;
+            /** @description El recurso está físicamente en una sola sucursal. */
+            branch: components["schemas"]["ResourceBranchSummaryDto"];
+            /** @description Un recurso inactivo no se reserva, pero no se borra. */
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateResourceDto: {
+            /** @example Camilla 1 */
+            name?: string;
+            /** @description `null` borra la descripción. */
+            description?: Record<string, never> | null;
+            /** @description Desactivarlo lo saca de la reserva sin perder el historial. */
+            isActive?: boolean;
+        };
+        CreateCustomerDto: {
+            /** @example María */
+            firstName: string;
+            /** @example González */
+            lastName?: Record<string, never>;
+            /**
+             * @description Obligatorio: es lo que identifica a la persona. Si ya existe en el negocio, la respuesta es 409 con la ficha existente.
+             * @example +54 9 11 5555-1234
+             */
+            phone: string;
+            /** @description No es único: dos clientes pueden compartir casilla. */
+            email?: Record<string, never>;
+            /** @example 1990-04-25 */
+            dateOfBirth?: Record<string, never>;
+            /** @description Notas de mostrador. Lo clínico va aparte (Fase 6). */
+            notes?: Record<string, never>;
+        };
+        CustomerTagSummaryDto: {
+            id: string;
+            /** @example VIP */
+            name: string;
+            /** @example #7C3AED */
+            color: string | null;
+        };
+        CustomerResponseDto: {
+            id: string;
+            /** @example María */
+            firstName: string;
+            /** @example González */
+            lastName: string | null;
+            /**
+             * @description Tal como se cargó. Es lo que hay que mostrar y marcar.
+             * @example +54 9 11 5555-1234
+             */
+            phone: string;
+            email: string | null;
+            /** @example 1990-04-25 */
+            dateOfBirth: string | null;
+            notes: string | null;
+            tags: components["schemas"]["CustomerTagSummaryDto"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DuplicateCustomerDto: {
+            /** @example 409 */
+            statusCode: number;
+            /** @example Ya tenés un cliente con ese teléfono */
+            message: string;
+            /** @example Conflict */
+            error: string;
+            /** @description La ficha que ya existía. Alcanza para ofrecer "¿es esta persona?" sin tener que ir a buscarla con otra request. */
+            existingCustomer: components["schemas"]["CustomerResponseDto"];
+        };
+        PaginationMetaDto: {
+            /** @example 1 */
+            page: number;
+            /** @example 20 */
+            pageSize: number;
+            /**
+             * @description Total de filas que matchean, ignorando la paginación.
+             * @example 137
+             */
+            total: number;
+            /**
+             * @description `0` cuando no hay resultados, no `1`.
+             * @example 7
+             */
+            totalPages: number;
+        };
+        PaginatedCustomersDto: {
+            data: components["schemas"]["CustomerResponseDto"][];
+            meta: components["schemas"]["PaginationMetaDto"];
+        };
+        UpdateCustomerDto: {
+            /** @example María */
+            firstName?: string;
+            /** @description `null` lo borra. */
+            lastName?: Record<string, never> | null;
+            /** @example +54 9 11 5555-1234 */
+            phone?: string;
+            /** @description `null` lo borra. */
+            email?: Record<string, never> | null;
+            /** @example 1990-04-25 */
+            dateOfBirth?: Record<string, never> | null;
+            notes?: Record<string, never> | null;
+        };
+        SetCustomerTagsDto: {
+            /** @description Las etiquetas que quedan puestas. `[]` se las saca todas. */
+            tagIds: string[];
+        };
+        CreateCustomerTagDto: {
+            /** @example VIP */
+            name: string;
+            /** @example #7C3AED */
+            color?: Record<string, never>;
+        };
+        CustomerTagResponseDto: {
+            id: string;
+            /** @example VIP */
+            name: string;
+            /** @example #7C3AED */
+            color: string | null;
+            /**
+             * @description Cuántos clientes activos la tienen puesta. Sirve para avisar antes de dar de baja una etiqueta que está en uso.
+             * @example 42
+             */
+            customerCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateCustomerTagDto: {
+            /** @example VIP */
+            name?: string;
+            /** @description `null` la deja sin color. */
+            color?: Record<string, never> | null;
+        };
+        AvailableEmployeeDto: {
+            employeeId: string;
+            /** @example Lucía Fernández */
+            employeeName: string;
+        };
+        AvailabilitySlotDto: {
+            /**
+             * Format: date-time
+             * @description Instante en UTC. Mostrarlo en la zona del negocio.
+             * @example 2026-09-01T12:00:00.000Z
+             */
+            startsAt: string;
+            /**
+             * Format: date-time
+             * @description Incluye el buffer del servicio: es lo que el turno va a ocupar de verdad, no solo lo que dura la atención.
+             * @example 2026-09-01T13:00:00.000Z
+             */
+            endsAt: string;
+            /** @description Quiénes tienen ese hueco libre. Nunca viene vacío. */
+            employees: components["schemas"]["AvailableEmployeeDto"][];
+        };
+        AvailabilityResponseDto: {
+            /** @example 2026-09-01 */
+            date: string;
+            /**
+             * @description La zona del negocio, con la que hay que mostrar los slots.
+             * @example America/Argentina/Buenos_Aires
+             */
+            timezone: string;
+            /** @example 45 */
+            durationMinutes: number;
+            /**
+             * @description Lo que el profesional sigue ocupado después de atender.
+             * @example 15
+             */
+            bufferAfterMinutes: number;
+            /** @description La sucursal no abre ese día (día de descanso o feriado cargado). Sirve para distinguir "cerrado" de "sin lugar". */
+            branchClosed: boolean;
+            slots: components["schemas"]["AvailabilitySlotDto"][];
+        };
+        CreateAppointmentDto: {
+            branchId: string;
+            employeeId: string;
+            customerId: string;
+            /** @description Uno o varios servicios seguidos con el mismo profesional. La duración del turno es la suma de todos, buffers incluidos. */
+            serviceIds: string[];
+            /**
+             * @description Instante en que arranca, en UTC. El fin lo calcula el servidor con la duración de los servicios.
+             * @example 2026-09-07T12:00:00.000Z
+             */
+            startsAt: string;
+            notes?: Record<string, never>;
+        };
+        AppointmentPartyDto: {
+            id: string;
+            /** @example Lucía Fernández */
+            name: string;
+        };
+        AppointmentCustomerDto: {
+            id: string;
+            /** @example María */
+            firstName: string;
+            /** @example González */
+            lastName: string | null;
+            /** @example +54 9 11 5555-1234 */
+            phone: string;
+        };
+        AppointmentServiceDto: {
+            serviceId: string;
+            /** @example Corte de dama */
+            name: string;
+            /**
+             * @description Lo que duraba el servicio **cuando se reservó**.
+             * @example 45
+             */
+            durationMinutes: number;
+            /**
+             * @description Lo que salía **cuando se reservó**, en centavos.
+             * @example 1500000
+             */
+            priceCents: number;
+        };
+        AppointmentResourceDto: {
+            resourceId: string;
+            /** @example Sala de color */
+            name: string;
+        };
+        AppointmentResponseDto: {
+            id: string;
+            branch: components["schemas"]["AppointmentPartyDto"];
+            employee: components["schemas"]["AppointmentPartyDto"];
+            customer: components["schemas"]["AppointmentCustomerDto"];
+            /**
+             * Format: date-time
+             * @example 2026-09-07T12:00:00.000Z
+             */
+            startsAt: string;
+            /**
+             * Format: date-time
+             * @description Incluye el buffer: es lo que el profesional queda ocupado.
+             * @example 2026-09-07T12:55:00.000Z
+             */
+            endsAt: string;
+            /** @enum {string} */
+            status: "PENDING_PAYMENT" | "CONFIRMED" | "ATTENDED" | "NO_SHOW" | "CANCELED_BY_CUSTOMER" | "CANCELED_BY_BUSINESS" | "RESCHEDULED";
+            /** @enum {string} */
+            createdVia: "ADMIN" | "PUBLIC_BOOKING" | "RECURRING";
+            /** @example 1500000 */
+            totalPriceCents: number;
+            depositAmountCents: number | null;
+            depositPaid: boolean;
+            notes: string | null;
+            services: components["schemas"]["AppointmentServiceDto"][];
+            resources: components["schemas"]["AppointmentResourceDto"][];
+            /** @description El turno al que este reemplazó. */
+            rescheduledFromId: string | null;
+            /** @description El turno que reemplazó a este. */
+            rescheduledToId: string | null;
+            /** Format: date-time */
+            canceledAt: string | null;
+            cancellationReason: string | null;
+            recurrenceGroupId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CreateRecurringAppointmentsDto: {
+            branchId: string;
+            employeeId: string;
+            customerId: string;
+            /** @description Uno o varios servicios seguidos con el mismo profesional. La duración del turno es la suma de todos, buffers incluidos. */
+            serviceIds: string[];
+            /**
+             * @description Instante en que arranca, en UTC. El fin lo calcula el servidor con la duración de los servicios.
+             * @example 2026-09-07T12:00:00.000Z
+             */
+            startsAt: string;
+            notes?: Record<string, never>;
+            /**
+             * @description `WEEKLY` y `BIWEEKLY` repiten el mismo día de la semana; `MONTHLY` repite el mismo día del mes.
+             * @enum {string}
+             */
+            frequency: "WEEKLY" | "BIWEEKLY" | "MONTHLY";
+            /**
+             * @description Cuántos turnos generar **contando el primero**: con `startsAt` un lunes y `occurrences: 4` salen ese lunes y los tres siguientes.
+             * @example 4
+             */
+            occurrences: number;
+        };
+        SkippedOccurrenceDto: {
+            /**
+             * Format: date-time
+             * @example 2026-09-21T13:00:00.000Z
+             */
+            startsAt: string;
+            /**
+             * @description Por qué no se pudo agendar ese, listo para mostrar.
+             * @example Ese horario no está libre: se pisa con otro turno
+             */
+            reason: string;
+        };
+        RecurringResultDto: {
+            /** @description Ata a toda la serie. */
+            recurrenceGroupId: string;
+            /** @description Los que sí entraron, en orden. */
+            created: components["schemas"]["AppointmentResponseDto"][];
+            /** @description Las fechas que quedaron afuera y por qué. **No es un error**: la serie se crea igual con el resto. Conviene mostrarlas para que el mostrador las resuelva a mano. */
+            skipped: components["schemas"]["SkippedOccurrenceDto"][];
+        };
+        UpdateAppointmentDto: {
+            notes?: Record<string, never> | null;
+        };
+        ChangeAppointmentStatusDto: {
+            /**
+             * @description A `rescheduled` no se llega por acá: eso es `POST /:id/reschedule`.
+             * @enum {string}
+             */
+            status: "CONFIRMED" | "ATTENDED" | "NO_SHOW" | "CANCELED_BY_CUSTOMER" | "CANCELED_BY_BUSINESS";
+            /** @description Solo tiene sentido al cancelar. */
+            cancellationReason?: string;
+        };
+        RefundDecisionDto: {
+            /** @enum {string} */
+            type: "FULL" | "PARTIAL" | "CREDIT" | "NONE";
+            /**
+             * @description Cuánto corresponde devolver, en centavos.
+             * @example 500000
+             */
+            amountCents: number;
+            /** @description Si canceló con la antelación que pide el negocio. */
+            withinPolicy: boolean;
+            /** @description Explicación lista para mostrarle a la persona. */
+            reason: string;
+        };
+        ChangeStatusResultDto: {
+            appointment: components["schemas"]["AppointmentResponseDto"];
+            /** @description Solo viene al cancelar; en el resto de los cambios es `null`. **No mueve plata**: dice qué corresponde según la política del negocio. La devolución real llega con los pagos (Fase 6). */
+            refund: components["schemas"]["RefundDecisionDto"] | null;
+        };
+        RescheduleAppointmentDto: {
+            /**
+             * @description El nuevo horario de arranque.
+             * @example 2026-09-08T14:00:00.000Z
+             */
+            startsAt: string;
+            /** @description Si el turno además cambia de profesional. Si se omite, sigue el mismo. */
+            employeeId?: string;
+            reason?: string;
+        };
+        SubscriptionPlanDto: {
+            id: string;
+            /** @example Pro */
+            name: string;
+            /** @example pro */
+            slug: string;
+            /** @description En centavos. `null` en los planes que se cotizan con soporte: esos no se pueden pagar solos desde el panel. */
+            priceMonthlyCents: Record<string, never> | null;
+        };
+        SubscriptionPaymentDto: {
+            id: string;
+            amountCents: number;
+            /** @example ARS */
+            currency: string;
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
+            /** Format: date-time */
+            periodStart: string;
+            /** Format: date-time */
+            periodEnd: string;
+            paidAt: Record<string, never> | null;
+            failureReason: Record<string, never> | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SubscriptionDto: {
+            /** @enum {string} */
+            status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "PAUSED";
+            plan: components["schemas"]["SubscriptionPlanDto"];
+            /** Format: date-time */
+            currentPeriodStart: string;
+            /**
+             * Format: date-time
+             * @description Hasta cuándo está paga. Después arranca la mora.
+             */
+            currentPeriodEnd: string;
+            /** @description Días completos de atraso. `0` si está al día. */
+            daysOverdue: number;
+            /** @description Si el negocio ya no puede agendar turnos nuevos. Deber no alcanza: hay que pasar la ventana de gracia. Ver `graceDays`. */
+            blocked: boolean;
+            /** @description Cuántos días de atraso se toleran antes de bloquear. */
+            graceDays: number;
+            /** @description Del más nuevo al más viejo. */
+            payments: components["schemas"]["SubscriptionPaymentDto"][];
+        };
+        SubscriptionCheckoutDto: {
+            paymentId: string;
+            /** @description A dónde mandar al dueño a pagar. */
+            checkoutUrl: string;
+            amountCents: number;
+            /** @example ARS */
+            currency: string;
+            /**
+             * Format: date-time
+             * @description Desde cuándo cubre el pago.
+             */
+            periodStart: string;
+            /**
+             * Format: date-time
+             * @description Hasta cuándo.
+             */
+            periodEnd: string;
+            /** @description Si se devolvió un checkout que ya existía. Pedirlo dos veces no genera dos cobros del mismo mes. */
+            reused: boolean;
+        };
+        AppointmentBalanceDto: {
+            totalPriceCents: number;
+            depositAmountCents: Record<string, never> | null;
+            /** @description Lo que quedó en la caja: entradas acreditadas menos devoluciones. Puede ser negativo si se devolvió más de lo cobrado. */
+            paidCents: number;
+            refundedCents: number;
+            /** @description Lo que falta cobrar. Nunca negativo. */
+            dueCents: number;
+            /** @description Sin seña configurada, siempre `true`. */
+            depositCovered: boolean;
+            fullyPaid: boolean;
+        };
+        PaymentRecordedByDto: {
+            id: string;
+            firstName: string;
+            lastName: string;
+        };
+        PaymentResponseDto: {
+            id: string;
+            amountCents: number;
+            /** @example ARS */
+            currency: string;
+            /** @enum {string} */
+            paymentType: "DEPOSIT" | "FULL" | "REMAINDER" | "REFUND";
+            /** @enum {string} */
+            paymentMethod: "MERCADOPAGO" | "CASH" | "TRANSFER" | "OTHER";
+            /** @enum {string} */
+            status: "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
+            notes: Record<string, never> | null;
+            failureReason: Record<string, never> | null;
+            /** @description El link de pago, mientras el cobro online siga pendiente. */
+            checkoutUrl: Record<string, never> | null;
+            paidAt: Record<string, never> | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Quién lo cargó a mano. `null` = lo pagó el cliente online. */
+            recordedBy: components["schemas"]["PaymentRecordedByDto"] | null;
+        };
+        AppointmentPaymentsDto: {
+            balance: components["schemas"]["AppointmentBalanceDto"];
+            payments: components["schemas"]["PaymentResponseDto"][];
+        };
+        CreateCheckoutDto: {
+            /**
+             * @description Qué se cobra. Si no se manda, se deduce: la seña cuando el turno tiene una y todavía no está cubierta, y el saldo en cualquier otro caso.
+             * @enum {string}
+             */
+            paymentType?: "DEPOSIT" | "FULL" | "REMAINDER";
+        };
+        CheckoutResponseDto: {
+            /** @description La fila de pago que se creó, en estado pendiente. */
+            paymentId: string;
+            /** @description A dónde mandar al cliente a pagar. */
+            checkoutUrl: string;
+            amountCents: number;
+            /** @example ARS */
+            currency: string;
+            /** @enum {string} */
+            paymentType: "DEPOSIT" | "FULL" | "REMAINDER";
+            /** @description Si se devolvió un checkout que ya existía en vez de crear otro. Pedir dos veces el mismo cobro no genera dos links. */
+            reused: boolean;
+        };
+        RecordManualPaymentDto: {
+            /**
+             * @description En centavos.
+             * @example 30000
+             */
+            amountCents: number;
+            /**
+             * @description Incluye `REFUND`: así se registra la plata que se devolvió en el mostrador.
+             * @enum {string}
+             */
+            paymentType: "DEPOSIT" | "FULL" | "REMAINDER" | "REFUND";
+            /** @enum {string} */
+            paymentMethod: "CASH" | "TRANSFER" | "OTHER";
+            notes?: string;
+        };
+        WebhookResultDto: {
+            /**
+             * @description `ignored` = el aviso no era de un pago. `unknown_payment` = el pago no es nuestro o ya no existe. Los dos se contestan 200 igual: reintentarlo no cambiaría nada.
+             * @enum {string}
+             */
+            result: "applied" | "ignored" | "unknown_payment";
         };
     };
     responses: never;
@@ -1108,6 +2417,107 @@ export interface operations {
             };
             /** @description Token ausente, vencido o inválido */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El link no es válido o ya venció */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_verifyEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El link no es válido o ya venció */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_resendEmailVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El email ya está confirmado */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2431,6 +3841,1895 @@ export interface operations {
             };
             /** @description Tu rol no puede borrar ausencias */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceCategoriesController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCategoryResponseDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La categoría no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceCategoriesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServiceCategoryDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCategoryResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede crear categorías */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La categoría no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya existe una categoría con ese nombre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceCategoriesController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCategoryResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La categoría no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceCategoriesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categoría dada de baja */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede dar de baja categorías */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La categoría no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceCategoriesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateServiceCategoryDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceCategoryResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede editar categorías */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La categoría no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya existe una categoría con ese nombre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_findAll: {
+        parameters: {
+            query?: {
+                /** @description Filtra por estado. Si se omite, vienen todos. */
+                isActive?: boolean;
+                /** @description Filtra por categoría. */
+                categoryId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponseDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServiceDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponseDto"];
+                };
+            };
+            /** @description La categoría no existe, o la seña supera al precio */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede crear servicios */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Servicio dado de baja */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede dar de baja servicios */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateServiceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResponseDto"];
+                };
+            };
+            /** @description La categoría no existe, o la seña supera al precio */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede editar servicios */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_findEmployees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceEmployeeResponseDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_setEmployees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetServiceEmployeesDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceEmployeeResponseDto"][];
+                };
+            };
+            /** @description Hay asignaciones repetidas, o un empleado que no trabaja en esa sucursal */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede editar el catálogo */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_findResources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResourceResponseDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServicesController_setResources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetServiceResourcesDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceResourceResponseDto"][];
+                };
+            };
+            /** @description Hay recursos repetidos, o alguno no existe en tu negocio */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede editar el catálogo */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El servicio no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ResourcesController_findAll: {
+        parameters: {
+            query?: {
+                /** @description Filtra por sucursal. */
+                branchId?: string;
+                /** @description Filtra por estado. Si se omite, vienen todos. */
+                isActive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceResponseDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El recurso no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ResourcesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateResourceDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceResponseDto"];
+                };
+            };
+            /** @description La sucursal no existe en tu negocio */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede crear recursos, o el plan no los incluye */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El recurso no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Esa sucursal ya tiene un recurso con ese nombre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ResourcesController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El recurso no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ResourcesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recurso dado de baja */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede dar de baja recursos */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El recurso no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ResourcesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateResourceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede editar recursos */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El recurso no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Esa sucursal ya tiene un recurso con ese nombre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomersController_findAll: {
+        parameters: {
+            query?: {
+                /** @description Empieza en 1, no en 0. */
+                page?: number;
+                pageSize?: number;
+                /** @description Busca en nombre, apellido, email y teléfono a la vez. Con varias palabras, todas tienen que aparecer en el nombre completo (en cualquier orden). Los teléfonos se comparan normalizados: buscar `+54 9 11 5555-1234` encuentra al que se cargó como `11 5555-1234`. */
+                search?: string;
+                /** @description Solo los clientes con esta etiqueta. */
+                tagId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCustomersDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomersController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerResponseDto"];
+                };
+            };
+            /** @description Datos inválidos */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya existe un cliente con ese teléfono */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateCustomerDto"];
+                };
+            };
+        };
+    };
+    CustomersController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomersController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cliente dado de baja */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede dar de baja clientes */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomersController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomerDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Otro cliente ya tiene ese teléfono */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateCustomerDto"];
+                };
+            };
+        };
+    };
+    CustomersController_findTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagSummaryDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomersController_setTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetCustomerTagsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagSummaryDto"][];
+                };
+            };
+            /** @description Hay etiquetas repetidas, o alguna no existe en tu negocio */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El cliente no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomerTagsController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagResponseDto"][];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La etiqueta no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomerTagsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerTagDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede crear etiquetas */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La etiqueta no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya tenés una etiqueta con ese nombre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomerTagsController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La etiqueta no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomerTagsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Etiqueta dada de baja */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede borrar etiquetas */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La etiqueta no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomerTagsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomerTagDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTagResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tu rol no puede editar etiquetas */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La etiqueta no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya tenés una etiqueta con ese nombre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_findAvailability: {
+        parameters: {
+            query: {
+                /** @description Dónde se va a atender. */
+                branchId: string;
+                /** @description Qué servicio. De acá salen la duración y el buffer. */
+                serviceId: string;
+                /** @description Día del calendario **en la zona horaria del negocio**. */
+                date: string;
+                /** @description Si se omite, se consultan todos los que prestan ese servicio en esa sucursal y cada slot dice quiénes pueden tomarlo. */
+                employeeId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityResponseDto"];
+                };
+            };
+            /** @description Datos inválidos, o el servicio está desactivado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La sucursal o el servicio no existen */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_findAll: {
+        parameters: {
+            query: {
+                /** @description Desde, inclusive. Día del calendario en la zona del negocio. */
+                from: string;
+                /** @description Hasta, inclusive. Como mucho 92 días después de `from`. */
+                to: string;
+                branchId?: string;
+                employeeId?: string;
+                customerId?: string;
+                /** @description Si se omite vienen todos, cancelados incluidos. Se puede repetir: `?status=CONFIRMED&status=PENDING_PAYMENT`. */
+                status?: ("PENDING_PAYMENT" | "CONFIRMED" | "ATTENDED" | "NO_SHOW" | "CANCELED_BY_CUSTOMER" | "CANCELED_BY_BUSINESS" | "RESCHEDULED")[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponseDto"][];
+                };
+            };
+            /** @description Rango inválido o demasiado largo */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAppointmentDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponseDto"];
+                };
+            };
+            /** @description Datos inválidos, el profesional no presta ese servicio ahí, o el cliente o los servicios no existen */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ese horario no está libre. También es la respuesta cuando dos personas reservan el mismo hueco a la vez: una lo consigue y la otra recibe esto. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_createRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRecurringAppointmentsDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringResultDto"];
+                };
+            };
+            /** @description Datos inválidos, o el profesional no presta ese servicio en esa sucursal */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ninguna fecha de la serie estaba libre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAppointmentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_changeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeAppointmentStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeStatusResultDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Esa transición de estado no es válida */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppointmentsController_reschedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleAppointmentDto"];
+            };
+        };
+        responses: {
+            /** @description El turno nuevo. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponseDto"];
+                };
+            };
+            /** @description Token ausente, vencido o inválido */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno ya está cerrado, o el horario nuevo no está libre */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SubscriptionsController_findCurrent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionDto"];
+                };
+            };
+        };
+    };
+    SubscriptionsController_createCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionCheckoutDto"];
+                };
+            };
+            /** @description El plan se cotiza con soporte y no se paga desde el panel */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El proveedor de pagos no respondió */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentsController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentPaymentsDto"];
+                };
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentsController_createCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCheckoutDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutResponseDto"];
+                };
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno está cancelado, o no queda nada por cobrar */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El proveedor de pagos no respondió */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentsController_recordManual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appointmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordManualPaymentDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentResponseDto"];
+                };
+            };
+            /** @description El turno no existe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El turno está cancelado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WebhooksController_mercadoPago: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResultDto"];
+                };
+            };
+            /** @description La firma no verifica */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El proveedor no respondió: que reintente */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
