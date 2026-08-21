@@ -24,6 +24,180 @@ como error de compilación en vez de como bug en el navegador.
 
 ---
 
+## Fase 6 (parte 2) — Suscripción del negocio (2026-08-20)
+
+2 endpoints nuevos y **un código de error nuevo que puede aparecer en un
+endpoint que ya usabas**. Leer eso último antes de seguir.
+
+### Nuevo
+
+| Área | Qué trae |
+|---|---|
+| `/tenants/me/subscription` (2) | Estado de la suscripción del negocio y el link para pagar el mes |
+
+### ⚠️ Cambios que rompen
+
+**`POST /appointments` y `POST /appointments/recurring` ahora pueden devolver
+`402 Payment Required`.** Pasa cuando el negocio hace más de 7 días que no paga
+su suscripción. Si el manejador de errores no lo contempla, va a caer en el
+"error inesperado" genérico, que es lo peor que puede pasar acá: el usuario no
+se entera de que tiene que pagar.
+
+El mensaje viene escrito y es mostrable tal cual. Vale la pena un tratamiento
+propio: es el único error de la API que se arregla pagando, no reintentando ni
+corrigiendo el formulario.
+
+**Es 402 y no 403 a propósito**, para que se pueda distinguir de un problema de
+permisos sin leer el mensaje.
+
+### Lo que sigue funcionando aunque el negocio deba
+
+Ver la agenda, cancelar, reprogramar y pagar la suscripción. Se corta **crear
+turnos nuevos**, nada más. No hace falta esconder media app: alcanza con un
+aviso y con manejar el 402 donde puede aparecer.
+
+### La pantalla de facturación
+
+`GET /tenants/me/subscription` trae estado, plan, período, historial de cobros y
+dos campos que conviene mostrar juntos:
+
+- **`daysOverdue`** — días completos de atraso, `0` si está al día.
+- **`blocked`** — si ya no puede agendar.
+
+**Hay una ventana entre uno y otro**: durante `graceDays` (hoy 7), `daysOverdue`
+ya es mayor que cero pero `blocked` sigue en `false`. Ese es el momento de
+avisar; después ya es tarde.
+
+Los dos endpoints piden rol **`OWNER` o `ADMINISTRATIVE`** (un profesional no
+tiene por qué ver cuánto paga su empleador), y el checkout se comporta igual que
+el de los turnos: link, cobro pendiente, y reactivación cuando llega el aviso.
+Pedirlo dos veces devuelve el mismo link. Plan sin precio de lista (Empresa) da
+409.
+
+**Faltan tres pantallas de retorno**: `/suscripcion/exito`, `/suscripcion/error`
+y `/suscripcion/pendiente`.
+
+---
+
+## Fase 6 (parte 1) — Cobros de turnos (2026-08-20)
+
+4 endpoints nuevos. **No rompe nada.** Con esto se puede cobrar la seña online,
+registrar efectivo y mostrar cuánto debe cada turno.
+
+### Nuevo
+
+| Área | Qué trae |
+|---|---|
+| `/appointments/:id/payments` (3) | Saldo del turno, link de pago online, pagos manuales y devoluciones |
+| `/webhooks` (1) | Aviso de Mercado Pago. **No lo llama el front** |
+
+### ⚠️ Cambios que rompen
+
+Ninguno.
+
+### Lo que hay que entender antes de escribir la pantalla
+
+**El saldo viene calculado: no lo recalcules.** `GET /appointments/:id/payments`
+devuelve `{ balance, payments }`. Usá `balance` tal cual. Hay dos formas
+distintas de representar plata que vuelve —un pago que el proveedor revirtió y
+una devolución nuestra— y sumar `payments` a mano cuenta una de más.
+
+| Campo de `balance` | Qué es |
+|---|---|
+| `paidCents` | Lo que quedó en la caja, ya restadas las devoluciones. **Puede ser negativo** |
+| `dueCents` | Lo que falta cobrar. Nunca negativo |
+| `depositCovered` | Si la seña está cubierta (sin seña configurada, `true`) |
+| `fullyPaid` | Si está todo pago |
+
+**El cobro online es en dos tiempos.** `POST .../payments/checkout` devuelve el
+`checkoutUrl` y deja el pago **pendiente**: el turno todavía no está pago. Lo
+confirma Mercado Pago avisándole al backend, que puede tardar de segundos a
+minutos. Después de mandar al cliente al checkout hay que **volver a consultar
+el saldo**, no asumir nada.
+
+**Faltan tres pantallas de retorno**: `/pago/exito`, `/pago/error` y
+`/pago/pendiente`. Cuidado con la primera: que el cliente vuelva por ahí **no
+garantiza** que el pago se haya acreditado.
+
+### Cuatro cosas que van a parecer un bug y no lo son
+
+1. **Pedir el checkout dos veces devuelve el mismo link**, con `reused: true`.
+   Es a propósito: si el usuario hace doble clic, no se generan dos cobros.
+2. **El tipo de cobro se deduce solo** si no mandás `paymentType`: la seña
+   cuando el turno tiene una sin cubrir, el saldo en cualquier otro caso.
+3. **`REFUND` da 400 en el checkout** y `MERCADOPAGO` da 400 en el pago manual.
+   No es un enum incompleto: una devolución no se cobra online, y un pago de MP
+   no se carga a mano porque lo crea el checkout.
+4. **En desarrollo no se cobra nada.** El `checkoutUrl` apunta a
+   `/pago/exito?sandbox=<paymentId>`. Para simular que se pagó:
+   ```bash
+   curl -X POST http://localhost:3001/webhooks/mercadopago \
+     -H 'Content-Type: application/json' \
+     -d '{"type":"payment","data":{"id":"sandbox-payment-1"}}'
+   ```
+
+---
+
+## Mails transaccionales (2026-08-20)
+
+4 endpoints nuevos y **tres pantallas que hay que construir en el front**. No
+rompe nada, pero sí desbloquea el flujo de "olvidé mi contraseña", que hasta hoy
+no existía.
+
+### Nuevo
+
+| Área | Qué trae |
+|---|---|
+| `/auth` (4) | `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/verify-email`, `POST /auth/verify-email/resend` |
+
+### ⚠️ Cambios que rompen
+
+Ninguno. `POST /employees` suma un campo (`emailSent`) y **no saca ninguno**: el
+`activationUrl` sigue viniendo igual.
+
+### Pantallas
+
+| Ruta | Estado | Qué le falta |
+|---|---|---|
+| `/activar?token=` | ✅ hecha | Nada |
+| `/olvide-contrasena` | ⚠️ placeholder | Dice "estará disponible muy pronto" y manda a soporte. **Ya no hace falta**: cablearla a `POST /auth/forgot-password` |
+| `/restablecer?token=` | ❌ falta | `POST /auth/reset-password` |
+| `/verificar-email?token=` | ❌ falta | `POST /auth/verify-email` |
+
+Las que reciben token son públicas, lo toman por query string y devuelven **400
+con un mensaje ya escrito en castellano** cuando el link no sirve: mostralo tal
+cual en vez de inventar uno. El token vale **una sola vez**, así que conviene
+redirigir apenas la llamada sale bien — si el usuario recarga, el segundo
+intento da 400 y parece un error cuando no lo es. `/activar` ya resuelve ese
+patrón (token leído con `useSearchParams` dentro de un `Suspense`): las dos que
+faltan pueden copiarlo.
+
+### Cuatro cosas que van a parecer un bug y no lo son
+
+1. **`forgot-password` devuelve 204 aunque el email no exista.** Es a propósito:
+   si contestara distinto, cualquiera podría averiguar qué emails tienen cuenta
+   sin necesidad de credenciales. La UI **no puede** decir "ese email no está
+   registrado" — el mensaje correcto es del tipo "si esa dirección tiene una
+   cuenta, te mandamos el link".
+2. **Después de un reset, el refresh token guardado deja de servir.** El reset
+   cierra todas las sesiones abiertas a propósito (si alguien más había entrado,
+   dejarle la sesión viva volvería inútil el cambio). Hay que mandar al login,
+   no intentar refrescar.
+3. **Pedir el link dos veces invalida el primero.** Vale el del mail más nuevo.
+   Si llegan desordenados y el usuario abre el viejo, es 400.
+4. **En desarrollo no llega ningún mail.** El back arranca con
+   `MAIL_PROVIDER=log`, que escribe el link en su propia consola en vez de
+   mandarlo. Para probar estas pantallas, el link se copia de ahí.
+
+### Otro detalle
+
+`GET /auth/me` ya traía `user.emailVerifiedAt`; ahora **se llena de verdad**. En
+`null` = sin confirmar, y ahí tiene sentido un cartel con "reenviar" que llame a
+`POST /auth/verify-email/resend` (409 si ya estaba confirmado). Hoy no bloquea
+nada: es informativo.
+
+---
+
 ## Fase 5 — Turnos, disponibilidad y recurrencia (2026-08-19)
 
 8 endpoints nuevos. **No rompe nada de lo que ya estaba.** Es la fase que

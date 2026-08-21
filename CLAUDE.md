@@ -34,7 +34,9 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/` | Landing pública, terminada |
 | `/login` | **Integrado con el backend real** |
 | `/registro` | Placeholder ("próximamente"), deriva a `/#contacto` |
-| `/olvide-contrasena` | Placeholder, deriva a `/#contacto` |
+| `/olvide-contrasena` | **Real.** Pide el mail de recuperación. Pública |
+| `/restablecer?token=` | **Real.** Contraseña nueva con el token del mail. Pública |
+| `/verificar-email?token=` | **Real.** Confirma la dirección sola al abrirse. Pública |
 | `/activar` | **Real.** Cierra la invitación: token del link + contraseña. Pública |
 | `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
 | `/dashboard` | **Mitad real.** Equipo y ausencias salen de la API; los turnos siguen en mock |
@@ -374,6 +376,8 @@ Los halos necesitan `relative isolate` en el ancestro, y `overflow-x-clip` (nunc
 - `lib/api.test.ts` — timeouts, refresh, sesión caída, 401 concurrentes
 - `lib/api.crosstab.test.ts` — la carrera entre pestañas, con dos instancias del módulo
 - `lib/errors.test.ts` — formateo de `ApiError`
+- `features/auth/utils/validators.test.ts` — email y la regla de contraseña que
+  comparten `/activar` y `/restablecer`
 - `features/appointments/lib/week.test.ts` — semana y layout de turnos superpuestos
 - `features/appointments/lib/agenda.test.ts` — números de la semana, tablero del día, grilla del mes
 - `features/employees/lib/schedule.test.ts` — tramos de trabajo y solapamientos
@@ -427,10 +431,13 @@ del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
 
 - **Corriendo en `http://localhost:3001`** (`NEXT_PUBLIC_API_URL`). Swagger en `/api`, spec en `/api-json`
 - **Disponible hoy:** `/auth`, `/tenants`, `/branches`, `/employees`, `/service-categories`, `/services`, `/resources`, `/customers`, `/customer-tags`, `/appointments`, `/health`
-- **Todavía no existe:** pagos y cobro de señas (Fase 6), portal público (Fase 7)
+- **Todavía no existe:** portal público (Fase 7). Del lado de pagos falta el débito automático y la devolución automática
 - **Catálogo (Fase 3):** precios en **centavos** (`priceCents`); un servicio se presta por par `(empleado, sucursal)`, no solo por empleado; los recursos son feature de plan
 - **Turnos (Fase 5, nuevo):** la agenda ya no necesita mock. `GET /appointments/availability` da los huecos libres con todo restado; `POST /appointments` acepta cualquier horario que **entre** en el tiempo libre (no hace falta un slot exacto). **El precio se congela al reservar**: mostrar `totalPriceCents` del turno, nunca el del servicio. **Un 409 al agendar es un caso normal** (alguien tomó el hueco primero), no un error a reintentar. Las series recurrentes **saltean** las fechas ocupadas y las devuelven en `skipped`. Detalle en `docs/api-changelog.md`
 - **Clientes (Fase 4):** `Patient` ahora es **`Customer`** (el tipo provisorio se reemplaza). Dos formas nuevas que se repiten en las fases que vienen: `GET /customers` devuelve **`{ data, meta }`** paginado (primer endpoint así de la API), y un **error puede traer campos extra** — el 409 de `POST /customers` manda `existingCustomer` con la ficha ya cargada, para ofrecer "¿es esta persona?" en vez de un cartel rojo. El teléfono lo compara el backend normalizado: **no normalizar en el front**. Detalle en `docs/api-changelog.md`
+- **Pagos (Fase 6, nuevo):** `GET /appointments/:id/payments` devuelve `{ balance, payments }` — **usá `balance` tal cual, no lo recalcules sumando los pagos**: hay dos formas de representar plata que vuelve y sumar a mano cuenta una de más. El cobro online es **en dos tiempos**: `POST .../payments/checkout` devuelve el link y deja el pago *pendiente*; lo confirma Mercado Pago avisándole al backend, así que después de mandar al cliente al checkout hay que volver a consultar el saldo. Faltan tres pantallas de retorno (`/pago/exito`, `/pago/error`, `/pago/pendiente`), y volver por la de éxito **no garantiza** que se haya acreditado. En dev no se cobra nada: el link trae `?sandbox=<paymentId>` y se simula pegándole al webhook. Detalle en `docs/api-changelog.md`
+- **Suscripción del negocio (nuevo):** ⚠️ **`POST /appointments` y `/appointments/recurring` ahora pueden devolver `402`** cuando el negocio hace más de 7 días que no paga. Si el manejador de errores no lo contempla cae en el "error inesperado" genérico, que acá es lo peor: el usuario no se entera de que hay que pagar. Es 402 y no 403 para poder distinguirlo de un problema de permisos. `GET /tenants/me/subscription` trae `daysOverdue` y `blocked`, y **hay una ventana entre los dos** (`graceDays`): ahí es cuando conviene avisar. Ver, cancelar y reprogramar siguen funcionando aunque deba. Detalle en `docs/api-changelog.md`
+- **Mails:** ya salen del backend, sus links apuntan acá y **las cuatro pantallas que los reciben están hechas** (`/activar`, `/olvide-contrasena`, `/restablecer`, `/verificar-email`). Ver "Las pantallas de los mails" más abajo. Detalle en `docs/api-changelog.md`
 - Levantarlo: `docker compose up -d && npm run seed:demo && npm run start:dev` desde `../agendapp-api`
 - Usuario de demo: `dueno@demo.test` / `demo1234`
 
@@ -472,10 +479,12 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 
 ## Deuda conocida
 Relevada y no atendida todavía:
-- 84 botones vacíos en la grilla de `WeekCalendar` (12 franjas × 7 días): tienen
+- 84 botones vacíos en la grilla de `TimeGrid` (12 franjas × 7 días): tienen
   `aria-label`, pero son 84 paradas de tabulación
 - `tsconfig` sin `noUncheckedIndexedAccess`
-- `/registro` y `/olvide-contrasena` siguen siendo carteles de "próximamente"
+- `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
+- **El 402 no está manejado.** Nace recién cuando se cableen los turnos: hoy
+  ningún endpoint que lo devuelva se llama desde el front
 - `/dashboard` y `/agenda` corren sobre `mockData`: **el backend ya tiene turnos (Fase 5)**, falta cablearlos
 - `formatPrice` tiene la moneda fija en ARS; debería salir de `tenant.currency`
 - `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
@@ -488,8 +497,49 @@ Relevada y no atendida todavía:
 3. El invitado abre `/activar?token=…`, elige contraseña y el front postea a
    `POST /employees/activate` — el único endpoint público de `/employees`
 
-La regla de contraseña vive en `validateNewPassword`; el schema de zod de `/activar`
-la reusa con un `superRefine` en vez de reescribirla, para que no se desincronice.
+La regla de contraseña vive en `validateNewPassword`; `newPasswordSchema` la reusa
+con un `superRefine` en vez de reescribirla, para que no se desincronice.
+
+## Las pantallas de los mails
+Cuatro rutas públicas que reciben un link que mandó el backend. Todas usan
+`AuthCard`, y las que muestran un desenlace en vez de un formulario usan
+`AuthResult` (ícono + título + salida): violeta informa, ámbar pide una acción,
+verde cerró bien. **Rojo no está a propósito** — un link vencido no es culpa de
+quien lo abrió.
+
+| Ruta | Endpoint | Componente |
+|---|---|---|
+| `/olvide-contrasena` | `POST /auth/forgot-password` | `ForgotPasswordForm` |
+| `/restablecer?token=` | `POST /auth/reset-password` | `ResetPasswordForm` |
+| `/verificar-email?token=` | `POST /auth/verify-email` | `VerifyEmailCard` |
+| `/activar?token=` | `POST /employees/activate` | `ActivateAccountForm` |
+
+Seis cosas que no son obvias:
+
+1. **`forgot-password` devuelve 204 exista la cuenta o no**, y por eso el mensaje
+   empieza con "si": decir "ese email no está registrado" dejaría averiguar qué
+   direcciones tienen cuenta probando una por una. **No es un texto vago por
+   comodidad; es el requisito.** La pantalla de éxito es idéntica en los dos casos
+2. **Los tokens valen una sola vez.** `/restablecer` hace `router.replace` al
+   login apenas sale bien: si volviera atrás, el segundo intento da 400 y parece
+   un error cuando en realidad funcionó
+3. **`/verificar-email` se dispara sola al montar, y tiene que hacerlo una sola
+   vez.** En dev React monta dos veces con StrictMode; sin el candado de `useRef`
+   de `VerifyEmailCard`, la primera llamada confirma el mail y la segunda muestra
+   un error por token ya usado. Es el bug más fácil de introducir acá
+4. **Un reset cierra todas las sesiones.** `ResetPasswordForm` llama a
+   `clearTokens()` antes de redirigir: el refresh token guardado ya no sirve y sin
+   esto la próxima pantalla intenta refrescar con uno muerto
+5. **El 400 viene con el motivo ya escrito en castellano.** Se muestra tal cual
+   con `apiErrorMessage`; no hay que redactar uno propio que tendría que cubrir
+   vencido, ya usado e inexistente a la vez
+6. **En desarrollo no sale ningún mail.** El backend arranca con
+   `MAIL_PROVIDER=log` y escribe el link en su propia consola: para probar el
+   camino feliz hay que copiarlo de ahí
+
+El token se lee con `useSearchParams` dentro de un `Suspense` —no en el servidor—
+para que un secreto de un solo uso no viaje en el payload de la página. Las cuatro
+rutas van en el `disallow` de `robots.ts`: un crawler que las visite quema el link.
 
 ## Horarios de empleado — tres cosas que rompen
 1. `PUT /employees/:id/branches` y `/schedules` **reemplazan todo**: se manda cómo
@@ -540,3 +590,93 @@ Acordado con Franco, en orden:
 6. ~~La carrera de refresh entre pestañas~~ ✅ hecho
 7. ~~Migrar el panel al vocabulario nuevo~~ ✅ hecho
 8. ~~Rediseño del dashboard~~ ✅ hecho — calendario de ausencias real + bento
+
+---
+
+**⚠️ El backend viene dos fases adelante.** Cerró la Fase 6 (pagos y suscripción) y
+el front quedó en la 2: **36 de 84 endpoints cableados**. Auth, negocio, sucursales
+y equipo están completos; **catálogo, clientes, turnos, pagos y suscripción no
+tienen ninguna pantalla que los toque**. Nada de lo que sigue necesita tocar el
+backend: los endpoints existen, andan y están testeados. El detalle de cada uno,
+en `docs/api-contract.md`; qué cambió y qué rompe, en `docs/api-changelog.md`.
+
+### 9. ~~Las pantallas de los mails~~ ✅ hecho
+`/olvide-contrasena`, `/restablecer?token=` y `/verificar-email?token=` están
+cableadas. Los links que el backend manda desde hace semanas ya no caen en 404.
+Las trampas quedaron escritas en "Las pantallas de los mails", más arriba.
+
+**El 402 sigue sin manejar, y se movió acá abajo a propósito.** El punto 9 decía
+que era un agujero vivo, pero no lo es todavía: `POST /appointments` y
+`/appointments/recurring` son los únicos que lo devuelven, y **el front no llama a
+la API de turnos desde ningún lado**. Nace exactamente con el punto 12, así que
+se hace ahí:
+
+- Sin manejarlo, un negocio que hace más de 7 días que no paga recibe el "error
+  inesperado" genérico al intentar agendar. Es el peor cartel posible: el dueño no
+  se entera de que tiene que pagar
+- `GET /tenants/me/subscription` trae `daysOverdue`, `graceDays` y `blocked` — **el
+  aviso va en la ventana entre los dos**, no cuando ya está bloqueado
+- Es 402 y no 403 justamente para poder distinguirlo de un problema de permisos.
+  Ver, cancelar y reprogramar siguen andando aunque deba: **no bloquear la app entera**
+- Hoy lo único que hay es `subscriptionNote`, que pone "Hay un pago pendiente" en
+  el pie del panel cuando el tenant está `PAST_DUE`. No dice cuántos días quedan
+  ni ofrece pagar
+
+### 10. `/servicios` — la llave de todo lo demás
+Sin catálogo cargado no hay turno que reservar, cotizar ni cobrar. Es la pantalla
+más grande de las que faltan: `service-categories`, `services` y `resources`.
+
+- Precios en **centavos** (`priceCents`). Acá es donde conviene sacarle a
+  `formatPrice` la moneda fija en ARS y leerla de `tenant.currency`
+- **Un servicio se presta por par `(empleado, sucursal)`**, no solo por empleado
+  (`PUT /services/:id/employees`). No es "quién lo hace" sino "quién lo hace dónde",
+  y es la parte que se subestima al diseñar la pantalla
+- Los recursos son feature de plan: crear de más devuelve 403 con el mensaje ya
+  redactado por el backend, que se muestra tal cual
+
+### 11. `/clientes`
+- `GET /customers` devuelve **`{ data, meta }`**: es el primer endpoint paginado de
+  la API, hace falta paginación de verdad y no un `slice`
+- El **409 de `POST /customers` trae `existingCustomer`** con la ficha ya cargada.
+  Eso es para ofrecer "¿es esta persona?", no para tirar un cartel rojo
+- El teléfono lo compara el backend normalizado: **no normalizar en el front**
+- Etiquetas: `customer-tags` + `PUT /customers/:id/tags`, que **reemplaza todo**,
+  igual que sucursales y horarios de empleado
+
+### 12. Turnos reales — matar el mock
+El más grande. Borra `features/appointments/data/mockData.ts` y `lib/roster.ts`, y
+`/dashboard`, `/agenda` y `/reportes` dejan de ser mock **los tres juntos**.
+`AppointmentFormModal` ya existe pero no postea a ningún lado.
+
+- `GET /appointments/availability` da los huecos libres con todo restado;
+  `POST /appointments` acepta **cualquier horario que entre** en el tiempo libre —
+  no hace falta un slot exacto
+- **El precio se congela al reservar**: mostrar `totalPriceCents` del turno, nunca
+  el del servicio
+- **Un 409 al agendar es un caso normal** (alguien tomó el hueco primero), no un
+  error a reintentar
+- Las series recurrentes **saltean** las fechas ocupadas y las devuelven en
+  `skipped`: hay que mostrarlas, si no el usuario cree que se agendaron todas
+- `lib/absenceKind.ts` **no se borra todavía**: la API sigue sin campo de tipo de
+  ausencia. Sí se va la constante del 15% en la carga del calendario de Inicio —
+  con los servicios de la Fase 3 el corte del amarillo pasa a ser "no entra ni el
+  más corto"
+
+### 13. Cobros
+- `GET /appointments/:id/payments` devuelve `{ balance, payments }`. **Usar
+  `balance` tal cual, no recalcularlo sumando los pagos**: hay dos formas de
+  representar plata que vuelve y sumar a mano cuenta una de más
+- El cobro online es **en dos tiempos**: `POST .../payments/checkout` devuelve el
+  link y deja el pago *pendiente*; lo confirma Mercado Pago avisándole al backend.
+  Después de mandar al cliente al checkout hay que **volver a consultar el saldo**
+- Faltan `/pago/exito`, `/pago/error` y `/pago/pendiente`. Volver por la de éxito
+  **no garantiza** que se haya acreditado: esa pantalla dice "estamos confirmando",
+  no "listo"
+- En dev no se cobra nada: el link trae `?sandbox=<paymentId>` y se simula
+  pegándole al webhook
+
+### Sin decidir
+`/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`
+existe y funciona hace rato. Si el alta es a propósito por teléfono —onboarding
+manual, que para vender a estéticas tiene sentido— no hay nada que hacer.
+**Preguntarle a Franco antes de construirla.**

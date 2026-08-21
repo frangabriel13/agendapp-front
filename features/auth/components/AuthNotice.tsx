@@ -11,8 +11,12 @@ interface Props {
 }
 
 /**
- * Aviso de "esto todavía no está". Registro y recuperación de contraseña son la
- * misma pantalla con distinto texto: ícono, título, explicación y dos salidas.
+ * Aviso de "esto todavía no está": ícono, título, explicación y dos salidas.
+ *
+ * Queda solo `/registro`, que sigue sin decidirse. Recuperar contraseña ya no lo
+ * usa: dejó de ser un cartel el día que se cableó `POST /auth/forgot-password`.
+ * Cuando `/registro` se resuelva, este componente se borra — a diferencia de
+ * `AuthResult`, que muestra desenlaces reales y sí se queda.
  */
 export function AuthNotice({ icon: Icon, title, description, primary, secondary }: Props) {
   return (
