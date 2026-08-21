@@ -3,8 +3,10 @@ import {
   Calendar,
   ChartColumn,
   LayoutDashboard,
+  Scissors,
   Settings,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react"
 
@@ -24,8 +26,10 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/agenda", label: "Agenda", icon: Calendar },
-  // Agenda y Reportes son el día a día; Equipo y Sucursales, la puesta a punto.
+  // Agenda y Reportes son el día a día; de Catálogo para abajo, la puesta a punto.
   { href: "/reportes", label: "Reportes", icon: ChartColumn },
+  { href: "/servicios", label: "Catálogo", icon: Scissors },
+  { href: "/clientes", label: "Clientes", icon: UsersRound },
   { href: "/equipo", label: "Equipo", icon: Users },
   { href: "/sucursales", label: "Sucursales", icon: Building2 },
 ]

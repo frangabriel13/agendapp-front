@@ -7,7 +7,7 @@ import { cta } from "@/components/CtaLink"
 import { control } from "@/components/form"
 import { cn } from "@/lib/utils"
 import { formatPrice } from "@/lib/format"
-import type { Appointment, Professional, Service } from "@/types"
+import type { Appointment, Professional, MockService } from "@/types"
 import { addMinutes } from "@/lib/time"
 
 interface Initial {
@@ -20,7 +20,7 @@ interface Initial {
 interface Props {
   mode: "create" | "edit"
   professionals: Professional[]
-  services: Service[]
+  services: MockService[]
   initial: Initial
   onClose: () => void
   onSubmit: (appointment: Appointment) => void

@@ -18,13 +18,25 @@ export class ApiError extends Error {
   /** Los errores de validación traen un mensaje por campo. */
   readonly messages: string[]
   readonly requestId?: string
+  /**
+   * El cuerpo crudo del error.
+   *
+   * **Algunos errores traen más que un mensaje**, y esa información es la que
+   * permite ofrecer una salida en vez de un cartel rojo: el 409 de
+   * `POST /customers` manda `existingCustomer` con la ficha ya cargada, para
+   * poder decir "¿es esta persona?" sin ir a buscarla con otra request. Es una
+   * forma que se repite en las fases que vienen, así que el transporte lo guarda
+   * y cada pantalla lee lo que le sirve con `errorDetail`.
+   */
+  readonly body: unknown
 
-  constructor(statusCode: number, messages: string[], requestId?: string) {
+  constructor(statusCode: number, messages: string[], requestId?: string, body?: unknown) {
     super(messages[0] ?? "Ocurrió un error inesperado")
     this.name = "ApiError"
     this.statusCode = statusCode
     this.messages = messages
     this.requestId = requestId
+    this.body = body
   }
 }
 
@@ -89,7 +101,7 @@ function toApiError(status: number, body: unknown): ApiError {
     : typeof raw === "string" && raw.length > 0
       ? [raw]
       : [statusFallback(status)]
-  return new ApiError(parsed?.statusCode ?? status, messages, parsed?.requestId)
+  return new ApiError(parsed?.statusCode ?? status, messages, parsed?.requestId, body)
 }
 
 async function parse<T>(res: Response): Promise<T> {

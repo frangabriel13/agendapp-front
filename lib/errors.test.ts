@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { ApiError } from "./api"
-import { apiErrorMessage } from "./errors"
+import { apiErrorMessage, errorDetail } from "./errors"
 
 const FALLBACK = "Algo salió mal"
 
@@ -32,5 +32,43 @@ describe("apiErrorMessage", () => {
   it("ignora los mensajes en blanco en vez de mostrarlos", () => {
     expect(apiErrorMessage(new ApiError(500, ["", "   "]), FALLBACK)).toBe(FALLBACK)
     expect(apiErrorMessage(new ApiError(400, ["", "Falta el nombre"]), FALLBACK)).toBe("Falta el nombre")
+  })
+})
+
+/**
+ * El caso real: el 409 de `POST /customers` trae `existingCustomer` con la ficha
+ * ya cargada, y con eso la pantalla ofrece "¿es esta persona?" en vez de un
+ * cartel rojo.
+ */
+describe("errorDetail", () => {
+  const ficha = { id: "c1", firstName: "María", lastName: "González" }
+  const duplicado = new ApiError(409, ["Ya tenés un cliente con ese teléfono"], undefined, {
+    statusCode: 409,
+    message: "Ya tenés un cliente con ese teléfono",
+    existingCustomer: ficha,
+  })
+
+  it("saca el campo extra del cuerpo", () => {
+    expect(errorDetail(duplicado, 409, "existingCustomer")).toEqual(ficha)
+  })
+
+  /**
+   * Pide el `statusCode` justamente para esto: sin el chequeo, un 500 con un
+   * cuerpo raro se leería como un duplicado y la pantalla ofrecería abrir una
+   * ficha que no existe.
+   */
+  it("no lee el campo si el error no es el que se esperaba", () => {
+    expect(errorDetail(duplicado, 400, "existingCustomer")).toBeNull()
+  })
+
+  it("devuelve null cuando el campo no está", () => {
+    expect(errorDetail(duplicado, 409, "otraCosa")).toBeNull()
+    expect(errorDetail(new ApiError(409, ["Chocó"]), 409, "existingCustomer")).toBeNull()
+  })
+
+  it("no explota con un cuerpo que no es un objeto", () => {
+    expect(errorDetail(new ApiError(409, ["x"], undefined, "texto suelto"), 409, "a")).toBeNull()
+    expect(errorDetail(new ApiError(409, ["x"], undefined, null), 409, "a")).toBeNull()
+    expect(errorDetail(new TypeError("no es de la API"), 409, "a")).toBeNull()
   })
 })
