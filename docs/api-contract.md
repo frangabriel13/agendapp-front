@@ -280,11 +280,11 @@ Notar el sufijo `-short` / `-long`: no existe un `X-RateLimit-Limit` pelado.
 
 ## Qué existe hoy y qué no
 
-**Disponible — 76 endpoints:**
+**Disponible — 86 endpoints:**
 
 | Área | Endpoints | Alcanza para |
 |---|---|---|
-| `/auth` | 6 | Toda la capa de sesión: registro, login, refresh, logout, perfil, cambio de contraseña |
+| `/auth` | 10 | Toda la capa de sesión: registro, login, refresh, logout, perfil, cambio de contraseña, **recuperar la contraseña olvidada y confirmar el email** |
 | `/tenants` | 6 | Configuración del negocio, branding (colores y logo), preferencias |
 | `/branches` | 11 | CRUD de sucursales, horario semanal, feriados y días especiales |
 | `/employees` | 13 | CRUD, invitación con link, activación pública, permisos, asignación a sucursales, horario con turno partido, ausencias |
@@ -294,12 +294,15 @@ Notar el sufijo `-short` / `-long`: no existe un `X-RateLimit-Limit` pelado.
 | `/customers` | 7 | CRUD de clientes, búsqueda paginada, etiquetas de cada uno |
 | `/customer-tags` | 5 | CRUD de etiquetas ("VIP", "Debe seña") |
 | `/appointments` | 8 | Disponibilidad, agendar, agenda por rango, estados, reprogramar, series |
+| `/appointments/:id/payments` | 3 | Saldo del turno, link de pago online, pagos en efectivo y devoluciones |
+| `/tenants/me/subscription` | 2 | Estado de la suscripción del negocio y el link para pagar el mes |
+| `/webhooks` | 1 | Aviso de pago de Mercado Pago. **No lo llama el front** |
 | `/health` | 1 | Healthcheck |
 
 **Todavía no existe:**
 
-- Pagos y cobro de señas (Fase 6)
 - Portal público de reservas (Fase 7)
+- Débito automático de la suscripción y devoluciones automáticas: hoy el mes se paga con un link, y una devolución se registra a mano
 
 No conviene diseñar contra estos: el contrato todavía no está definido y va a
 cambiar.
@@ -502,14 +505,139 @@ mismo profesional (`serviceIds`), y la duración es la suma de todos con sus
 buffers. `NO_SHOW` **ocupa la agenda igual** que un turno atendido: esa hora
 estuvo tomada.
 
+### Detalle sobre los pagos (Fase 6)
+
+**El saldo no está guardado en ningún campo: se calcula.** `GET
+/appointments/:id/payments` devuelve `{ balance, payments }`, y `balance` es lo
+que hay que mostrar — no lo recalcules sumando `payments` en el front, porque
+hay dos formas distintas de representar plata que vuelve y es fácil contar una
+de más. Los campos que importan:
+
+| Campo | Qué es |
+|---|---|
+| `paidCents` | Lo que quedó en la caja, ya restadas las devoluciones. **Puede ser negativo** si se devolvió de más |
+| `dueCents` | Lo que falta cobrar. Nunca negativo |
+| `depositCovered` | Si la seña está cubierta. Sin seña configurada es `true` |
+| `fullyPaid` | Si está todo pago |
+
+**El cobro online es en dos tiempos.** `POST .../payments/checkout` devuelve un
+`checkoutUrl` y crea el pago **en estado pendiente**: el turno todavía no está
+pago. Quien lo confirma es Mercado Pago avisándole al backend, que puede tardar
+desde segundos hasta minutos. O sea: después de mandar al cliente al checkout,
+el front tiene que **volver a consultar el saldo**, no asumir que se pagó.
+
+**Pedir el checkout dos veces devuelve el mismo link**, con `reused: true`.
+Eso es a propósito y conviene no pelearlo con un "deshabilitar el botón": si el
+usuario hace doble clic, no se generan dos cobros.
+
+**El tipo de cobro se deduce solo.** Sin mandar `paymentType`, cobra la seña si
+el turno tiene una sin cubrir, y el saldo en cualquier otro caso. Se puede
+forzar con `DEPOSIT`, `FULL` o `REMAINDER`. `REFUND` **no** se puede cobrar
+online (400): una devolución se registra a mano.
+
+**Los pagos en efectivo van por `POST .../payments/manual`** y nacen
+acreditados. `paymentMethod` acepta `CASH`, `TRANSFER` u `OTHER` — mandar
+`MERCADOPAGO` da 400, porque ese pago lo crea el checkout. `paymentType` sí
+acepta `REFUND`: así se registra la plata que se devolvió en el mostrador.
+
+**En desarrollo no se cobra nada.** El backend arranca con
+`PAYMENT_PROVIDER=sandbox`: el `checkoutUrl` que devuelve apunta a
+`/pago/exito?sandbox=<paymentId>`, y para simular que se pagó hay que pegarle al
+webhook con ese id:
+
+```bash
+curl -X POST http://localhost:3001/webhooks/mercadopago \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"payment","data":{"id":"sandbox-payment-1"}}'
+```
+
+**Faltan tres pantallas de retorno**, a donde vuelve el cliente desde el
+checkout: `/pago/exito`, `/pago/error` y `/pago/pendiente`. Ojo con `/pago/exito`:
+que el cliente vuelva por ahí **no garantiza** que el pago esté acreditado — el
+estado real sale de consultar el saldo del turno.
+
+### Detalle sobre la suscripción del negocio (Fase 6)
+
+Es la cuenta que el negocio le paga a AgendApp, distinta de lo que le cobra a su
+clientela. `GET /tenants/me/subscription` trae estado, plan, período, historial
+de cobros y dos campos que conviene mostrar juntos:
+
+- **`daysOverdue`** — días completos de atraso. `0` si está al día.
+- **`blocked`** — si ya no puede agendar turnos nuevos.
+
+**Deber no bloquea enseguida.** Hay una ventana de tolerancia (`graceDays`, hoy
+7 días): mientras dure, `daysOverdue` es mayor que cero pero `blocked` sigue en
+`false`. Ese es justo el momento de mostrar un aviso — después ya es tarde.
+
+**Cuando bloquea, la API devuelve `402 Payment Required`**, no 403. Es a
+propósito: un 403 se confunde con un problema de permisos, y el 402 le dice al
+front que lo que hay que hacer es pagar. Solo lo devuelven `POST /appointments`
+y `POST /appointments/recurring`.
+
+**Lo que sigue funcionando aunque el negocio deba:** ver la agenda, cancelar,
+reprogramar, y pagar la suscripción. Se corta crear turnos nuevos, nada más —
+cortarle la lectura a un negocio que debe castiga a su clientela, que no tiene
+nada que ver con la cobranza.
+
+**Los endpoints piden rol `OWNER` o `ADMINISTRATIVE`.** No es trabajo de
+mostrador: un profesional no tiene por qué ver cuánto paga su empleador.
+
+`POST /tenants/me/subscription/checkout` funciona igual que el de los turnos:
+devuelve un link, deja el cobro pendiente, y la suscripción se reactiva cuando
+llega el aviso del proveedor. Pedirlo dos veces devuelve el mismo link. Si el
+plan no tiene precio de lista (Empresa, que se cotiza con soporte) da 409.
+
+**Faltan tres pantallas de retorno**: `/suscripcion/exito`, `/suscripcion/error`
+y `/suscripcion/pendiente`.
+
 ### Detalle sobre la invitación de empleados
 
-Todavía **no se mandan emails**. `POST /employees` devuelve el link de activación
-en la respuesta; hoy hay que copiarlo y pasarlo a mano. El endpoint
-`POST /employees/activate` es público y es donde el empleado define su contraseña.
+Ahora **el link se manda por mail solo**. `POST /employees` igual lo sigue
+devolviendo en `activationUrl`, y eso es a propósito y definitivo: la respuesta
+trae también `emailSent`, y cuando viene en `false` el alta se hizo pero el mail
+no salió. Ahí es donde la UI tiene que mostrar el link para copiar. Cuando viene
+en `true`, alcanza con decir "le mandamos un mail a ana@…".
 
-Cuando se implemente el envío por email (antes de la Fase 7), el link va a dejar de
-venir en la respuesta. Conviene no construir UI que dependa de mostrarlo.
+`POST /employees/activate` es público y es donde el empleado define su contraseña.
+La pantalla que lo recibe es `/activar?token=…`.
+
+### Qué falta del lado del front
+
+Los mails ya salen y sus links apuntan acá. Estado de cada pantalla:
+
+| Ruta | Estado | Qué le falta |
+|---|---|---|
+| `/activar?token=` | ✅ hecha | Nada: ya llama a `POST /employees/activate` |
+| `/olvide-contrasena` | ⚠️ placeholder | Hoy dice "estará disponible muy pronto" y manda a soporte. **Ya no hace falta**: cablearla a `POST /auth/forgot-password` |
+| `/restablecer?token=` | ❌ falta | Pide contraseña nueva → `POST /auth/reset-password` |
+| `/verificar-email?token=` | ❌ falta | Llama sola a `POST /auth/verify-email` y muestra el resultado |
+
+Las que reciben token lo toman por query string, son **públicas** (sin sesión) y
+devuelven **400 con un mensaje ya escrito en castellano** si el link no sirve:
+mostralo tal cual. El token vale **una sola vez** — si el usuario recarga la
+página después de completar, el segundo intento da 400, así que conviene
+redirigir apenas sale bien en vez de dejarlo en la pantalla. `/activar` ya
+resuelve bien ese patrón (lee el token con `useSearchParams` dentro de un
+`Suspense`, para que el secreto no viaje en el payload del servidor): las dos
+que faltan pueden copiarlo.
+
+**`POST /auth/forgot-password` siempre devuelve 204**, exista o no la cuenta.
+No es un detalle de implementación: la UI **no puede** decir "ese email no está
+registrado", porque justamente lo que se evita es que cualquiera averigüe qué
+emails tienen cuenta. El mensaje correcto es del tipo "si esa dirección tiene
+una cuenta, te mandamos el link". Pedirlo de nuevo invalida el link anterior.
+
+**Después de un reset, todas las sesiones se cierran.** El refresh token que
+tuviera guardado deja de servir: hay que mandar al login, no intentar refrescar.
+
+**`emailVerifiedAt`** viene en `GET /auth/me` dentro de `user`. En `null` = sin
+confirmar, y ahí tiene sentido un cartel con "reenviar" que llame a
+`POST /auth/verify-email/resend`. Hoy **no bloquea nada**: es informativo. Si ya
+estaba confirmado, el reenvío devuelve 409.
+
+**En desarrollo no sale ningún mail.** Con `MAIL_PROVIDER=log` (el default) el
+back escribe el link en su propia consola en vez de mandarlo. Para probar estas
+pantallas, el link se copia de ahí.
 
 ---
 
