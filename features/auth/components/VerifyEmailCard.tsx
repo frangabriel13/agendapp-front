@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { verifyEmailRequest } from "@/services/auth"
 import { SESSION_KEY, useHasToken } from "../hooks/useAuth"
-import { AuthResult } from "./AuthResult"
+import { ResultCard } from "@/components/ResultCard"
 
 /**
  * Confirma el email apenas se abre el link: acá no hay nada que el usuario deba
@@ -53,7 +53,7 @@ export function VerifyEmailCard() {
 
   if (!token) {
     return (
-      <AuthResult
+      <ResultCard
         icon={LinkIcon}
         tone="amber"
         title="Link incompleto"
@@ -62,13 +62,13 @@ export function VerifyEmailCard() {
         <Link href={volver.href} className={cn(cta({ variant: "outline", block: true }), "mt-6")}>
           {volver.label}
         </Link>
-      </AuthResult>
+      </ResultCard>
     )
   }
 
   if (verificar.isSuccess) {
     return (
-      <AuthResult
+      <ResultCard
         icon={MailCheck}
         tone="emerald"
         title="Email confirmado"
@@ -77,13 +77,13 @@ export function VerifyEmailCard() {
         <Link href={volver.href} className={cn(cta({ block: true }), "mt-6")}>
           {volver.label}
         </Link>
-      </AuthResult>
+      </ResultCard>
     )
   }
 
   if (verificar.isError) {
     return (
-      <AuthResult
+      <ResultCard
         icon={MailWarning}
         tone="amber"
         title="No pudimos confirmar el email"
@@ -101,12 +101,12 @@ export function VerifyEmailCard() {
         <Link href={volver.href} className={cn(cta({ block: true }), "mt-6")}>
           {volver.label}
         </Link>
-      </AuthResult>
+      </ResultCard>
     )
   }
 
   return (
-    <AuthResult
+    <ResultCard
       icon={Loader2}
       title="Confirmando tu email"
       description="Un segundo."

@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils"
 /**
  * El tono dice qué pasó antes de leer: violeta informa, ámbar pide una acción,
  * verde cerró bien. Rojo no está a propósito — ninguna de estas pantallas es un
- * error del usuario, y un link vencido con cartel rojo se lee como culpa.
+ * error del usuario, y ni un link vencido ni un pago rechazado son culpa de quien
+ * lo está leyendo.
  */
 const TONOS = {
   violet: { caja: "border-violet-100 bg-linear-to-b from-violet-50 to-white", icono: "text-violet-600" },
@@ -24,14 +25,20 @@ interface Props {
 }
 
 /**
- * Desenlace de una pantalla de sesión: qué pasó y por dónde seguir.
+ * Desenlace de una pantalla sin panel: qué pasó y por dónde seguir.
  *
- * Lo usan las cuatro paradas de los mails —link incompleto, mail enviado, email
- * confirmado, link vencido—, que son el mismo bloque con distinto texto. El
- * `<h1>` lo pone acá porque cada una de estas pantallas *es* este bloque; las que
- * tienen formulario ponen el suyo.
+ * Lo usan las paradas de los mails —link incompleto, mail enviado, email
+ * confirmado, link vencido—, la activación de un empleado y la vuelta del
+ * checkout de Mercado Pago. Todas son el mismo bloque con distinto texto.
+ *
+ * **No vive en `features/auth` aunque haya nacido ahí**: ya lo usaba
+ * `features/employees`, y las pantallas de pago las abre el cliente del negocio,
+ * que no tiene nada que ver con la sesión de nadie.
+ *
+ * El `<h1>` lo pone acá porque cada una de estas pantallas *es* este bloque; las
+ * que tienen formulario ponen el suyo.
  */
-export function AuthResult({
+export function ResultCard({
   icon: Icon,
   tone = "violet",
   title,

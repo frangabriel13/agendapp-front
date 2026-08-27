@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { forgotPasswordRequest } from "@/services/auth"
 import { validateEmail } from "../utils/validators"
-import { AuthResult } from "./AuthResult"
+import { ResultCard } from "@/components/ResultCard"
 
 /**
  * La regla del email no se reescribe acá: se reusa `validateEmail`, la misma que
@@ -44,7 +44,7 @@ export function ForgotPasswordForm() {
   // una por una, sin credenciales. Por eso el texto arranca con "si".
   if (pedir.isSuccess) {
     return (
-      <AuthResult
+      <ResultCard
         icon={MailCheck}
         title="Revisá tu correo"
         description={
@@ -69,7 +69,7 @@ export function ForgotPasswordForm() {
         >
           Probar con otro email
         </button>
-      </AuthResult>
+      </ResultCard>
     )
   }
 

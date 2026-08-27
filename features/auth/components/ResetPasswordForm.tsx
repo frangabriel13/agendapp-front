@@ -13,7 +13,7 @@ import { clearTokens } from "@/lib/api"
 import { apiErrorMessage } from "@/lib/errors"
 import { resetPasswordRequest } from "@/services/auth"
 import { newPasswordSchema, type NewPasswordValues } from "../utils/validators"
-import { AuthResult } from "./AuthResult"
+import { ResultCard } from "@/components/ResultCard"
 import { PasswordPair } from "./PasswordPair"
 
 export function ResetPasswordForm() {
@@ -46,7 +46,7 @@ export function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <AuthResult
+      <ResultCard
         icon={LinkIcon}
         tone="amber"
         title="Link incompleto"
@@ -61,7 +61,7 @@ export function ResetPasswordForm() {
         >
           Volver al login
         </Link>
-      </AuthResult>
+      </ResultCard>
     )
   }
 
