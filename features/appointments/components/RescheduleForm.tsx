@@ -10,6 +10,7 @@ import { apiErrorMessage } from "@/lib/errors"
 import { splitInstant } from "@/lib/time"
 import type { Appointment } from "@/types"
 import { useAvailability, useReschedule } from "../hooks/useAppointments"
+import { motivoSinHorarios } from "../lib/slots"
 
 /**
  * Mover un turno de hora.
@@ -39,17 +40,15 @@ export function RescheduleForm({
   const reprogramar = useReschedule()
 
   /**
-   * **`availability` acepta un solo `serviceId`.** Con un turno de varios
-   * servicios la duración real es la suma, así que los horarios de abajo salen
-   * calculados con el primero y se avisa: el que confirma la cuenta completa es
-   * el backend, con un 409 si no entra.
+   * **Se pregunta por los servicios del turno entero**, no por el primero: la
+   * duración del hueco es la suma de todos, así que preguntando por uno solo se
+   * ofrecían horarios en los que el turno no entraba y el alta contestaba 409.
    */
-  const primerServicio = appointment.services[0]?.serviceId ?? null
-  const variosServicios = appointment.services.length > 1
+  const servicios = appointment.services.map((s) => s.serviceId)
 
   const disponibilidad = useAvailability({
     branchId: appointment.branch.id,
-    serviceId: primerServicio,
+    serviceIds: servicios,
     date: fecha,
   })
 
@@ -96,13 +95,6 @@ export function RescheduleForm({
         />
       </div>
 
-      {variosServicios && (
-        <p className="text-xs text-amber-700">
-          Este turno tiene {appointment.services.length} servicios. Los horarios se calculan con el
-          primero; el total lo valida el servidor al confirmar.
-        </p>
-      )}
-
       {disponibilidad.isPending && (
         <div className="grid grid-cols-4 gap-1.5">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -113,9 +105,7 @@ export function RescheduleForm({
 
       {disponibilidad.data && slots.length === 0 && (
         <p className="rounded-lg bg-white px-3 py-2.5 text-[13px] text-neutral-500">
-          {disponibilidad.data.branchClosed
-            ? "Ese día la sucursal está cerrada."
-            : "No queda ningún horario libre ese día."}
+          {motivoSinHorarios(disponibilidad.data, servicios.length)}
         </p>
       )}
 

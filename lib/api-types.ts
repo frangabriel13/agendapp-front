@@ -849,10 +849,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Huecos libres para reservar un servicio un día dado
+         * Huecos libres para reservar uno o varios servicios un día dado
          * @description Cruza el horario de la sucursal con el del profesional y le resta ausencias, turnos ya tomados y recursos ocupados. Los slots duran `durationMinutes + bufferAfterMinutes`: el buffer es tiempo en el que el profesional sigue ocupado, así que el último turno del día termina antes del cierre.
          *
-         *     Sin `employeeId` responde por todos los que prestan el servicio en esa sucursal, y cada slot dice quiénes lo tienen libre.
+         *     **Mandá los mismos `serviceIds` que vas a mandar al agendar.** La duración del hueco es la suma de todos, buffers incluidos: consultar con uno solo de un turno de varios ofrece horarios en los que el turno después no entra.
+         *
+         *     Sin `employeeId` responde por todos los que prestan **todos** esos servicios en esa sucursal, y cada slot dice quiénes lo tienen libre.
+         *
+         *     `slots` vacío tiene tres motivos distintos y la respuesta los distingue: `branchClosed` (ese día no abre), `noEmployeeForServices` (nadie presta esa combinación acá — el único que no se arregla cambiando de día) y, con los dos en `false`, simplemente no hay lugar.
          *
          *     **No recorta los slots que ya pasaron**: describe lo que el horario permite, no lo que todavía se puede reservar. Una pantalla de reserva para el público tiene que filtrarlos.
          */
@@ -1078,6 +1082,30 @@ export interface paths {
          * @description Nace acreditado: quien lo carga está viendo la plata. Queda asentado quién lo registró, que es el único rastro de un movimiento que ningún sistema externo puede confirmar.
          */
         post: operations["PaymentsController_recordManual"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cobros acreditados en un rango, con los totales del rango
+         * @description Filtra por **cuándo entró la plata** (`paidAt`), no por cuándo se creó la fila. Los días son días del calendario **del negocio**: un cobro de las 21:30 en Buenos Aires cuenta para ese día y no para el siguiente.
+         *
+         *     **Devuelve plata liquidada, no el estado de cobranza del mes.** Un cobro pendiente o fallado no tiene fecha de acreditación y por lo tanto no puede aparecer; pedirlos con `status=PENDING` es un 400, no una lista vacía. Lo que falta cobrar de un turno sale de su saldo.
+         *
+         *     `totals` es del **rango entero**, no de la página: paginar no lo mueve.
+         */
+        get: operations["PaymentReportsController_findByRange"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1933,7 +1961,7 @@ export interface components {
             startsAt: string;
             /**
              * Format: date-time
-             * @description Incluye el buffer del servicio: es lo que el turno va a ocupar de verdad, no solo lo que dura la atención.
+             * @description Incluye los buffers: es lo que el turno va a ocupar de verdad, no solo lo que dura la atención.
              * @example 2026-09-01T13:00:00.000Z
              */
             endsAt: string;
@@ -1948,15 +1976,20 @@ export interface components {
              * @example America/Argentina/Buenos_Aires
              */
             timezone: string;
-            /** @example 45 */
+            /**
+             * @description La suma de lo que dura cada servicio pedido.
+             * @example 45
+             */
             durationMinutes: number;
             /**
-             * @description Lo que el profesional sigue ocupado después de atender.
+             * @description La suma de los buffers de los servicios pedidos. Con uno solo es lo que el profesional sigue ocupado después de atender; **con varios hay buffers en el medio**, así que no es "lo que queda al final" sino todo el tiempo de limpieza del turno. Lo que se sostiene en los dos casos es que `durationMinutes + bufferAfterMinutes` es lo que dura el hueco.
              * @example 15
              */
             bufferAfterMinutes: number;
             /** @description La sucursal no abre ese día (día de descanso o feriado cargado). Sirve para distinguir "cerrado" de "sin lugar". */
             branchClosed: boolean;
+            /** @description Nadie presta **todos** los servicios pedidos en esa sucursal — o, si se pasó `employeeId`, esa persona no los presta todos. Es el tercer motivo por el que `slots` puede venir vacío, y el único que no se arregla cambiando de día. */
+            noEmployeeForServices: boolean;
             slots: components["schemas"]["AvailabilitySlotDto"][];
         };
         CreateAppointmentDto: {
@@ -2270,6 +2303,57 @@ export interface components {
             /** @enum {string} */
             paymentMethod: "CASH" | "TRANSFER" | "OTHER";
             notes?: string;
+        };
+        PaymentRangeAppointmentDto: {
+            id: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** @example Lucía Fernández */
+            customerName: string;
+            /** @example Ana Gómez */
+            employeeName: string;
+            /** @example Sucursal Centro */
+            branchName: string;
+        };
+        PaymentRangeItemDto: {
+            id: string;
+            amountCents: number;
+            /** @example ARS */
+            currency: string;
+            /**
+             * @description `REFUND` es plata que volvió. Se guarda en positivo.
+             * @enum {string}
+             */
+            paymentType: "DEPOSIT" | "FULL" | "REMAINDER" | "REFUND";
+            /** @enum {string} */
+            paymentMethod: "MERCADOPAGO" | "CASH" | "TRANSFER" | "OTHER";
+            /**
+             * @description `REFUNDED` es un cobro que el proveedor revirtió entero: sigue en la lista con su monto original, pero no suma al neto.
+             * @enum {string}
+             */
+            status: "SUCCEEDED" | "REFUNDED";
+            /**
+             * Format: date-time
+             * @description Cuándo entró la plata. Es por lo que se filtra.
+             */
+            paidAt: string;
+            notes: Record<string, never> | null;
+            /** @description Quién lo cargó a mano. `null` = lo pagó el cliente online. */
+            recordedBy: components["schemas"]["PaymentRecordedByDto"] | null;
+            appointment: components["schemas"]["PaymentRangeAppointmentDto"];
+        };
+        PaymentRangeTotalsDto: {
+            /** @description Lo que se cobró, sin descontar devoluciones. */
+            chargedCents: number;
+            /** @description Lo que volvió al cliente: las devoluciones propias más los cobros que el proveedor revirtió. */
+            refundedCents: number;
+            /** @description Lo que quedó: cobrado menos devoluciones. **Este es "cuánto entró".** */
+            netCents: number;
+        };
+        PaymentRangeResponseDto: {
+            data: components["schemas"]["PaymentRangeItemDto"][];
+            meta: components["schemas"]["PaginationMetaDto"];
+            totals: components["schemas"]["PaymentRangeTotalsDto"];
         };
         WebhookResultDto: {
             /**
@@ -5197,11 +5281,11 @@ export interface operations {
             query: {
                 /** @description Dónde se va a atender. */
                 branchId: string;
-                /** @description Qué servicio. De acá salen la duración y el buffer. */
-                serviceId: string;
+                /** @description Qué servicios, repitiendo el parámetro: `?serviceIds=<a>&serviceIds=<b>`. **Los mismos que se van a mandar al agendar**: la duración del hueco es la suma de todos, buffers incluidos, así que consultar con uno solo de un turno de varios ofrece horarios en los que el turno después no entra. */
+                serviceIds: string[];
                 /** @description Día del calendario **en la zona horaria del negocio**. */
                 date: string;
-                /** @description Si se omite, se consultan todos los que prestan ese servicio en esa sucursal y cada slot dice quiénes pueden tomarlo. */
+                /** @description Si se omite, se consultan todos los que prestan **todos** esos servicios en esa sucursal y cada slot dice quiénes pueden tomarlo. */
                 employeeId?: string;
             };
             header?: never;
@@ -5218,7 +5302,7 @@ export interface operations {
                     "application/json": components["schemas"]["AvailabilityResponseDto"];
                 };
             };
-            /** @description Datos inválidos, o el servicio está desactivado */
+            /** @description Datos inválidos, servicios repetidos, alguno que no existe en el negocio o alguno desactivado. Son los mismos 400 que el alta. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5232,7 +5316,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description La sucursal o el servicio no existen */
+            /** @description La sucursal no existe */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5697,6 +5781,54 @@ export interface operations {
             };
             /** @description El turno está cancelado */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentReportsController_findByRange: {
+        parameters: {
+            query: {
+                /** @description Empieza en 1, no en 0. */
+                page?: number;
+                pageSize?: number;
+                /** @description Primer día del rango, **en la zona horaria del negocio**. Incluido. */
+                from: string;
+                /** @description Último día del rango, **en la zona horaria del negocio**. Incluido entero: un pago de las 23:50 de ese día entra. */
+                to: string;
+                /** @description `PENDING` y `FAILED` no se aceptan: no tienen fecha de acreditación, así que no pueden estar en un rango. */
+                status?: "SUCCEEDED" | "REFUNDED";
+                paymentMethod?: "MERCADOPAGO" | "CASH" | "TRANSFER" | "OTHER";
+                /** @description Cobros de turnos de esta sucursal. */
+                branchId?: string;
+                /** @description Cobros de turnos de este profesional. **Es quién atiende el turno**, no quién registró el pago: eso último es `recordedBy`. */
+                employeeId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRangeResponseDto"];
+                };
+            };
+            /** @description Fechas mal formadas, rango invertido, o un `status` que no puede estar acreditado. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Un `PROFESSIONAL` no ve la plata del negocio. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -24,6 +24,7 @@ import { useCustomers } from "@/features/customers/hooks/useCustomers"
 import { useDebounced } from "@/features/customers/hooks/useDebounced"
 import { fullName } from "@/features/customers/lib/customer"
 import { useAvailability, useCreateAppointment, useCreateRecurring } from "../hooks/useAppointments"
+import { motivoSinHorarios } from "../lib/slots"
 import { canManage, useSession } from "@/features/auth/hooks/useAuth"
 import { useSubscription } from "@/features/tenants/hooks/useTenant"
 import { deudaVisible } from "@/features/tenants/lib/subscription"
@@ -94,7 +95,9 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
 
   const disponibilidad = useAvailability({
     branchId: sucursal,
-    serviceId,
+    // Este modal agenda un servicio por turno; la API igual pide la lista, que
+    // es la que fija la duración del hueco.
+    serviceIds: serviceId ? [serviceId] : [],
     date: fecha,
     ...(employeeId ? { employeeId } : {}),
   })
@@ -344,12 +347,8 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
         )}
 
         {serviceId && disponibilidad.data && slots.length === 0 && (
-          // `branchClosed` distingue "cerrado" de "sin lugar": los dos devuelven
-          // `slots: []` pero el cartel que corresponde es distinto.
           <p className="rounded-xl bg-neutral-50 px-3.5 py-3 text-[13px] text-neutral-500">
-            {disponibilidad.data.branchClosed
-              ? "Ese día la sucursal está cerrada."
-              : "No queda ningún horario libre ese día."}
+            {motivoSinHorarios(disponibilidad.data, 1)}
           </p>
         )}
 

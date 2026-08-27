@@ -52,20 +52,34 @@ export function useMonthAppointments(reference: Date) {
   return useAppointments({ from: dateToStr(desde), to: dateToStr(hasta) })
 }
 
+/**
+ * Los huecos de un día para **el conjunto entero** de servicios del turno.
+ *
+ * Sin servicios no pregunta: la duración del hueco sale de sumarlos, así que la
+ * pregunta no tiene sentido todavía.
+ */
 export function useAvailability(query: {
   branchId: string | null
-  serviceId: string | null
+  serviceIds: string[]
   date: string
   employeeId?: string
 }) {
-  const listo = query.branchId !== null && query.serviceId !== null
+  const listo = query.branchId !== null && query.serviceIds.length > 0
+
+  // Ordenados: corte+color y color+corte son la misma pregunta, y sin ordenar
+  // serían dos entradas de caché con la misma respuesta.
+  const serviceIds = [...query.serviceIds].sort()
 
   return useQuery({
-    queryKey: [...APPOINTMENTS_KEY, "disponibilidad", query],
+    queryKey: [
+      ...APPOINTMENTS_KEY,
+      "disponibilidad",
+      { branchId: query.branchId, serviceIds, date: query.date, employeeId: query.employeeId },
+    ],
     queryFn: () =>
       getAvailabilityRequest({
         branchId: query.branchId!,
-        serviceId: query.serviceId!,
+        serviceIds,
         date: query.date,
         ...(query.employeeId ? { employeeId: query.employeeId } : {}),
       }),

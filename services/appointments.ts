@@ -65,29 +65,37 @@ export function getAppointmentRequest(id: string): Promise<Appointment> {
  * Los huecos reservables de un día.
  *
  * Ya tiene restado todo: horario del local, horario del profesional, ausencias,
- * turnos tomados y recursos ocupados. Cuatro cosas que sorprenden:
+ * turnos tomados y recursos ocupados. Cinco cosas que sorprenden:
  *
  * 1. **Los slots duran `duración + buffer`**, así que el último turno del día
- *    termina antes del cierre. No es un bug
- * 2. **Sin `employeeId` vienen todos** los que prestan ese servicio ahí, y cada
- *    slot dice quiénes lo tienen libre
- * 3. **`branchClosed` distingue "cerrado" de "sin lugar"**: los dos devuelven
- *    `slots: []` pero el cartel que corresponde es distinto
- * 4. **No recorta los slots que ya pasaron**: describe lo que el horario permite,
+ *    termina antes del cierre. No es un bug. Con varios servicios los dos campos
+ *    son sumas, así que `bufferAfterMinutes` no es "lo que queda al final" —hay
+ *    buffers en el medio— sino toda la limpieza del turno
+ * 2. **Los `serviceIds` tienen que ser los mismos que se mandan al agendar.** La
+ *    duración del hueco es la suma de todos: preguntar por uno solo de un turno
+ *    de varios ofrece horarios en los que después no entra, y el alta da 409
+ * 3. **Sin `employeeId` vienen los que prestan _todos_ esos servicios ahí.** Es
+ *    una intersección, no una unión: si una hace corte y otra color pero ninguna
+ *    las dos, no hay nadie
+ * 4. **`slots: []` tiene tres motivos y la respuesta los distingue**:
+ *    `branchClosed`, `noEmployeeForServices`, o ninguno de los dos y entonces
+ *    simplemente no hay lugar. Ver `features/appointments/lib/slots.ts`
+ * 5. **No recorta los slots que ya pasaron**: describe lo que el horario permite,
  *    no lo que todavía se puede reservar. Filtrar por `startsAt > ahora` es
  *    responsabilidad de la pantalla
  */
 export function getAvailabilityRequest(query: {
   branchId: string
-  serviceId: string
+  serviceIds: string[]
   date: string
   employeeId?: string
 }): Promise<Availability> {
   const params = new URLSearchParams({
     branchId: query.branchId,
-    serviceId: query.serviceId,
     date: query.date,
   })
+  // Uno por servicio, repetido: `serviceIds=a&serviceIds=b`. `set` pisaría.
+  for (const id of query.serviceIds) params.append("serviceIds", id)
   if (query.employeeId) params.set("employeeId", query.employeeId)
 
   return apiFetch<Availability>(`/appointments/availability?${params}`)
