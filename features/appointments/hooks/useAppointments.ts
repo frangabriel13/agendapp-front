@@ -8,7 +8,6 @@ import {
   changeStatusRequest,
   createAppointmentRequest,
   getAvailabilityRequest,
-  getSubscriptionRequest,
   listAppointmentsRequest,
   rescheduleRequest,
   updateNotesRequest,
@@ -68,15 +67,6 @@ export function useAvailability(query: {
     enabled: listo,
     // Los huecos se los lleva cualquiera: no conviene servirlos de la caché.
     staleTime: 0,
-  })
-}
-
-/** Estado de la suscripción. Es lo que le da un texto útil al 402 al agendar. */
-export function useSubscription() {
-  return useQuery({
-    queryKey: ["subscription"],
-    queryFn: getSubscriptionRequest,
-    staleTime: 5 * 60_000,
   })
 }
 
