@@ -7,13 +7,18 @@ import { dateToStr } from "@/lib/time"
 import {
   changeStatusRequest,
   createAppointmentRequest,
+  createRecurringRequest,
   getAvailabilityRequest,
   listAppointmentsRequest,
   rescheduleRequest,
   updateNotesRequest,
   type AppointmentRange,
 } from "@/services/appointments"
-import type { AppointmentStatus, CreateAppointmentPayload } from "@/types"
+import type {
+  AppointmentStatus,
+  CreateAppointmentPayload,
+  CreateRecurringPayload,
+} from "@/types"
 
 export const APPOINTMENTS_KEY = ["appointments"] as const
 
@@ -90,6 +95,22 @@ export function useCreateAppointment() {
   })
 }
 
+/**
+ * Agenda una serie.
+ *
+ * **Sin toast de éxito**, a diferencia del turno suelto: el desenlace de una
+ * serie no cabe en una línea —cuántos entraron, cuáles se saltearon y por qué—, y
+ * un "Turnos agendados" verde taparía justamente lo que hay que leer.
+ */
+export function useCreateRecurring() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: CreateRecurringPayload) => createRecurringRequest(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: APPOINTMENTS_KEY }),
+  })
+}
+
 function useAppointmentMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
   messages: { success: string; error: string },
@@ -131,7 +152,8 @@ export function useUpdateNotes() {
 
 export function useReschedule() {
   return useAppointmentMutation(
-    ({ id, startsAt }: { id: string; startsAt: string }) => rescheduleRequest(id, startsAt),
+    ({ id, startsAt, employeeId }: { id: string; startsAt: string; employeeId?: string }) =>
+      rescheduleRequest(id, startsAt, employeeId),
     { success: "Turno reprogramado", error: "No pudimos reprogramar el turno" },
   )
 }

@@ -41,7 +41,7 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
 | `/dashboard` | **Real.** Equipo, ausencias y turnos salen de la API |
 | `/agenda` | **Real.** Resumen de la semana, tablero del día y calendario en mes/semana/día. Agenda turnos |
-| `/reportes` | **Real.** Facturación del mes, por servicio y por profesional |
+| `/reportes` | **Real.** Lo agendado del mes, por servicio y por profesional, más los cobros del día |
 | `/servicios` | **Real.** Catálogo en tres solapas: servicios, categorías y recursos |
 | `/clientes` | **Real.** Listado paginado, búsqueda, etiquetas y el duplicado de teléfono |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
@@ -436,6 +436,12 @@ ancho de pantalla). No hay script commiteado todavía.
   qué turnos se les puede mover plata. Con tests
 - `features/tenants/lib/subscription.ts` — El estado de la cuenta que el negocio le
   paga a reservApp, y si se puede pagar desde el panel. Con tests
+- `features/appointments/lib/refund.ts` — Qué decir con la devolución que el backend
+  calcula al cancelar. Con tests
+- `features/appointments/lib/recurrence.ts` — Cómo se cuenta el resultado de una
+  serie, salteadas incluidas. Con tests
+- `lib/async.ts` — `mapLimit`: recorre una lista con tope de pedidos en vuelo.
+  Existe por el throttle de 10 por segundo. Con tests
 - `services/payments.ts` — Las tres llamadas de cobro
 - `app/(admin)/layout.tsx` — Sidebar **y guard de sesión**
 
@@ -506,6 +512,9 @@ Relevada y no atendida todavía:
 - En desarrollo **el pago de la suscripción no se puede confirmar**: el id del
   sandbox choca con el de un pago de turno y el webhook resuelve el del turno.
   Ver "La suscripción del negocio"
+- ⚠️ **El panel muestra las horas en la zona del navegador, no la del negocio.**
+  En una máquina en UTC —la de desarrollo— todo aparece corrido tres horas. Ver el
+  punto 16 del roadmap
 
 ## Alta de empleados — el flujo completo
 1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
@@ -552,7 +561,23 @@ con un `superRefine` en vez de reescribirla, para que no se desincronice.
 9. **La grilla se estira para que entre lo que haya.** 8–20 es el piso, no el
    techo: un turno de 19:55 a 20:50 se dibujaba fuera de la caja. Lo resuelve
    `gridRange()`, testeado
-10. **`GET /appointments` va por rango, no paginado**, hasta 92 días. Un turno
+10. **Reprogramar crea otro turno, y la plata no se muda.** El viejo queda en
+    `RESCHEDULED` enlazado con el nuevo, y **a partir de ahí no acepta
+    movimientos** —el mismo 409 que un cancelado—. Lo cobrado queda asentado en el
+    viejo: el turno nuevo nace debiendo todo. El modal lo avisa antes de mover.
+
+11. **Una serie saltea las fechas que no entran, y hay que mostrarlas.** `POST
+    /appointments/recurring` crea lo que puede y devuelve el resto en `skipped`
+    con el motivo redactado. "Se agendaron 4 turnos" cuando se pidieron 6 es
+    cierto y engaña: el titular nombra los dos números. `occurrences` **cuenta el
+    primero**. Si no entró ninguna, ahí sí es 409.
+
+12. **`availability` acepta un solo `serviceId`.** Repetirlo da 400. Por eso el
+    formulario manda un servicio por turno aunque `POST /appointments` acepte
+    varios: con dos, los horarios ofrecidos serían los de uno y se mostrarían
+    huecos donde no entra.
+
+13. **`GET /appointments` va por rango, no paginado**, hasta 92 días. Un turno
     que arranca el día anterior y termina dentro del rango **también viene**
 
 ### Agendar
@@ -889,7 +914,7 @@ Acordado con Franco, en orden:
 ---
 
 **⚠️ El backend cerró la Fase 6 (pagos y suscripción).** El front venía dos fases
-atrás y las recuperó todas: **75 de 86 endpoints cableados**, y no queda ninguna
+atrás y las recuperó todas: **76 de 86 endpoints cableados**, y no queda ninguna
 pantalla pendiente del roadmap. Lo que falta cablear son endpoints que el panel no
 necesita —los `GET /:id` de detalle, que ya salen del listado—, el webhook (que el
 front **no debe** llamar nunca), `/health`, y las series recurrentes, que son
@@ -951,21 +976,52 @@ Las trampas quedaron en "La suscripción del negocio", más arriba.
 **Con esto el roadmap queda cerrado.** Lo que sigue no es una pantalla faltante
 sino trabajo nuevo; en orden de lo que más se va a extrañar:
 
-### 15. Lo que quedó afuera, por si sirve de orden
-- **`/reportes` mide lo agendado, no lo cobrado.** Las dos cifras existen desde el
-  punto 13 y son distintas: `totalPriceCents` es lo que se acordó, `paidCents` lo
-  que entró. Es el agujero más grande que queda
-- **No hay corte de caja del día.** El saldo se lee turno por turno
-- **La devolución que sugiere el backend al cancelar se descarta.**
-  `ChangeStatusResultDto.refund` dice cuánto corresponde según la política, y **es
-  justo lo que hay que ofrecer antes de cancelar**: después el 409 ya no deja
-  registrarlo
-- **Series recurrentes** (`POST /appointments/recurring`). Las fechas ocupadas se
-  saltean y vuelven en `skipped`: **hay que mostrarlas** o el usuario cree que se
-  agendaron todas
-- **Reprogramar desde la UI.** `rescheduleRequest` está escrito y nadie lo llama
-- **Elegir el profesional al agendar** y **varios servicios en un turno**
+### 15. ~~Lo que quedó afuera~~ ✅ hecho, salvo dos cosas bloqueadas
+- ~~`/reportes` decía "facturación" y medía lo agendado~~ ✅ ahora dice **"Agendado
+  en total"** y la bajada aclara que no es lo que entró en la caja
+- ~~No hay corte de caja del día~~ ✅ panel **"Los turnos de hoy"** en `/reportes`:
+  cuánto se cobró y quién quedó debiendo. **Arranca apagado**, porque cuesta un
+  pedido por turno
+- ~~La devolución que sugiere el backend al cancelar se descarta~~ ✅ se muestra
+  después de cancelar, que es cuando llega. Ver "Cobros" punto 13
+- ~~Series recurrentes~~ ✅ con las fechas salteadas a la vista
+- ~~Reprogramar desde la UI~~ ✅ adentro del modal del turno
+- ~~Elegir el profesional al agendar~~ ✅ aparece cuando hay más de uno que preste
+  ese servicio en esa sucursal
 - `/registro`, que sigue sin decidirse — ver abajo
+
+**Lo que quedó bloqueado por la API, no por falta de trabajo:**
+
+1. **Facturación cobrada por mes.** `GET /appointments/:id/payments` es **de a un
+   turno** y no hay endpoint agregado, así que un mes de un local con movimiento
+   serían cientos de pedidos contra un límite de 100 cada 50 s. Por eso lo cobrado
+   se muestra **solo del día**. Con un `GET /payments?from&to` esto se destraba en
+   una tarde.
+
+2. **Varios servicios en un turno.** `POST /appointments` acepta `serviceIds`
+   (plural) pero **`GET /appointments/availability` acepta un solo `serviceId`** —
+   repetirlo da 400. La duración de dos servicios es la suma, así que los horarios
+   que se ofrecerían serían los de uno solo: se mostrarían huecos que no entran.
+   Se destraba haciendo que `availability` acepte `serviceIds`.
+
+### 16. La zona horaria del panel es la del navegador, no la del negocio
+**⚠️ Encontrado el 27/8/2026 y sin resolver.** `lib/time.ts` convierte instantes a
+horas de pared con la zona del navegador. La máquina de desarrollo está en
+`Etc/UTC`, así que **todo el panel muestra los horarios corridos tres horas**: un
+turno a las 16:00 de Buenos Aires se dibuja a las 19:00, y los huecos de un
+profesional que trabaja de 9 a 13 salen de 12 a 16.
+
+- En un local argentino con las computadoras en hora, no se nota. Se nota en
+  desarrollo, con alguien de viaje, o el día que un negocio tenga sucursales en
+  dos zonas
+- El dato ya está a mano: `GET /appointments/availability` devuelve `timezone` y
+  `GET /tenants/me` tiene el del negocio
+- El arreglo pasa por `lib/time.ts`, que es el único lugar donde se convierte —
+  esa parte del diseño aguantó. Lo que hay que decidir es cómo llega la zona ahí:
+  un valor de módulo que se fija al abrir la sesión es lo más barato; pasarla por
+  parámetro toca cada llamada
+- **Los tests no lo agarran**: `vitest.config.mts` fija
+  `TZ=America/Argentina/Buenos_Aires`, así que corren en la zona correcta y pasan
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`

@@ -1,6 +1,8 @@
 import { formatCents } from "@/features/catalog/lib/money"
 import { estaCancelado } from "@/features/appointments/lib/status"
+import { customerName } from "@/features/appointments/lib/display"
 import type {
+  Appointment,
   AppointmentBalance,
   AppointmentStatus,
   CheckoutType,
@@ -232,3 +234,58 @@ export const ESTADO_BADGE: Record<PaymentStatus, string> = {
  * convertido en error de `tsc`.
  */
 export const METODOS_MANUALES: ManualPaymentMethod[] = ["CASH", "TRANSFER", "OTHER"]
+
+/** Un turno con su saldo ya resuelto. */
+export interface TurnoConSaldo {
+  appointment: Appointment
+  balance: AppointmentBalance
+}
+
+export interface Deudor {
+  id: string
+  nombre: string
+  cents: number
+}
+
+export interface CobrosDelDia {
+  /** Lo que entró por los turnos del día, ya netas las devoluciones. */
+  cobrado: number
+  /** Lo que todavía falta cobrar. */
+  pendiente: number
+  /** Cuántos turnos se miraron. Los cancelados no cuentan. */
+  turnos: number
+  /** Quiénes se fueron debiendo, de mayor a menor. */
+  deudores: Deudor[]
+}
+
+/**
+ * La plata de los turnos de un día.
+ *
+ * **No es un arqueo de caja, y no puede serlo.** Un arqueo responde "cuánto entró
+ * hoy", y eso incluye la seña que alguien pagó hoy para un turno del mes que
+ * viene; para saberlo habría que mirar los pagos de *todos* los turnos, y la API
+ * solo los da de a uno (`GET /appointments/:id/payments`). Lo que sí se puede
+ * responder —y es la pregunta práctica del cierre— es **quién se fue sin pagar**.
+ *
+ * Los cancelados quedan afuera: lo suyo no es una deuda, y encima el backend ya
+ * no acepta movimientos sobre ellos.
+ */
+export function cobrosDelDia(entradas: TurnoConSaldo[]): CobrosDelDia {
+  const vivos = entradas.filter((entrada) => sePuedeCobrar(entrada.appointment.status))
+
+  const deudores = vivos
+    .filter((entrada) => entrada.balance.dueCents > 0)
+    .map((entrada) => ({
+      id: entrada.appointment.id,
+      nombre: customerName(entrada.appointment),
+      cents: entrada.balance.dueCents,
+    }))
+    .sort((a, b) => b.cents - a.cents)
+
+  return {
+    cobrado: vivos.reduce((total, e) => total + e.balance.paidCents, 0),
+    pendiente: vivos.reduce((total, e) => total + e.balance.dueCents, 0),
+    turnos: vivos.length,
+    deudores,
+  }
+}

@@ -16,7 +16,7 @@ import { getWeekDates } from "@/features/appointments/lib/week"
 import { useChangeStatus, useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
 import { quienesAtienden } from "@/features/appointments/lib/display"
 import { apiErrorMessage } from "@/lib/errors"
-import type { Appointment, AppointmentStatus } from "@/types"
+import type { Appointment, AppointmentStatus, RefundDecision } from "@/types"
 
 /**
  * La agenda, en tres bandas.
@@ -33,6 +33,7 @@ export default function AgendaPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [booking, setBooking] = useState<Date | null>(null)
   const [status, setStatus] = useState<AppointmentStatus | "all">("all")
+  const [devolucion, setDevolucion] = useState<RefundDecision | null>(null)
 
   // Se fija al montar: si se recalculara en cada render, cruzar la medianoche
   // con el panel abierto correría la agenda debajo del mouse.
@@ -57,8 +58,18 @@ export default function AgendaPage() {
   if (query.isPending) return <AgendaCargando />
   if (query.isError) return <AgendaCaida error={query.error} onRetry={() => query.refetch()} />
 
+  /**
+   * **La devolución llega con la respuesta de cancelar, no antes.** El backend la
+   * calcula según su política y la manda en `refund`; hasta el punto 15 se tiraba.
+   * Se guarda acá y no en el modal porque el modal se desmonta si el turno sale
+   * del rango visible, y este dato hay que alcanzar a leerlo.
+   */
   function changeStatus(appointment: Appointment, next: AppointmentStatus) {
-    cambiarEstado.mutate({ id: appointment.id, status: next })
+    setDevolucion(null)
+    cambiarEstado.mutate(
+      { id: appointment.id, status: next },
+      { onSuccess: (resultado) => setDevolucion(resultado.refund) },
+    )
   }
 
   return (
@@ -121,9 +132,16 @@ export default function AgendaPage() {
       {detail && (
         <AppointmentModal
           appointment={detail}
-          onClose={() => setDetailId(null)}
+          refund={devolucion}
+          onClose={() => {
+            setDetailId(null)
+            setDevolucion(null)
+          }}
           onChangeStatus={(next) => changeStatus(detail, next)}
           onEdit={() => setBooking(new Date(`${detail.day}T12:00:00`))}
+          // Reprogramar crea otro turno: la pantalla salta a ese en vez de
+          // quedarse en el viejo, que a partir de ahí es un registro muerto.
+          onRescheduled={(nuevoId) => setDetailId(nuevoId)}
         />
       )}
 

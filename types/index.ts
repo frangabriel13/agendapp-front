@@ -306,6 +306,21 @@ export interface Appointment extends ApiAppointment {
   endTime: string
 }
 
+/**
+ * Qué corresponde devolver al cancelar, según la política del negocio.
+ *
+ * **No mueve plata**: es una opinión del backend, no un movimiento. Y llega
+ * **con la respuesta de cancelar**, o sea *después* de que el turno ya no acepta
+ * movimientos —ver "Cobros"—, así que sirve para saber cuánto devolver por fuera,
+ * no para registrarlo.
+ */
+export type RefundDecision = Schema["RefundDecisionDto"]
+
+/** Lo que devuelve `PATCH /appointments/:id/status`. `refund` solo viene al cancelar. */
+export type ChangeStatusResult = Omit<Schema["ChangeStatusResultDto"], "appointment"> & {
+  appointment: ApiAppointment
+}
+
 /** Un hueco reservable de `GET /appointments/availability`. */
 export type AvailabilitySlot = Schema["AvailabilitySlotDto"]
 
@@ -313,6 +328,33 @@ export type Availability = Schema["AvailabilityResponseDto"]
 
 export type CreateAppointmentPayload = Omit<Schema["CreateAppointmentDto"], "notes"> & {
   notes?: string
+}
+
+/** Cada cuánto se repite una serie. */
+export type RecurrenceFrequency = Schema["CreateRecurringAppointmentsDto"]["frequency"]
+
+/**
+ * Una serie de turnos repetidos.
+ *
+ * `occurrences` cuenta **el primero**: con `startsAt` un lunes y `occurrences: 4`
+ * salen cuatro turnos, no cinco. La serie repite una **hora de pared**: "los lunes
+ * a las 10" siguen siendo las 10 aunque en el medio cambie el horario de verano.
+ */
+export type CreateRecurringPayload = Omit<Schema["CreateRecurringAppointmentsDto"], "notes"> & {
+  notes?: string
+}
+
+/** Una fecha de la serie que no entró, con el motivo ya redactado por el backend. */
+export type SkippedOccurrence = Schema["SkippedOccurrenceDto"]
+
+/**
+ * El resultado de agendar una serie.
+ *
+ * **`skipped` no es un error**: las fechas ocupadas o cerradas se saltean y el
+ * resto se crea igual. Hay que mostrarlas o quien agendó cree que quedaron todas.
+ */
+export type RecurringResult = Omit<Schema["RecurringResultDto"], "created"> & {
+  created: ApiAppointment[]
 }
 
 /**

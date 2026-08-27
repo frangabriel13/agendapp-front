@@ -5,7 +5,10 @@ import type {
   Appointment,
   AppointmentStatus,
   Availability,
+  ChangeStatusResult,
   CreateAppointmentPayload,
+  CreateRecurringPayload,
+  RecurringResult,
 } from "@/types"
 
 /**
@@ -114,18 +117,40 @@ export function createAppointmentRequest(
 }
 
 /**
+ * Agenda una serie de turnos repetidos.
+ *
+ * **Las fechas que no entran se saltean, no tumban la serie.** Un feriado o un
+ * hueco ya tomado vuelve en `skipped` con el motivo y el resto se crea igual: por
+ * eso la pantalla **tiene que mostrar esa lista**, o quien agendó se va creyendo
+ * que quedaron los seis turnos cuando quedaron cuatro.
+ *
+ * Si no entró **ninguna**, ahí sí es 409.
+ */
+export function createRecurringRequest(payload: CreateRecurringPayload): Promise<RecurringResult> {
+  return apiFetch<RecurringResult>("/appointments/recurring", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
  * Mueve el estado. Una transición inválida devuelve **409, no 400**.
  *
- * Al cancelar, la respuesta trae `refund` con qué corresponde devolver según la
- * política del negocio. **No mueve plata**: sirve para decirle algo concreto a la
- * clienta en el momento.
+ * **Al cancelar, la respuesta trae `refund`** con qué corresponde devolver según
+ * la política del negocio. No mueve plata: es para decirle algo concreto a la
+ * clienta en el momento. Se devuelve tipada en vez de tirarla, que es lo que se
+ * hacía antes.
+ *
+ * Ojo con el orden que impone el backend: para cuando llega esta respuesta el
+ * turno **ya está cancelado y no acepta movimientos** —ni siquiera un `REFUND`—,
+ * así que este número sirve para devolver por fuera, no para registrarlo acá.
  */
 export function changeStatusRequest(
   id: string,
   status: AppointmentStatus,
   reason?: string,
-): Promise<unknown> {
-  return apiFetch(`/appointments/${id}/status`, {
+): Promise<ChangeStatusResult> {
+  return apiFetch<ChangeStatusResult>(`/appointments/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status, ...(reason ? { cancellationReason: reason } : {}) }),
   })
@@ -145,10 +170,21 @@ export function updateNotesRequest(id: string, notes: string | null): Promise<Ap
  * El viejo queda en `RESCHEDULED` y los dos enlazados por `rescheduledFromId` /
  * `rescheduledToId`. No se edita el original a propósito: así el historial dice
  * que hubo un cambio. Los servicios se copian con el precio que tenían.
+ *
+ * **La plata no se muda.** Lo cobrado queda asentado en el turno viejo, que a
+ * partir de acá no acepta movimientos —el mismo 409 que un cancelado—. Quien
+ * reprograma un turno con seña tiene que saberlo.
  */
-export function rescheduleRequest(id: string, startsAt: string): Promise<Appointment> {
+export function rescheduleRequest(
+  id: string,
+  startsAt: string,
+  employeeId?: string,
+): Promise<Appointment> {
   return apiFetch<ApiAppointment>(`/appointments/${id}/reschedule`, {
     method: "POST",
-    body: JSON.stringify({ startsAt }),
+    // `employeeId` se **omite** si no cambia: mandarlo igual no rompe, pero el
+    // backend corre con `forbidNonWhitelisted` y la costumbre de mandar solo lo
+    // que cambió es la que evita los 400 en el resto de la app.
+    body: JSON.stringify({ startsAt, ...(employeeId ? { employeeId } : {}) }),
   }).then(toAppointment)
 }

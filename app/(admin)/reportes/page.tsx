@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { formatCents } from "@/features/catalog/lib/money"
 import { dateToStr } from "@/lib/time"
 import { useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
+import { DayCollections } from "@/features/payments/components/DayCollections"
 import { RevenueBreakdown } from "@/features/reports/components/RevenueBreakdown"
 import {
   monthLabel,
@@ -18,7 +19,10 @@ import {
 } from "@/features/reports/lib/revenue"
 
 export default function ReportesPage() {
-  const mes = useMemo(() => dateToStr(new Date()).slice(0, 7), [])
+  // Se fija al montar: recalcularlo en cada render cambiaría el mes debajo del
+  // mouse al cruzar la medianoche con la pantalla abierta.
+  const hoy = useMemo(() => dateToStr(new Date()), [])
+  const mes = hoy.slice(0, 7)
 
   /**
    * Las cuentas viven en `features/reports/lib/revenue.ts` y no acá, así que
@@ -27,6 +31,7 @@ export default function ReportesPage() {
    */
   const query = useMonthAppointments(new Date())
   const appointments = useMemo(() => query.data ?? [], [query.data])
+  const deHoy = useMemo(() => appointments.filter((a) => a.day === hoy), [appointments, hoy])
 
   const { revenue, porServicio, porProfesional } = useMemo(
     () => ({
@@ -41,7 +46,7 @@ export default function ReportesPage() {
     <Page width="wide">
       <PageHeader
         title="Reportes"
-        description="Cómo viene la facturación del mes."
+        description="Cuánto se agendó este mes. Es lo pactado, no lo que entró en la caja."
         badge={
           <span className={cn(pillClasses, "text-neutral-500")}>
             <Receipt size={12} aria-hidden />
@@ -52,9 +57,16 @@ export default function ReportesPage() {
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/*
+            **Dice "agendado" y no "facturación" a propósito.** Sale de
+            `totalPriceCents`, que es lo que se pactó al reservar; lo que
+            realmente entró son los pagos, y la API no los expone de a un mes.
+            Llamar "facturación" a esto hacía que la cifra se leyera como plata en
+            la caja.
+          */}
           <Cifra
             icon={Wallet}
-            label="Facturación"
+            label="Agendado en total"
             valor={formatCents(revenue.total)}
             hint={`${revenue.turnos} ${revenue.turnos === 1 ? "turno" : "turnos"}`}
           />
@@ -66,9 +78,9 @@ export default function ReportesPage() {
           />
           <Cifra
             icon={Clock}
-            label="Agendados"
+            label="Por atender"
             valor={formatCents(revenue.agendado)}
-            hint="Confirmados, todavía por atender"
+            hint="Confirmados, todavía no ocurrieron"
           />
           <Cifra
             icon={Receipt}
@@ -85,16 +97,22 @@ export default function ReportesPage() {
           </p>
         )}
 
+        {/*
+          Lo cobrado va acá abajo y **solo del día**: la API da los pagos de a un
+          turno, así que un mes serían cientos de pedidos. Ver `useDayCollections`.
+        */}
+        <DayCollections day={hoy} appointments={deHoy} />
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <RevenueBreakdown
             title="Por servicio"
             slices={porServicio}
-            empty="Todavía no hay turnos facturados este mes."
+            empty="Todavía no hay turnos agendados este mes."
           />
           <RevenueBreakdown
             title="Por profesional"
             slices={porProfesional}
-            empty="Todavía no hay turnos facturados este mes."
+            empty="Todavía no hay turnos agendados este mes."
           />
         </div>
       </div>
