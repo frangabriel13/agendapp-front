@@ -503,8 +503,9 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 
 ## Deuda conocida
 Relevada y no atendida todavía:
-- 84 botones vacíos en la grilla de `TimeGrid` (12 franjas × 7 días): tienen
-  `aria-label`, pero son 84 paradas de tabulación
+- Un botón vacío por hora y por día en la grilla de `TimeGrid` —desde el punto 12
+  el rango es variable, así que no son 84 fijos—: tienen `aria-label`, pero son
+  decenas de paradas de tabulación
 - `tsconfig` sin `noUncheckedIndexedAccess`
 - `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
 - `useTeamTimeOff` y `useAssignableEmployees` hacen N pedidos (uno por empleado)
@@ -1031,7 +1032,7 @@ Las trampas quedaron en "La suscripción del negocio", más arriba.
 **Con esto el roadmap queda cerrado.** Lo que sigue no es una pantalla faltante
 sino trabajo nuevo; en orden de lo que más se va a extrañar:
 
-### 15. ~~Lo que quedó afuera~~ ✅ hecho, salvo dos cosas bloqueadas
+### 15. ~~Lo que quedó afuera~~ ✅ hecho — las dos cosas bloqueadas ya se destrabaron
 - ~~`/reportes` decía "facturación" y medía lo agendado~~ ✅ ahora dice **"Agendado
   en total"** y la bajada aclara que no es lo que entró en la caja
 - ~~No hay corte de caja del día~~ ✅ panel **"Los turnos de hoy"** en `/reportes`:
@@ -1045,19 +1046,27 @@ sino trabajo nuevo; en orden de lo que más se va a extrañar:
   ese servicio en esa sucursal
 - `/registro`, que sigue sin decidirse — ver abajo
 
-**Lo que quedó bloqueado por la API, no por falta de trabajo:**
+**Lo que estaba bloqueado por la API — los dos se destrabaron el 2026-08-27.**
+El backend construyó las dos cosas; falta cablearlas de este lado. El detalle y
+las trampas de cada una están en `docs/api-changelog.md`, en las dos entradas de
+esa fecha.
 
-1. **Facturación cobrada por mes.** `GET /appointments/:id/payments` es **de a un
-   turno** y no hay endpoint agregado, así que un mes de un local con movimiento
-   serían cientos de pedidos contra un límite de 100 cada 50 s. Por eso lo cobrado
-   se muestra **solo del día**. Con un `GET /payments?from&to` esto se destraba en
-   una tarde.
+1. **Facturación cobrada por mes** — ✅ destrabado. Existe
+   **`GET /payments?from&to`**: los cobros de un rango, paginados y con los
+   totales del rango entero, en un solo pedido. Ojo con tres cosas: pide `OWNER`
+   o `ADMINISTRATIVE` (a un `PROFESSIONAL` le da 403, así que **el panel se
+   degrada, la sección no se esconde** — igual que `SubscriptionCard`), devuelve
+   plata **liquidada** y no el estado de cobranza (`status=PENDING` es un 400, no
+   una lista vacía), y `totals` ya viene del rango entero: no hay que sumar
+   página por página. Con esto el panel de cobrado puede pasar del día al mes y
+   dejar de arrancar apagado.
 
-2. **Varios servicios en un turno.** `POST /appointments` acepta `serviceIds`
-   (plural) pero **`GET /appointments/availability` acepta un solo `serviceId`** —
-   repetirlo da 400. La duración de dos servicios es la suma, así que los horarios
-   que se ofrecerían serían los de uno solo: se mostrarían huecos que no entran.
-   Se destraba haciendo que `availability` acepte `serviceIds`.
+2. **Varios servicios en un turno** — ✅ destrabado, y **rompe el contrato**:
+   `availability` ahora pide `serviceIds` repetido y `serviceId` ya no existe.
+   Al migrar hay que **borrar** `primerServicio` y `variosServicios` de
+   `RescheduleForm` junto con el aviso que muestran, no actualizarlos. Y hay un
+   campo nuevo, `noEmployeeForServices`: `slots: []` ahora tiene tres motivos y
+   ese es el único que **no se arregla cambiando de día**.
 
 ### 16. ~~La zona horaria del panel~~ ✅ hecho
 El panel usa la zona del **negocio** (`tenant.timezone`), no la del navegador. Con
