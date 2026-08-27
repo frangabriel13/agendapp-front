@@ -280,7 +280,7 @@ Notar el sufijo `-short` / `-long`: no existe un `X-RateLimit-Limit` pelado.
 
 ## Qué existe hoy y qué no
 
-**Disponible — 86 endpoints:**
+**Disponible — 87 endpoints:**
 
 | Área | Endpoints | Alcanza para |
 |---|---|---|
@@ -295,6 +295,7 @@ Notar el sufijo `-short` / `-long`: no existe un `X-RateLimit-Limit` pelado.
 | `/customer-tags` | 5 | CRUD de etiquetas ("VIP", "Debe seña") |
 | `/appointments` | 8 | Disponibilidad, agendar, agenda por rango, estados, reprogramar, series |
 | `/appointments/:id/payments` | 3 | Saldo del turno, link de pago online, pagos en efectivo y devoluciones |
+| `/payments` | 1 | **Lo cobrado en un rango de fechas, con totales.** Es lo que necesita `/reportes` |
 | `/tenants/me/subscription` | 2 | Estado de la suscripción del negocio y el link para pagar el mes |
 | `/webhooks` | 1 | Aviso de pago de Mercado Pago. **No lo llama el front** |
 | `/health` | 1 | Healthcheck |
@@ -402,40 +403,60 @@ cliente **libera su teléfono** para una ficha nueva.
 Es la parte más grande de la API y la que reemplaza el mock de la agenda.
 
 **Primero mirar los huecos libres.**
-`GET /appointments/availability?branchId=&serviceId=&date=YYYY-MM-DD` devuelve
-los slots reservables de ese día. Ya tiene restado todo: horario del local,
-horario del profesional, ausencias, turnos tomados y recursos ocupados.
+`GET /appointments/availability?branchId=&serviceIds=&serviceIds=&date=YYYY-MM-DD`
+devuelve los slots reservables de ese día. Ya tiene restado todo: horario del
+local, horario del profesional, ausencias, turnos tomados y recursos ocupados.
+
+⚠️ **`serviceIds` va repetido, uno por servicio** (`URLSearchParams.append`), y
+tienen que ser **los mismos que se van a mandar al agendar**. La duración del
+hueco es la suma de todos con sus buffers: consultar con uno solo de un turno de
+varios ofrece horarios en los que el turno después no entra, y el alta contesta
+409.
 
 ```jsonc
 {
   "date": "2026-09-07",
   "timezone": "America/Argentina/Buenos_Aires",
-  "durationMinutes": 45,
-  "bufferAfterMinutes": 10,
+  "durationMinutes": 90,          // la suma de lo que dura cada servicio
+  "bufferAfterMinutes": 15,       // la suma de los buffers
   "branchClosed": false,
+  "noEmployeeForServices": false,
   "slots": [
     {
       "startsAt": "2026-09-07T12:00:00.000Z",
-      "endsAt": "2026-09-07T12:55:00.000Z",
+      "endsAt": "2026-09-07T13:45:00.000Z",
       "employees": [{ "employeeId": "...", "employeeName": "Lucía Fernández" }]
     }
   ]
 }
 ```
 
-Cuatro cosas que evitan sorpresas:
+Cinco cosas que evitan sorpresas:
 
-1. **Los slots duran `duración + buffer`.** El buffer es tiempo en el que el
-   profesional sigue ocupado, así que forma parte de lo que el turno reserva. La
-   consecuencia visible es que el último turno del día **termina antes del
-   cierre**, no justo al cierre. No es un bug.
-2. **Sin `employeeId` responden todos los que prestan ese servicio ahí**, y cada
-   slot dice quiénes lo tienen libre. Con `employeeId` se filtra a uno.
-3. **`branchClosed` distingue "cerrado" de "sin lugar".** Los dos casos
-   devuelven `slots: []`, pero el cartel que corresponde es distinto.
+1. **Los slots duran `durationMinutes + bufferAfterMinutes`.** El buffer es
+   tiempo en el que el profesional sigue ocupado, así que forma parte de lo que
+   el turno reserva. La consecuencia visible es que el último turno del día
+   **termina antes del cierre**, no justo al cierre. No es un bug.
+   Con **varios** servicios los dos campos son sumas, así que
+   `bufferAfterMinutes` no es "lo que queda al final" —hay buffers en el
+   medio— sino todo el tiempo de limpieza del turno. Lo que se sostiene siempre
+   es que los dos suman lo que el hueco dura.
+2. **Sin `employeeId` responden todos los que prestan *todos* esos servicios
+   ahí**, y cada slot dice quiénes lo tienen libre. Es una **intersección**: si
+   Lucía hace corte y Ana hace color pero ninguna las dos, no hay nadie. Con
+   `employeeId` se filtra a uno.
+3. **`slots: []` tiene tres motivos y la respuesta los distingue.**
+   `branchClosed` (ese día no abre), `noEmployeeForServices` (nadie presta esa
+   combinación en esa sucursal) y, con los dos en `false`, simplemente no hay
+   lugar. El segundo es el único que **no se arregla cambiando de día**: el
+   cartel tiene que decir otra cosa. Los dos flags son independientes y pueden
+   venir los dos en `true`.
 4. **No recorta los slots que ya pasaron.** Describe lo que el horario permite,
    no lo que todavía se puede reservar. Una pantalla de reserva tiene que
    filtrar por `startsAt > ahora`.
+5. **Los 400 son los mismos que los del alta**: servicios repetidos, alguno que
+   no existe en el negocio o alguno desactivado. Un servicio inexistente ahora
+   es 400 y ya no 404 — el 404 quedó solo para la sucursal.
 
 **Agendar no obliga a usar un slot de esa lista.**
 `POST /appointments` acepta cualquier `startsAt` que **entre** en el tiempo libre
@@ -555,6 +576,59 @@ curl -X POST http://localhost:3001/webhooks/mercadopago \
 checkout: `/pago/exito`, `/pago/error` y `/pago/pendiente`. Ojo con `/pago/exito`:
 que el cliente vuelva por ahí **no garantiza** que el pago esté acreditado — el
 estado real sale de consultar el saldo del turno.
+
+#### Lo cobrado de un período — `GET /payments`
+
+Es el endpoint para `/reportes`. Pedir el saldo turno por turno serían cientos
+de llamadas contra el rate limiting; esto trae todos los cobros de un rango en
+una sola, paginados y con los totales ya sumados.
+
+`?from=2026-09-01&to=2026-09-30` — los dos obligatorios y los dos **incluidos**
+(un cobro del 30 a las 23:50 entra). Son **días del calendario del negocio, no
+de UTC**: uno de las 21:30 en Buenos Aires cuenta para ese día, no para el
+siguiente.
+
+Responde `{ data, meta, totals }`. `data` y `meta` son la paginación de siempre;
+`totals` es del **rango entero y no de la página**, así que paginar no lo mueve
+y no hay que ir sumando página por página:
+
+| Campo de `totals` | Qué es |
+|---|---|
+| `chargedCents` | Lo que se cobró, sin descontar nada |
+| `refundedCents` | Lo que volvió al cliente, por cualquiera de las dos vías |
+| `netCents` | **Lo que entró**: cobrado menos devoluciones. Es el número del reporte |
+
+Cada fila trae además de qué turno era (`appointment`: cliente, profesional,
+sucursal y horario), para poder reconocerla en una grilla sin pedir el turno
+aparte.
+
+⚠️ **Devuelve plata liquidada, no el estado de cobranza del mes.** El filtro es
+por **cuándo entró la plata** (`paidAt`), y un cobro pendiente o fallado no tiene
+esa fecha: no puede aparecer nunca. Pedirlos a propósito (`status=PENDING`) da
+**400**, no una lista vacía — el 400 está justamente para que el malentendido no
+pase por respuesta válida. Lo que falta cobrar de un turno sale de su `balance`,
+no de contar filas pendientes acá.
+
+⚠️ **Pide `OWNER` o `ADMINISTRATIVE`.** A un `PROFESSIONAL` le contesta 403.
+**La asimetría con el saldo de un turno es a propósito y conviene saberla:**
+`GET /appointments/:id/payments` sigue abierto a cualquier empleado —cobrar es
+trabajo de mostrador, con el cliente delante—, así que un profesional puede
+seguir viendo lo cobrado **de a un turno** y no el total del mes. De afuera
+parece un agujero; es el mismo criterio aplicado a dos preguntas distintas.
+
+Filtros opcionales: `status` (solo `SUCCEEDED` o `REFUNDED`), `paymentMethod`,
+`branchId` y `employeeId` — este último es **quién atiende el turno**, no quién
+registró el cobro (eso es `recordedBy`).
+
+Un detalle para conciliar: **esto refleja el estado de hoy de los cobros de ese
+período, no una foto congelada.** Si un cobro de septiembre lo revierte el
+proveedor en octubre, el reporte de septiembre pasa a mostrarlo revertido —su
+fecha de acreditación sigue siendo la de septiembre—. Es lo correcto para
+"cuánto entró", pero significa que el mismo rango puede dar distinto en dos
+momentos.
+
+Solo trae cobros de turnos. Los de la suscripción del negocio son otra tabla y
+están en `GET /tenants/me/subscription`.
 
 ### Detalle sobre la suscripción del negocio (Fase 6)
 

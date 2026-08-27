@@ -24,6 +24,136 @@ como error de compilación en vez de como bug en el navegador.
 
 ---
 
+## Disponibilidad con varios servicios (2026-08-27)
+
+**Cambia la forma de `GET /appointments/availability`.** Es el endpoint que usan
+`BookingModal` y `RescheduleForm`, así que hay que migrar los dos en el mismo
+movimiento.
+
+### ⚠️ Cambios que rompen
+
+**1. `serviceId` (uno) pasó a ser `serviceIds` (varios), repetido en la query.**
+
+```diff
+- params.set("serviceId", query.serviceId)
++ for (const id of query.serviceIds) params.append("serviceIds", id)
+```
+
+No queda un período de deprecación: `serviceId` **ya no existe** y mandarlo da
+400 por `forbidNonWhitelisted`. Sostener las dos formas hubiera sido sostener
+justo el camino que calcula mal.
+
+**Por qué era necesario:** la duración de un turno de varios servicios es la
+suma de todos con sus buffers. Preguntando por uno solo, la API ofrecía huecos
+donde el turno después **no entra**, y el alta contestaba 409. Ahora la
+disponibilidad y el alta usan la misma cuenta — hay un test que reserva el
+último hueco del día para fijarlo.
+
+**2. Un servicio que no existe ahora es 400, no 404.** La disponibilidad valida
+los servicios con la misma función que el alta, y ahí un id que no es del
+negocio es un dato malo del pedido. El 404 quedó solo para la sucursal.
+
+### Nuevo en la respuesta
+
+**`noEmployeeForServices`**, hermano de `branchClosed`. `slots: []` ahora tiene
+tres motivos y hay que distinguirlos, porque el cartel que corresponde es
+distinto:
+
+| Flags | Qué pasó | Qué decir |
+|---|---|---|
+| `branchClosed: true` | Ese día no abre | "Elegí otro día" |
+| `noEmployeeForServices: true` | Nadie presta esa combinación ahí | **No se arregla cambiando de día**: hay que sacar un servicio, cambiar de sucursal o asignárselo a alguien |
+| los dos en `false` | No hay lugar | "Probá otro día u otro profesional" |
+
+Los dos flags son independientes y pueden venir los dos en `true`.
+
+**Sin `employeeId` la lista de profesionales es una intersección**, no una
+unión: los que prestan **todos** los servicios pedidos. Si Lucía hace corte y
+Ana hace color pero ninguna las dos, no hay nadie — porque el turno lo atiende
+una sola persona.
+
+**`durationMinutes` y `bufferAfterMinutes` son sumas.** Con varios servicios
+`bufferAfterMinutes` ya no es "lo que el profesional sigue ocupado después de
+atender" —hay buffers en el medio—, sino todo el tiempo de limpieza del turno.
+Lo que sí se sostiene siempre es que los dos suman lo que el hueco dura.
+
+### Al migrar, tres cosas concretas
+
+1. **En `RescheduleForm` hay que borrar, no actualizar:** `primerServicio`,
+   `variosServicios` y el comentario que explicaba por qué se calculaba con el
+   primero. Si queda el aviso en pantalla, queda mintiendo — ya no hay nada
+   aproximado que avisar.
+2. **El comentario de `getAvailabilityRequest`** enumera los casos de
+   `slots: []` y queda corto con el estado nuevo.
+3. **Mandar los ids ordenados.** El `queryKey` de `useAvailability` serializa el
+   objeto de query entero, así que dos órdenes del mismo par serían dos entradas
+   de caché para la misma pregunta. Al backend el orden le da igual.
+
+Detalle completo en `api-contract.md`, "Detalle sobre los turnos (Fase 5)".
+
+---
+
+## Cobros por rango (2026-08-27)
+
+Un endpoint nuevo y **aditivo**: no cambia nada de lo que ya andaba. Es el que
+le faltaba a `/reportes` para poder mostrar **lo cobrado** de un mes y no solo
+lo agendado.
+
+### Nuevo
+
+| Área | Qué trae |
+|---|---|
+| `GET /payments` (1) | Los cobros acreditados de un rango, paginados y con los totales del rango entero |
+
+Antes esto no se podía: el único endpoint de cobros era
+`GET /appointments/:id/payments`, de a un turno, y un mes hubieran sido cientos
+de llamadas contra el rate limiting.
+
+### ⚠️ Cambios que rompen
+
+Ninguno.
+
+### Lo que conviene saber antes de cablearlo
+
+**Pide `OWNER` o `ADMINISTRATIVE`; a un `PROFESSIONAL` le da 403.** Eso **no**
+significa esconder "Reportes" del menú. La página no es una ruta del backend:
+hoy corre sobre `useMonthAppointments` (`GET /appointments`, sin rol) y no tiene
+ninguna conciencia de quién la mira. Un profesional va a seguir viendo
+"Agendado en total" y el panel del día; lo único que le va a dar 403 es el panel
+nuevo de cobrado del mes.
+
+Lo que corresponde es **degradar ese panel, no ocultar la sección** — el mismo
+patrón que ya usa `SubscriptionCard` adentro de `/configuracion`, que se monta o
+no según `canManage` mientras la página sigue estando para todos. Esconder el
+ítem del menú le sacaría acceso que hoy tiene.
+
+**Devuelve plata liquidada, no el estado de cobranza del mes.** El filtro es por
+cuándo entró la plata (`paidAt`), así que un cobro pendiente o fallado —que no
+tiene esa fecha— no aparece nunca. Pedirlos a propósito (`status=PENDING`) da
+**400**, no una lista vacía: el 400 está para que el malentendido no pase por
+respuesta válida. Lo que falta cobrar de un turno sale de su `balance`. Ojo que
+el seed de demo tiene un cobro `PENDING` de octubre, así que el malentendido
+aparece enseguida si se lo busca.
+
+**La asimetría con el saldo de a un turno es a propósito.**
+`GET /appointments/:id/payments` sigue abierto a cualquier empleado, porque
+cobrar es trabajo de mostrador. O sea que un profesional puede ver lo cobrado
+**de a un turno** —y el panel "Los turnos de hoy" lo usa así— pero no el total
+del mes. Visto de afuera parece un agujero; es el mismo criterio aplicado a dos
+preguntas distintas.
+
+**Los días son los del calendario del negocio, no los de UTC.** Un cobro de las
+21:30 en Buenos Aires cuenta para ese día. El backend hace la conversión: el
+front manda `from`/`to` en `YYYY-MM-DD` y listo.
+
+**`totals` es del rango entero, no de la página**, así que paginar no lo mueve y
+no hay que ir sumando página por página. `netCents` es el número del reporte:
+cobrado menos devoluciones.
+
+Detalle completo en `api-contract.md`, sección "Lo cobrado de un período".
+
+---
+
 ## Fase 6 (parte 2) — Suscripción del negocio (2026-08-20)
 
 2 endpoints nuevos y **un código de error nuevo que puede aparecer en un
