@@ -1,6 +1,7 @@
 "use client"
 
-import { X, Clock, User, Stethoscope, Phone, FileText, Pencil, Check, XCircle, CheckCheck, UserX } from "lucide-react"
+import { useState } from "react"
+import { X, Clock, User, Stethoscope, Phone, FileText, Pencil, Check, XCircle, CheckCheck, UserX, Wallet } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { Appointment, AppointmentStatus } from "@/types"
@@ -9,6 +10,9 @@ import { customerName, employeeColor, serviceName } from "../lib/display"
 import { cta } from "@/components/CtaLink"
 import { cn } from "@/lib/utils"
 import { formatCents } from "@/features/catalog/lib/money"
+import { PaymentsPanel } from "@/features/payments/components/PaymentsPanel"
+import { usePayments } from "@/features/payments/hooks/usePayments"
+import { estaCancelado } from "../lib/status"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + "T12:00:00")
@@ -55,14 +59,36 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
   const { startTime, endTime, status, notes } = appointment
   const actions = TRANSICIONES[status].map((destino) => ({ status: destino, ...DESTINO[destino] }))
 
+  /**
+   * Misma consulta que hace el panel de cobros: React Query la comparte por
+   * clave, así que esto no agrega un pedido.
+   */
+  const pagos = usePayments(appointment.id)
+  const cobrado = pagos.data?.balance.paidCents ?? 0
+
+  /**
+   * Cancelar con plata adentro **deja la devolución sin poder registrarse**.
+   *
+   * El backend rechaza cualquier movimiento sobre un turno cancelado con 409, y
+   * `REFUND` no es la excepción. O sea que el orden importa y no es reversible:
+   * quien cancela primero y devuelve después se queda sin dónde asentarlo, y la
+   * caja del mes queda diciendo que ese dinero está.
+   */
+  const [confirmar, setConfirmar] = useState<AppointmentStatus | null>(null)
+
+  function elegir(destino: AppointmentStatus) {
+    if (estaCancelado(destino) && cobrado > 0) return setConfirmar(destino)
+    onChangeStatus(destino)
+  }
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
         showCloseButton={false}
         aria-describedby={undefined}
-        className="block p-0 gap-0 bg-white rounded-2xl shadow-xl overflow-hidden sm:max-w-md"
+        className="flex max-h-[88vh] flex-col p-0 gap-0 bg-white rounded-2xl shadow-xl overflow-hidden sm:max-w-lg"
       >
-        <div className="flex items-start justify-between px-6 py-5 border-b border-black/[0.06]">
+        <div className="flex shrink-0 items-start justify-between px-6 py-5 border-b border-black/[0.06]">
           <div>
             <p className="text-xs text-neutral-400 mb-1 capitalize">{formatDate(appointment.day)}</p>
             <DialogTitle className="text-lg font-bold text-neutral-900">{customerName(appointment)}</DialogTitle>
@@ -78,7 +104,7 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
           </DialogClose>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-4">
           <Row icon={<Stethoscope size={15} />} label="Servicio">
             <span className="font-medium text-neutral-900">{serviceName(appointment)}</span>
             {/* `totalPriceCents`: el precio **congelado al reservar**. El del catálogo
@@ -113,27 +139,73 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
               <span className="text-neutral-700">{notes}</span>
             </Row>
           )}
+
+          {/*
+            Los cobros van **dentro del turno y no en una pantalla aparte**:
+            cobrar no es una tarea propia, se hace con el turno abierto adelante
+            y mirando a quien vino. Además es el único lugar donde el precio
+            congelado y lo que falta cobrar se leen juntos.
+          */}
+          <div className="border-t border-black/[0.06] pt-4">
+            <div className="mb-2.5 flex items-center gap-2">
+              <div className="w-5 shrink-0 text-neutral-400">
+                <Wallet size={15} />
+              </div>
+              <p className="text-xs text-neutral-400">Cobros</p>
+            </div>
+            <PaymentsPanel appointment={appointment} />
+          </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-black/[0.06] flex flex-wrap items-center gap-2">
-          {actions.map(({ status: s, label, icon: Icon, tone }) => (
+        {confirmar !== null ? (
+          <div className="shrink-0 border-t border-amber-200 bg-amber-50 px-6 py-4">
+            <p className="text-[13px] font-medium text-amber-900">
+              Este turno tiene {formatCents(cobrado)} cobrados
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-800/80">
+              Una vez cancelado no vas a poder registrar la devolución acá. Si vas a devolver,
+              registralo primero en Cobros.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  onChangeStatus(confirmar)
+                  setConfirmar(null)
+                }}
+                className={TONE.danger}
+              >
+                <XCircle size={15} />
+                Cancelar igual
+              </button>
+              <button
+                onClick={() => setConfirmar(null)}
+                className={cn(cta({ variant: "outline", size: "sm" }), "border-amber-300 bg-white/70")}
+              >
+                Volver
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="shrink-0 px-6 py-4 border-t border-black/[0.06] flex flex-wrap items-center gap-2">
+            {actions.map(({ status: s, label, icon: Icon, tone }) => (
+              <button
+                key={s}
+                onClick={() => elegir(s)}
+                className={TONE[tone]}
+              >
+                <Icon size={15} />
+                {label}
+              </button>
+            ))}
             <button
-              key={s}
-              onClick={() => onChangeStatus(s)}
-              className={TONE[tone]}
+              onClick={onEdit}
+              className={cn(cta({ variant: "outline", size: "sm" }), "ml-auto")}
             >
-              <Icon size={15} />
-              {label}
+              <Pencil size={15} />
+              Editar
             </button>
-          ))}
-          <button
-            onClick={onEdit}
-            className={cn(cta({ variant: "outline", size: "sm" }), "ml-auto")}
-          >
-            <Pencil size={15} />
-            Editar
-          </button>
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

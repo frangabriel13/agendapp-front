@@ -9,7 +9,7 @@ import { LinkIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cta } from "@/components/CtaLink"
 import { cn } from "@/lib/utils"
-import { AuthResult } from "@/features/auth/components/AuthResult"
+import { ResultCard } from "@/components/ResultCard"
 import { PasswordPair } from "@/features/auth/components/PasswordPair"
 import { newPasswordSchema, type NewPasswordValues } from "@/features/auth/utils/validators"
 import { apiErrorMessage } from "@/lib/errors"
@@ -39,7 +39,7 @@ export function ActivateAccountForm() {
   // Sin token no hay nada que activar: el link llegó cortado o mal copiado.
   if (!token) {
     return (
-      <AuthResult
+      <ResultCard
         icon={LinkIcon}
         tone="amber"
         title="Link incompleto"
@@ -48,7 +48,7 @@ export function ActivateAccountForm() {
         <Link href="/login" className={cn(cta({ variant: "outline", block: true }), "mt-6")}>
           Ir al login
         </Link>
-      </AuthResult>
+      </ResultCard>
     )
   }
 

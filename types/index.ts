@@ -173,7 +173,6 @@ export type UpdateCategoryPayload = Schema["UpdateServiceCategoryDto"]
  * Servicio del catálogo.
  *
  * **`priceCents` y `depositAmountCents` van en centavos**: `1500000` son $15.000.
- * No confundir con `MockService`, que trae el precio en pesos enteros.
  * `depositAmountCents` en `null` significa que el servicio no pide seña.
  */
 export type Service = Schema["ServiceResponseDto"]
@@ -318,3 +317,83 @@ export type CreateAppointmentPayload = Omit<Schema["CreateAppointmentDto"], "not
 
 /** Estado de la suscripción del negocio. El 402 al agendar se explica con esto. */
 export type Subscription = Schema["SubscriptionDto"]
+
+/**
+ * El saldo de un turno. **No es un campo guardado: el backend lo calcula** con
+ * los pagos acreditados menos las devoluciones.
+ *
+ * **Usar `dueCents` tal cual, sin recalcularlo sumando `payments`.** Hay dos
+ * formas de representar plata que vuelve —una devolución es su propia fila, y
+ * además descuenta de lo cobrado— así que sumar a mano cuenta una de más.
+ *
+ * `paidCents` **puede ser negativo**: si se devolvió más de lo que entró, la caja
+ * quedó en rojo por este turno. `dueCents` nunca lo es.
+ */
+export type AppointmentBalance = Omit<Schema["AppointmentBalanceDto"], "depositAmountCents"> & {
+  /** En centavos, o `null` si el servicio no pide seña. */
+  depositAmountCents: number | null
+}
+
+/** Cómo entró la plata. `MERCADOPAGO` **solo** lo crea el checkout online. */
+export type PaymentMethod = Schema["PaymentResponseDto"]["paymentMethod"]
+
+/**
+ * Los métodos que se pueden cargar a mano. **No incluye `MERCADOPAGO`**, y eso
+ * lo dice el spec, no una lista escrita acá: mandarlo da 400 porque ese pago solo
+ * lo crea el checkout. Tipar el formulario con esto convierte ese 400 en un error
+ * de `tsc`.
+ */
+export type ManualPaymentMethod = Schema["RecordManualPaymentDto"]["paymentMethod"]
+
+/** Qué se cobró. `REFUND` es plata que salió, no que entró. */
+export type PaymentType = Schema["PaymentResponseDto"]["paymentType"]
+
+export type PaymentStatus = Schema["PaymentResponseDto"]["status"]
+
+/** Mismo parche que en el resto: el spec deja estos cuatro campos sin tipo. */
+type UntypedPayment = "notes" | "failureReason" | "checkoutUrl" | "paidAt"
+
+/**
+ * Un movimiento de plata del turno.
+ *
+ * `recordedBy` en `null` significa que lo pagó el cliente online; con valor, que
+ * alguien lo cargó a mano. **Es el único rastro de un cobro que ningún sistema
+ * externo puede confirmar**, así que se muestra.
+ */
+export type Payment = Omit<Schema["PaymentResponseDto"], UntypedPayment> & {
+  notes: string | null
+  failureReason: string | null
+  /** El link de pago, **mientras el cobro online siga pendiente**. Después es `null`. */
+  checkoutUrl: string | null
+  paidAt: string | null
+}
+
+/** Lo que devuelve `GET /appointments/:id/payments`: el saldo y cómo se llegó a él. */
+export interface AppointmentPayments {
+  balance: AppointmentBalance
+  payments: Payment[]
+}
+
+/**
+ * El link de pago recién pedido.
+ *
+ * **`reused: true` no es un error**: pedir el mismo cobro dos veces devuelve el
+ * link que ya existía en vez de generar otro. Es a propósito, para que un doble
+ * clic no cree dos cobros.
+ */
+export type Checkout = Schema["CheckoutResponseDto"]
+
+/** Qué se cobra online. Si se omite, el backend lo deduce del saldo. */
+export type CheckoutType = Schema["CreateCheckoutDto"]["paymentType"]
+
+/**
+ * Un cobro cargado a mano. **Nace acreditado**: quien lo registra está viendo la
+ * plata.
+ *
+ * `paymentMethod` **no acepta `MERCADOPAGO`** (400): ese pago lo crea el
+ * checkout. `paymentType` sí acepta `REFUND`, que es como se asienta la plata
+ * devuelta en el mostrador.
+ */
+export type RecordManualPaymentPayload = Omit<Schema["RecordManualPaymentDto"], "notes"> & {
+  notes?: string
+}

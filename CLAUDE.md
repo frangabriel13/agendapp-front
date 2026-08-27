@@ -46,12 +46,16 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/clientes` | **Real.** Listado paginado, búsqueda, etiquetas y el duplicado de teléfono |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
 | `/configuracion` | **Real.** Negocio, marca, política de reservas y datos del plan |
+| `/pago/exito` | **Real.** Vuelta del checkout. Pública, **la abre el cliente del negocio** |
+| `/pago/pendiente` | **Real.** El pago quedó a la espera (efectivo, transferencia). Pública |
+| `/pago/error` | **Real.** El pago no se concretó. Pública |
 
 ## Grupos de rutas
 - `app/(marketing)` → landing pública
 - `app/(auth)` → login / registro / recuperar contraseña
 - `app/(admin)` → panel con sidebar, protegido por guard de sesión
-- `app/(tenant)` → solo tiene un layout, sin páginas todavía
+- `app/(tenant)` → lo que abre **el cliente del negocio**, no el panel: hoy las tres
+  vueltas del checkout (`/pago/*`), mañana el portal público de reservas
 - `app/api/` → vacía
 
 ## Providers globales
@@ -410,26 +414,24 @@ ancho de pantalla). No hay script commiteado todavía.
 - `docs/api-changelog.md` — Qué cambió en el backend, fase por fase. **Mirar "cambios que rompen" cuando aparezca una entrada nueva.**
 - `lib/api.ts` — Cliente HTTP: tokens, timeout, refresh serializado, `ApiError`. Toda llamada pasa por acá
 - `lib/api-types.ts` — **Generado** desde el OpenAPI del backend. No editar a mano
-- `types/index.ts` — Los tipos de arriba derivan de `lib/api-types.ts`, así un cambio
-  del backend rompe el `tsc` en el lugar exacto. Los de abajo son provisorios (mock de agenda)
+- `types/index.ts` — **Todo** deriva de `lib/api-types.ts`, así un cambio del backend
+  rompe el `tsc` en el lugar exacto. Ya no queda nada provisorio: el mock murió en el punto 12
 - `services/auth.ts` — Llamadas a `/auth/*`
 - `features/auth/hooks/useAuth.ts` — `useSession`, `useHasToken`, `useLogin`, `useRegister`, `useLogout`, `canManage`
 - `features/auth/components/` — `AuthCard` (cascarón), `AuthNotice` (aviso "próximamente"), `LoginForm`
+- `components/ResultCard.tsx` — El desenlace de una pantalla sin panel: ícono, tono,
+  título y salidas. **Nació como `AuthResult` en `features/auth` y se mudó**: ya lo
+  usaba `features/employees`, y ahora también las vueltas del checkout, que las abre
+  gente que no tiene sesión ni la va a tener
 - `features/appointments/lib/week.ts` — `getWeekDates` y `layoutDay`, con tests
 - `features/appointments/lib/agenda.ts` — las cuentas de la agenda, con tests
 - `features/appointments/lib/tone.ts` — el color de la persona convertido en los
   cuatro rellenos del bloque
-- `features/appointments/data/mockData.ts` — Datos de prueba hasta que exista la Fase 5.
-  Su tipo es `MockService` (pesos enteros), **no** `Service` (el del catálogo, en centavos)
-  Trae **el mes en curso y el anterior**, no solo hoy: sin historial, la tarjeta de
-  facturación y `/reportes` quedan vacías y no se puede ni mirar cómo se ven.
-  **Las fechas se generan relativas a hoy**, nunca escritas a mano: un mock con
-  fechas fijas envejece y al mes siguiente el "mes en curso" vuelve a estar vacío.
-  Los días se recortan al largo real de cada mes —si no, un 30 en febrero lo
-  normaliza `Date` al 2 de marzo y el turno se va de mes—. Y son **contiguos,
-  todos menos los domingos**: con una lista salteada, el corte "lo que va de la
-  semana" caía en una semana sin turnos según qué día fuera hoy y mostraba lo
-  mismo que "hoy", como si estuviera roto
+- `features/catalog/lib/money.ts` — **El único formateador de plata de la app**, y la
+  única conversión centavos ↔ pesos. `formatPrice` se borró
+- `features/payments/lib/balance.ts` — Qué decir con un saldo, qué cobro proponer y a
+  qué turnos se les puede mover plata. Con tests
+- `services/payments.ts` — Las tres llamadas de cobro
 - `app/(admin)/layout.tsx` — Sidebar **y guard de sesión**
 
 ## Backend — `../agendapp-api`
@@ -445,7 +447,7 @@ del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
 - **Catálogo (Fase 3):** precios en **centavos** (`priceCents`); un servicio se presta por par `(empleado, sucursal)`, no solo por empleado; los recursos son feature de plan
 - **Turnos (Fase 5, nuevo):** la agenda ya no necesita mock. `GET /appointments/availability` da los huecos libres con todo restado; `POST /appointments` acepta cualquier horario que **entre** en el tiempo libre (no hace falta un slot exacto). **El precio se congela al reservar**: mostrar `totalPriceCents` del turno, nunca el del servicio. **Un 409 al agendar es un caso normal** (alguien tomó el hueco primero), no un error a reintentar. Las series recurrentes **saltean** las fechas ocupadas y las devuelven en `skipped`. Detalle en `docs/api-changelog.md`
 - **Clientes (Fase 4):** `Patient` ahora es **`Customer`** (el tipo provisorio se reemplaza). Dos formas nuevas que se repiten en las fases que vienen: `GET /customers` devuelve **`{ data, meta }`** paginado (primer endpoint así de la API), y un **error puede traer campos extra** — el 409 de `POST /customers` manda `existingCustomer` con la ficha ya cargada, para ofrecer "¿es esta persona?" en vez de un cartel rojo. El teléfono lo compara el backend normalizado: **no normalizar en el front**. Detalle en `docs/api-changelog.md`
-- **Pagos (Fase 6, nuevo):** `GET /appointments/:id/payments` devuelve `{ balance, payments }` — **usá `balance` tal cual, no lo recalcules sumando los pagos**: hay dos formas de representar plata que vuelve y sumar a mano cuenta una de más. El cobro online es **en dos tiempos**: `POST .../payments/checkout` devuelve el link y deja el pago *pendiente*; lo confirma Mercado Pago avisándole al backend, así que después de mandar al cliente al checkout hay que volver a consultar el saldo. Faltan tres pantallas de retorno (`/pago/exito`, `/pago/error`, `/pago/pendiente`), y volver por la de éxito **no garantiza** que se haya acreditado. En dev no se cobra nada: el link trae `?sandbox=<paymentId>` y se simula pegándole al webhook. Detalle en `docs/api-changelog.md`
+- **Pagos (Fase 6):** los tres endpoints están cableados y las tres pantallas de retorno existen. Ver "Cobros — la plata va en dos tiempos" más abajo, que es donde quedaron las trampas
 - **Suscripción del negocio (nuevo):** ⚠️ **`POST /appointments` y `/appointments/recurring` ahora pueden devolver `402`** cuando el negocio hace más de 7 días que no paga. Si el manejador de errores no lo contempla cae en el "error inesperado" genérico, que acá es lo peor: el usuario no se entera de que hay que pagar. Es 402 y no 403 para poder distinguirlo de un problema de permisos. `GET /tenants/me/subscription` trae `daysOverdue` y `blocked`, y **hay una ventana entre los dos** (`graceDays`): ahí es cuando conviene avisar. Ver, cancelar y reprogramar siguen funcionando aunque deba. Detalle en `docs/api-changelog.md`
 - **Mails:** ya salen del backend, sus links apuntan acá y **las cuatro pantallas que los reciben están hechas** (`/activar`, `/olvide-contrasena`, `/restablecer`, `/verificar-email`). Ver "Las pantallas de los mails" más abajo. Detalle en `docs/api-changelog.md`
 - Levantarlo: `docker compose up -d && npm run seed:demo && npm run start:dev` desde `../agendapp-api`
@@ -461,7 +463,6 @@ del `/api-json` del servicio corriendo, no de leer `../agendapp-api`.
    **Sin ese re-chequeo el lock no sirve de nada.** Ver `lib/api.crosstab.test.ts`
 3. El backend corre con `forbidNonWhitelisted`: **un campo de más en el body devuelve 400**. Mandar solo lo que se edita
 
-El mock de la agenda ya se puede reemplazar: la Fase 5 está.
 
 ## Convenciones
 - Componentes interactivos (useState, eventos): agregar "use client" arriba
@@ -497,6 +498,8 @@ Relevada y no atendida todavía:
   porque la API no expone esos datos juntos. Alcanza para los planes actuales
 - `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
   ausencias del tenant juntas. Alcanza para los planes actuales
+- `/reportes` mide lo **agendado** (`totalPriceCents`), no lo **cobrado**
+  (`balance.paidCents`). Desde el punto 13 las dos cifras existen y son distintas
 
 ## Alta de empleados — el flujo completo
 1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
@@ -570,8 +573,11 @@ después qué se hace, y recién ahí los horarios.
 equipo, catálogo y clientes, pero no agenda nada: las tres pantallas se ven
 vacías hasta que alguien reserve. No está roto.
 
-⚠️ **El backend limita las escrituras (~10 por ventana) y el login más todavía
-(5).** Un 429 es el throttler, no un fallo. Importa al sembrar datos de prueba.
+⚠️ **El backend tiene dos baldes de límite, y son para *todos* los pedidos, no
+solo las escrituras: 10 por segundo y 100 cada ~50 s.** Vienen en las cabeceras
+`X-RateLimit-*` de cualquier respuesta, así que no hay que adivinarlos. `/auth/login`
+es más estricto (5). Un 429 es el throttler, no un fallo: importa al sembrar datos
+y al recorrer una lista pidiendo el detalle de cada ítem.
 
 ## Clientes — el teléfono es la identidad
 `/clientes` es la primera pantalla **paginada** y la primera que trata un error
@@ -610,9 +616,10 @@ del backend como una salida en vez de un cartel.
 9. Dar de baja una etiqueta **la saca de todos los clientes**, y dar de baja un
    cliente **libera su teléfono** para una ficha nueva
 
-⚠️ **El backend limita las escrituras: ~10 por ventana, después 429.** No es un
-bug del front. Importa si alguna vez se hace una importación masiva de clientes:
-hay que espaciar los pedidos y tratar el 429 como "esperá", no como un fallo.
+⚠️ **El backend limita a 10 pedidos por segundo y 100 cada ~50 s** (los dos baldes
+salen en las cabeceras `X-RateLimit-*`). No es un bug del front. Importa si alguna
+vez se hace una importación masiva de clientes: hay que espaciar los pedidos y
+tratar el 429 como "esperá", no como un fallo.
 
 ## El catálogo — la plata va en centavos
 `/servicios` son tres solapas y no tres pantallas: son tres entidades que solo
@@ -655,6 +662,80 @@ pantallas del mock. Mezclarlos es exactamente cómo se cuela un factor 100.
 9. En el alta los campos opcionales se **omiten** y en la edición viajan como
    `null`. Es a propósito: el backend corre con `forbidNonWhitelisted`, y sin el
    `null` explícito no habría forma de sacarle la seña a un servicio
+
+## Cobros — la plata va en dos tiempos
+`GET/POST /appointments/:id/payments`. El panel de cobros vive **dentro del turno**
+(`PaymentsPanel`, dentro de `AppointmentModal`): cobrar no es una tarea aparte, se
+hace con el turno abierto adelante y mirando a quien vino.
+
+1. **El saldo lo calcula el backend. No rehacerlo.** `balance.dueCents` viene
+   hecho; sumar `payments` para llegar a lo mismo es donde se cuenta de más,
+   porque una devolución es una fila propia **y** ya está descontada de
+   `paidCents`. `paidCents` puede ser **negativo** si se devolvió de más;
+   `dueCents` nunca lo es.
+
+2. **El link de pago no cobra.** `POST .../payments/checkout` crea el pago
+   *pendiente* y devuelve a dónde mandar al cliente. Lo confirma Mercado Pago
+   avisándole al backend, de segundos a minutos después. Por eso el bloque del
+   link es **ámbar y no verde** y dice "todavía no está pago": dar por cobrado lo
+   que no entró es el malentendido más caro de esta pantalla.
+
+3. **Cuando el cobro online se acredita, el turno también cambió.** Cubrir la seña
+   lo saca de `PENDING_PAYMENT` y lo deja `CONFIRMED`, y eso pasa del lado del
+   backend: acá nadie mutó nada. `usePayments` repregunta cada 10 s mientras haya
+   un pendiente **y además invalida los turnos** en la transición. Sin lo segundo
+   el saldo se actualiza pero el turno sigue diciendo "Falta la seña" en el modal,
+   en la agenda y en el tablero del día.
+
+4. **⚠️ Un turno cancelado no acepta la devolución.** El 409 es
+   `"El turno está cancelado o fue reprogramado: no se le pueden registrar pagos"`
+   y alcanza a **todos** los movimientos, `REFUND` incluido. O sea que el orden
+   importa y no se puede deshacer: **hay que devolver antes de cancelar.** El
+   modal avisa antes de cancelar un turno con plata adentro; después ya no hay
+   dónde asentarlo y la caja del mes queda diciendo que ese dinero está.
+
+5. **`RESCHEDULED` cuenta como cancelado para la plata**, aunque no sea una
+   cancelación. `sePuedeCobrar` no puede salir de `estaCancelado` solo; y tampoco
+   de `noOcurrio`, que además junta `NO_SHOW` —esa hora estuvo tomada y se cobra
+   igual.
+
+6. **El backend acepta cobrar y devolver de más sin decir nada.** $150.000 en un
+   turno de $1.500 devuelve 201, deja el saldo en cero y la pantalla diciendo
+   "Pagado". El error de cien veces es de una sola tecla, así que el formulario
+   **avisa y no bloquea**: los dos excesos pueden ser correctos (una propina, un
+   paquete cobrado de una, una compensación acordada).
+
+7. **`MERCADOPAGO` no se puede cargar a mano** (400): ese pago solo lo crea el
+   checkout, que es el único que un sistema externo puede confirmar. La regla la
+   sostiene el tipo, no una lista: `ManualPaymentMethod` sale del spec y no lo
+   incluye, así que sumarlo no compila.
+
+8. **Pedir el checkout dos veces devuelve el mismo link** (`reused: true`). Es a
+   propósito y no hay que pelearlo deshabilitando el botón. Con un link vivo el
+   botón directamente no se muestra: ya está en pantalla.
+
+9. **`recordedBy` es el único rastro de un cobro que nadie puede confirmar.** En
+   los online viene `null` a propósito —lo pagó el cliente—; en los de mostrador
+   dice quién lo cargó, y por eso se muestra.
+
+10. **Las tres pantallas de vuelta no consultan nada, y no pueden.** Volver por
+    `/pago/exito` **no prueba** que el pago esté acreditado, y no hay endpoint
+    público para preguntarlo. Todo lo que pueden hacer honestamente es contar qué
+    sigue. Tampoco llevan a ningún lado: las abre el cliente del negocio, que no
+    tiene cuenta.
+
+11. **En dev no se cobra nada.** `PAYMENT_PROVIDER=sandbox`: el `checkoutUrl`
+    apunta a `/pago/exito?sandbox=<paymentId>` y se simula el pago pegándole al
+    webhook:
+    ```bash
+    curl -X POST http://localhost:3001/webhooks/mercadopago \
+      -H 'Content-Type: application/json' \
+      -d '{"type":"payment","data":{"id":"sandbox-payment-1"}}'
+    ```
+
+12. **Cobrar no es tarea de dueño.** Un `PROFESSIONAL` puede ver el saldo y
+    registrar cobros —probado contra la API—, que es lo correcto en un local
+    chico: quien atiende es quien recibe la plata.
 
 ## Las pantallas de los mails
 Cuatro rutas públicas que reciben un link que mandó el backend. Todas usan
@@ -750,10 +831,11 @@ Acordado con Franco, en orden:
 ---
 
 **⚠️ El backend cerró la Fase 6 (pagos y suscripción).** El front venía dos fases
-atrás y ya recuperó la 3, la 4 y la 5: **71 de 86 endpoints cableados**. Auth,
-negocio, sucursales, equipo, catálogo, clientes y turnos están completos; siguen
-sin pantalla **los pagos y el detalle de la suscripción**. Nada de lo que sigue necesita tocar el
-backend: los endpoints existen, andan y están testeados. El detalle de cada uno,
+atrás y las recuperó todas: **74 de 86 endpoints cableados**. Auth, negocio,
+sucursales, equipo, catálogo, clientes, turnos y cobros están completos. Sigue sin
+pantalla **el detalle de la suscripción del negocio** —lo que reservApp le cobra a
+él, no lo que él le cobra a su clientela—, que es lo último que queda. Nada de eso
+necesita tocar el backend: los endpoints existen, andan y están testeados. El detalle de cada uno,
 en `docs/api-contract.md`; qué cambió y qué rompe, en `docs/api-changelog.md`.
 
 ### 9. ~~Las pantallas de los mails~~ ✅ hecho
@@ -761,31 +843,20 @@ en `docs/api-contract.md`; qué cambió y qué rompe, en `docs/api-changelog.md`
 cableadas. Los links que el backend manda desde hace semanas ya no caen en 404.
 Las trampas quedaron escritas en "Las pantallas de los mails", más arriba.
 
-**El 402 sigue sin manejar, y se movió acá abajo a propósito.** El punto 9 decía
-que era un agujero vivo, pero no lo es todavía: `POST /appointments` y
-`/appointments/recurring` son los únicos que lo devuelven, y **el front no llama a
-la API de turnos desde ningún lado**. Nace exactamente con el punto 12, así que
-se hace ahí:
-
-- Sin manejarlo, un negocio que hace más de 7 días que no paga recibe el "error
-  inesperado" genérico al intentar agendar. Es el peor cartel posible: el dueño no
-  se entera de que tiene que pagar
-- `GET /tenants/me/subscription` trae `daysOverdue`, `graceDays` y `blocked` — **el
-  aviso va en la ventana entre los dos**, no cuando ya está bloqueado
-- Es 402 y no 403 justamente para poder distinguirlo de un problema de permisos.
-  Ver, cancelar y reprogramar siguen andando aunque deba: **no bloquear la app entera**
-- Hoy lo único que hay es `subscriptionNote`, que pone "Hay un pago pendiente" en
-  el pie del panel cuando el tenant está `PAST_DUE`. No dice cuántos días quedan
-  ni ofrece pagar
+**El 402 se hizo en el punto 12**, que es donde nacía: hasta entonces el front no
+llamaba a la API de turnos desde ningún lado y `POST /appointments` es el único que
+lo devuelve. `deudaVisible` avisa en la ventana entre atrasarse y ser bloqueado, y
+`BookingModal` explica el 402 en ámbar aclarando que ver, cancelar y reprogramar
+siguen andando. **Lo que falta es poder pagar desde ahí: es el punto 14.**
 
 ### 10. ~~`/servicios`~~ ✅ hecho
 Catálogo completo en tres solapas. Las trampas quedaron en "El catálogo — la
-plata va en centavos", más arriba. **Queda pendiente de ese punto:** sacarle a
-`formatPrice` la moneda fija en ARS y leerla de `tenant.currency` — el catálogo
-ya lo hace con `formatCents`, las pantallas del mock todavía no.
+plata va en centavos", más arriba. `formatPrice` se borró en el punto 12 y
+`formatCents` quedó como el único formateador de plata; **queda pendiente** leerle
+la moneda de `tenant.currency` en vez del ARS fijo, que es un parámetro con default
+en un solo lugar.
 
-- Precios en **centavos** (`priceCents`). Acá es donde conviene sacarle a
-  `formatPrice` la moneda fija en ARS y leerla de `tenant.currency`
+- Precios en **centavos** (`priceCents`)
 - **Un servicio se presta por par `(empleado, sucursal)`**, no solo por empleado
   (`PUT /services/:id/employees`). No es "quién lo hace" sino "quién lo hace dónde",
   y es la parte que se subestima al diseñar la pantalla
@@ -816,18 +887,35 @@ Lo que **no** entró y sigue pendiente:
   (`services` es una lista); el formulario manda uno solo
 - `lib/absenceKind.ts` sigue: la API todavía no tiene campo de tipo de ausencia
 
-### 13. Cobros
-- `GET /appointments/:id/payments` devuelve `{ balance, payments }`. **Usar
-  `balance` tal cual, no recalcularlo sumando los pagos**: hay dos formas de
-  representar plata que vuelve y sumar a mano cuenta una de más
-- El cobro online es **en dos tiempos**: `POST .../payments/checkout` devuelve el
-  link y deja el pago *pendiente*; lo confirma Mercado Pago avisándole al backend.
-  Después de mandar al cliente al checkout hay que **volver a consultar el saldo**
-- Faltan `/pago/exito`, `/pago/error` y `/pago/pendiente`. Volver por la de éxito
-  **no garantiza** que se haya acreditado: esa pantalla dice "estamos confirmando",
-  no "listo"
-- En dev no se cobra nada: el link trae `?sandbox=<paymentId>` y se simula
-  pegándole al webhook
+### 13. ~~Cobros~~ ✅ hecho
+Saldo, historial, cobro de mostrador, devolución y link de pago online, todo
+dentro del turno. Las tres pantallas de vuelta del checkout existen. Las trampas
+quedaron en "Cobros — la plata va en dos tiempos", más arriba.
+
+Lo que **no** entró y sigue pendiente:
+- **`/reportes` sigue midiendo lo agendado, no lo cobrado.** Las dos cifras son
+  útiles y ahora por fin son distintas: `totalPriceCents` es lo que se acordó y
+  `balance.paidCents` lo que entró. Hoy solo se ve la primera
+- **Nadie ve la plata del día junta.** El saldo se lee turno por turno; no hay un
+  corte de caja
+- **La devolución que sugiere el backend al cancelar no se usa.**
+  `ChangeStatusResultDto.refund` dice cuánto corresponde devolver según la
+  política del negocio, y hoy se descarta. Ojo al hacerlo: **es justo lo que hay
+  que ofrecer antes de cancelar**, porque después el 409 ya no deja registrarlo
+
+### 14. La suscripción del negocio
+Lo último que queda. Es lo que reservApp le cobra al negocio, no lo que el negocio
+le cobra a su clientela.
+- Hoy `deudaVisible` avisa que hay un pago pendiente **y no ofrece pagarlo**:
+  `POST /tenants/me/subscription/checkout` existe y nadie lo llama. El aviso es un
+  callejón sin salida
+- `GET /tenants/me/subscription` ya está cableado y trae plan, período, historial
+  de cobros, `daysOverdue`, `graceDays` y `blocked`
+- Mismo cobro en dos tiempos que el del turno, incluido `reused: true`. Si el plan
+  no tiene precio de lista (Empresa, que se cotiza con soporte) da **409**
+- Faltan `/suscripcion/exito`, `/suscripcion/error` y `/suscripcion/pendiente`
+- **Estos endpoints sí piden `OWNER` o `ADMINISTRATIVE`**, a diferencia de los
+  cobros del turno: un profesional no tiene por qué ver cuánto paga su empleador
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`
