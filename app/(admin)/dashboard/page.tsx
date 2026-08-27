@@ -3,24 +3,31 @@
 import { useMemo } from "react"
 import { Page } from "../ui/Page"
 import { dateToStr } from "@/lib/time"
-import { mockAppointments } from "@/features/appointments/data/mockData"
+import { useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
+import { ocupaAgenda } from "@/features/appointments/lib/status"
 import { TeamAvailability } from "@/features/dashboard/components/TeamAvailability"
 import { RevenueCard } from "@/features/dashboard/components/RevenueCard"
 import { TeamCard } from "@/features/dashboard/components/TeamCard"
 import { UpcomingAppointments } from "@/features/dashboard/components/UpcomingAppointments"
 
 export default function DashboardPage() {
-  /**
-   * Los turnos todavía salen de datos de ejemplo: el backend no expone la
-   * agenda. El equipo y las ausencias del calendario sí son reales.
-   */
-  const deHoy = useMemo(() => {
-    const hoy = dateToStr(new Date())
+  const now = useMemo(() => new Date(), [])
 
-    return mockAppointments
-      .filter((appointment) => appointment.date === hoy && appointment.status !== "cancelled")
+  /**
+   * El mes entero con colchón: el calendario de arriba mira la semana y la
+   * tarjeta de facturación compara contra el mes anterior, así que una sola
+   * consulta alimenta las cuatro tarjetas.
+   */
+  const query = useMonthAppointments(now)
+  const appointments = useMemo(() => query.data ?? [], [query.data])
+
+  const deHoy = useMemo(() => {
+    const hoy = dateToStr(now)
+
+    return appointments
+      .filter((appointment) => appointment.day === hoy && ocupaAgenda(appointment.status))
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
-  }, [])
+  }, [appointments, now])
 
   return (
     /*
@@ -29,7 +36,7 @@ export default function DashboardPage() {
      * franja entera de alto para decir dos veces lo mismo.
      */
     <Page width="full" className="flex flex-1 flex-col gap-3">
-      <TeamAvailability appointments={mockAppointments} />
+      <TeamAvailability appointments={appointments} />
 
       {/*
         Tres columnas de igual peso: ninguna es "la principal".
@@ -42,7 +49,7 @@ export default function DashboardPage() {
         <UpcomingAppointments appointments={deHoy} />
         <TeamCard />
         {/* Todos los turnos, no los de hoy: la tarjeta mira el mes y el anterior. */}
-        <RevenueCard appointments={mockAppointments} />
+        <RevenueCard appointments={appointments} />
       </div>
     </Page>
   )

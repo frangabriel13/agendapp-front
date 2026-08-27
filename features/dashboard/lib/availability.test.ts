@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { toInstant } from "@/features/employees/lib/timeOff"
 import type { Appointment, EmployeeShift, TimeOff } from "@/types"
+import { turno as base } from "@/features/appointments/lib/fixtures"
 import {
   absenceMinutesByDay,
   bookedMinutesByDay,
@@ -18,8 +19,8 @@ const turno = (
   date: string,
   startTime: string,
   endTime: string,
-  status: Appointment["status"] = "confirmed",
-): Appointment => ({ date, startTime, endTime, status }) as Appointment
+  status: Appointment["status"] = "CONFIRMED",
+): Appointment => base({ day: date, from: startTime, to: endTime, status })
 
 const ausencia = (
   desde: string,
@@ -73,7 +74,7 @@ describe("bookedMinutesByDay", () => {
 
   it("un cancelado libera el lugar y no ocupa", () => {
     const porDia = bookedMinutesByDay([
-      turno("2026-09-09", "09:00", "10:00", "cancelled"),
+      turno("2026-09-09", "09:00", "10:00", "CANCELED_BY_CUSTOMER"),
       turno("2026-09-09", "11:00", "12:00"),
     ])
 
@@ -81,7 +82,7 @@ describe("bookedMinutesByDay", () => {
   })
 
   it("un 'no asistió' sí ocupa: nadie más pudo tomar ese horario", () => {
-    expect(bookedMinutesByDay([turno("2026-09-09", "09:00", "10:00", "no_show")]).get("2026-09-09")).toBe(60)
+    expect(bookedMinutesByDay([turno("2026-09-09", "09:00", "10:00", "NO_SHOW")]).get("2026-09-09")).toBe(60)
   })
 })
 

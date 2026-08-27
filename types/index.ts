@@ -271,62 +271,50 @@ export type UpdateTagPayload = Omit<Schema["UpdateCustomerTagDto"], "color"> & {
   color?: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Lo de acá abajo todavía no tiene backend (Fases 3 a 5). Son los tipos que
-// sostienen el mock de la agenda; van a cambiar cuando existan los endpoints.
-// ---------------------------------------------------------------------------
+/**
+ * Los siete estados de un turno. **No son los cinco del mock viejo.**
+ *
+ * Hay dos formas de cancelar —quién canceló cambia la política de devolución— y
+ * `RESCHEDULED` es el estado del turno *viejo* cuando se reprogramó: el nuevo es
+ * otro registro, enlazado por `rescheduledFromId` / `rescheduledToId`.
+ */
+export type AppointmentStatus = Schema["AppointmentResponseDto"]["status"]
 
-export interface Professional {
-  id: string
-  name: string
-  email: string
-  specialty: string
-  branchId: string
-  color: string
-}
+/** Uno de los servicios del turno, con el precio y la duración **congelados al reservar**. */
+export type AppointmentService = Schema["AppointmentServiceDto"]
 
-export interface Equipment {
-  id: string
-  name: string
-  quantity: number
-  branchId: string
-}
+/** El turno tal como lo devuelve la API. */
+export type ApiAppointment = Schema["AppointmentResponseDto"]
 
 /**
- * El servicio del mock de la agenda. **No es el del catálogo** —ese es `Service`,
- * que sale de la API y tiene el precio en centavos—: este se muere junto con
- * `mockData.ts` cuando los turnos salgan de `/appointments`.
+ * El turno como lo usa el panel: el de la API **más** el día y las horas de pared.
+ *
+ * `startsAt` es un instante y un calendario dibuja horas de reloj, así que la
+ * conversión se hace **una sola vez**, al traer los turnos (`toAppointment` en
+ * `services/appointments.ts`). Los tres campos son derivados: nadie los manda de
+ * vuelta al backend.
+ *
+ * No se pierde nada del original: `services` sigue siendo una lista —un turno
+ * puede encadenar varios—, el precio sigue en `totalPriceCents` y **congelado al
+ * reservar**, y los estados son los siete reales.
  */
-export interface MockService {
-  id: string
-  name: string
-  duration: number
-  price: number
-  equipmentId?: string
-  equipment?: Equipment
-}
-
-export interface Patient {
-  id: string
-  name: string
-  phone: string
-  email?: string
-}
-
-export type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancelled" | "no_show"
-
-export interface Appointment {
-  id: string
-  patientId: string
-  patient: Patient
-  professionalId: string
-  professional: Professional
-  serviceId: string
-  service: MockService
-  branchId: string
-  date: string
+export interface Appointment extends ApiAppointment {
+  /** "YYYY-MM-DD" local. Derivado de `startsAt`. */
+  day: string
+  /** "HH:MM" local. Derivado de `startsAt`. */
   startTime: string
+  /** "HH:MM" local. Derivado de `endsAt`. */
   endTime: string
-  status: AppointmentStatus
+}
+
+/** Un hueco reservable de `GET /appointments/availability`. */
+export type AvailabilitySlot = Schema["AvailabilitySlotDto"]
+
+export type Availability = Schema["AvailabilityResponseDto"]
+
+export type CreateAppointmentPayload = Omit<Schema["CreateAppointmentDto"], "notes"> & {
   notes?: string
 }
+
+/** Estado de la suscripción del negocio. El 402 al agendar se explica con esto. */
+export type Subscription = Schema["SubscriptionDto"]

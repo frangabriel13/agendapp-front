@@ -4,7 +4,8 @@ import { useMemo, useState } from "react"
 import { CalendarOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { dateToStr, parseCalendarDay } from "@/lib/time"
-import type { Appointment, AppointmentStatus, Professional } from "@/types"
+import type { Appointment, AppointmentStatus } from "@/types"
+import type { Quien } from "../lib/display"
 import { busiestDay, containsToday, monthCells } from "../lib/agenda"
 import { getWeekDates } from "../lib/week"
 import { avatarStyle } from "../lib/tone"
@@ -14,7 +15,7 @@ import { TimeGrid, type GridColumn } from "./TimeGrid"
 
 interface Props {
   appointments: Appointment[]
-  professionals: Professional[]
+  professionals: Quien[]
   now: Date
   selectedId: string | null
   /** Estado por el que llega filtrado desde las tarjetas de arriba. */
@@ -49,7 +50,7 @@ export function AgendaCalendar({
     () =>
       appointments.filter(
         (a) =>
-          (professional === "all" || a.professionalId === professional) &&
+          (professional === "all" || a.employee.id === professional) &&
           (status === "all" || a.status === status),
       ),
     [appointments, professional, status],
@@ -95,7 +96,7 @@ export function AgendaCalendar({
             return {
               key,
               today: key === dateToStr(now),
-              appointments: visibles.filter((a) => a.date === key),
+              appointments: visibles.filter((a) => a.day === key),
               header: <CabeceraDia date={date} hoy={key === dateToStr(now)} />,
             }
           })}
@@ -113,7 +114,7 @@ export function AgendaCalendar({
         <TimeGrid
           columns={professionals.map((p): GridColumn => {
             const suyos = visibles.filter(
-              (a) => a.date === dateToStr(cursor) && a.professionalId === p.id,
+              (a) => a.day === dateToStr(cursor) && a.employee.id === p.id,
             )
             return {
               key: p.id,
@@ -158,7 +159,7 @@ function MesConDatos({
   cursor: Date
   appointments: Appointment[]
   now: Date
-  professionals: Map<string, Professional>
+  professionals: Map<string, Quien>
   onPickDay: (key: string) => void
 }) {
   const cells = useMemo(() => monthCells(cursor, appointments, now), [cursor, appointments, now])
@@ -199,14 +200,14 @@ function CabeceraProfesional({
   profesional,
   turnos,
 }: {
-  profesional: Professional
+  profesional: Quien
   turnos: number
 }) {
   return (
     <div className="flex h-full items-center gap-2.5 px-4">
       <span
         aria-hidden
-        style={avatarStyle(profesional.color)}
+        style={avatarStyle(profesional.hex)}
         className="flex size-[34px] shrink-0 items-center justify-center rounded-full text-sm font-bold"
       >
         {profesional.name.charAt(0)}
@@ -215,8 +216,11 @@ function CabeceraProfesional({
         <span className="block truncate text-[13px] font-semibold text-neutral-900">
           {profesional.name}
         </span>
+        {/* Antes decía la especialidad, que venía del mock. La API no la trae en
+            el turno, y el dato que sirve en la cabecera de una columna del día es
+            cuánto tiene esa persona. */}
         <span className="block truncate text-[11px] text-neutral-500">
-          {profesional.specialty} · {turnos} turno{turnos === 1 ? "" : "s"}
+          {turnos} turno{turnos === 1 ? "" : "s"}
         </span>
       </span>
     </div>
@@ -240,11 +244,11 @@ function enRango(
   cursor: Date,
   week: Date[],
 ): boolean {
-  if (view === "day") return appointment.date === dateToStr(cursor)
+  if (view === "day") return appointment.day === dateToStr(cursor)
   if (view === "week") {
-    return appointment.date >= dateToStr(week[0]!) && appointment.date <= dateToStr(week[6]!)
+    return appointment.day >= dateToStr(week[0]!) && appointment.day <= dateToStr(week[6]!)
   }
-  return appointment.date.startsWith(dateToStr(cursor).slice(0, 7))
+  return appointment.day.startsWith(dateToStr(cursor).slice(0, 7))
 }
 
 function titulo(view: CalendarView, cursor: Date, week: Date[]): string {

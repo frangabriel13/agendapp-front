@@ -32,3 +32,40 @@ export function parseCalendarDay(date: string): Date {
   const [year, month, day] = date.split("-").map(Number)
   return new Date(year!, month! - 1, day!)
 }
+
+/**
+ * Un instante ISO de la API, partido en día de calendario y hora de reloj.
+ *
+ * **La API manda instantes (`"2026-09-07T12:00:00.000Z"`) y el calendario dibuja
+ * horas de pared.** Son dos cosas distintas: las 12:00 UTC son las 9 de la mañana
+ * acá. La conversión pasa por acá y por ningún otro lado, así que si mañana el
+ * negocio opera en otra zona hay un solo lugar que cambiar.
+ *
+ * **Se usa la zona del navegador**, que es la del negocio en la práctica: el
+ * panel lo abre gente que trabaja ahí. Cuando haga falta atender un negocio en
+ * otra zona, `GET /appointments/availability` ya devuelve su `timezone` y esta
+ * función es donde entra.
+ */
+export function splitInstant(iso: string): { day: string; time: string } {
+  const fecha = new Date(iso)
+  return { day: dateToStr(fecha), time: clockTime(fecha) }
+}
+
+/** La hora de pared de una fecha, "HH:MM". */
+export function clockTime(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+}
+
+/**
+ * El camino inverso: un día de calendario y una hora de reloj, como instante ISO.
+ *
+ * Lo necesita `POST /appointments`, que recibe `startsAt`. Construir la fecha por
+ * partes —y no con `new Date("2026-09-07T09:00")`— la interpreta en la zona
+ * local, que es donde el usuario eligió esa hora.
+ */
+export function toInstant(day: string, time: string): string {
+  const [year, month, date] = day.split("-").map(Number)
+  const [hours, minutes] = time.split(":").map(Number)
+
+  return new Date(year!, month! - 1, date!, hours!, minutes!).toISOString()
+}

@@ -13,20 +13,27 @@ import type { AppointmentStatus } from "@/types"
 export type BlockLook =
   /** Confirmado: el bloque lleno. */
   | "solid"
-  /** A confirmar: tinta clara y borde punteado, porque todavía no está cerrado. */
+  /** Falta la seña: tinta clara y borde punteado, porque todavía no está cerrado. */
   | "soft"
   /** Atendido: el mismo color, apagado. Ya pasó. */
   | "muted"
-  /** Cancelado o ausencia: no ocurrió, se va al gris. */
+  /** No ocurrió —cancelado, ausencia, reprogramado—: se va al gris. */
   | "off"
 
+/**
+ * Cuatro rellenos para siete estados.
+ *
+ * Las dos cancelaciones y el turno viejo de una reprogramación comparten el
+ * gris: en el calendario los tres dicen lo mismo —"esa hora no pasó"— y quién
+ * canceló importa en el detalle, no de un vistazo.
+ */
 export function blockLook(status: AppointmentStatus): BlockLook {
   switch (status) {
-    case "confirmed":
+    case "CONFIRMED":
       return "solid"
-    case "pending":
+    case "PENDING_PAYMENT":
       return "soft"
-    case "completed":
+    case "ATTENDED":
       return "muted"
     default:
       return "off"

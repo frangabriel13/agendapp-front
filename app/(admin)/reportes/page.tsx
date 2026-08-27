@@ -6,9 +6,9 @@ import { cardSurface } from "@/components/surface"
 import { pillClasses } from "@/components/Panel"
 import { Page, PageHeader } from "../ui/Page"
 import { cn } from "@/lib/utils"
-import { formatPrice } from "@/lib/format"
+import { formatCents } from "@/features/catalog/lib/money"
 import { dateToStr } from "@/lib/time"
-import { mockAppointments } from "@/features/appointments/data/mockData"
+import { useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
 import { RevenueBreakdown } from "@/features/reports/components/RevenueBreakdown"
 import {
   monthLabel,
@@ -21,17 +21,20 @@ export default function ReportesPage() {
   const mes = useMemo(() => dateToStr(new Date()).slice(0, 7), [])
 
   /**
-   * Los turnos todavía salen de datos de ejemplo: el backend no expone la agenda
-   * ni los pagos. Las cuentas viven en `features/reports/lib/revenue.ts` y no
-   * acá, así que cuando exista la API solo cambia de dónde salen los turnos.
+   * Las cuentas viven en `features/reports/lib/revenue.ts` y no acá, así que
+   * esta pantalla solo elige el período y compone. **Los montos vienen en
+   * centavos**: los formatea `formatCents`.
    */
+  const query = useMonthAppointments(new Date())
+  const appointments = useMemo(() => query.data ?? [], [query.data])
+
   const { revenue, porServicio, porProfesional } = useMemo(
     () => ({
-      revenue: monthRevenue(mockAppointments, mes),
-      porServicio: revenueByService(mockAppointments, mes),
-      porProfesional: revenueByProfessional(mockAppointments, mes),
+      revenue: monthRevenue(appointments, mes),
+      porServicio: revenueByService(appointments, mes),
+      porProfesional: revenueByProfessional(appointments, mes),
     }),
-    [mes],
+    [appointments, mes],
   )
 
   return (
@@ -52,32 +55,32 @@ export default function ReportesPage() {
           <Cifra
             icon={Wallet}
             label="Facturación"
-            valor={formatPrice(revenue.total)}
+            valor={formatCents(revenue.total)}
             hint={`${revenue.turnos} ${revenue.turnos === 1 ? "turno" : "turnos"}`}
           />
           <Cifra
             icon={CircleCheck}
             label="Ya atendidos"
-            valor={formatPrice(revenue.atendido)}
+            valor={formatCents(revenue.atendido)}
             hint="Turnos que ya ocurrieron"
           />
           <Cifra
             icon={Clock}
             label="Agendados"
-            valor={formatPrice(revenue.agendado)}
+            valor={formatCents(revenue.agendado)}
             hint="Confirmados, todavía por atender"
           />
           <Cifra
             icon={Receipt}
             label="Ticket promedio"
-            valor={formatPrice(revenue.ticketPromedio)}
+            valor={formatCents(revenue.ticketPromedio)}
             hint="Por turno facturado"
           />
         </div>
 
         {revenue.sinConfirmar > 0 && (
           <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
-            Hay {formatPrice(revenue.sinConfirmar)} en turnos reservados sin confirmar. No entran en
+            Hay {formatCents(revenue.sinConfirmar)} en turnos reservados sin confirmar. No entran en
             ninguna de las cifras de arriba hasta que se confirmen.
           </p>
         )}

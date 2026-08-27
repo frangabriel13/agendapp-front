@@ -11,33 +11,31 @@ export function atiende(employee: Employee): boolean {
 }
 
 /**
- * Reparte los turnos entre las personas del equipo.
+ * Agrupa los turnos por la persona que los atiende.
  *
- * **Puente temporal, y se borra con la Fase 5.** Los turnos son de ejemplo y
- * traen ids de profesionales inventados (`p1`, `p2`…) que no existen en la API,
- * así que no hay forma de cruzarlos con los empleados reales: se reparten por
- * posición entre quienes atienden. Cuando el backend exponga turnos,
- * `professionalId` va a ser el id del empleado y esto es un `filter` directo.
+ * Hasta la Fase 5 esto era un puente: los turnos de ejemplo traían ids
+ * inventados (`p1`, `p2`…) que no existían en la API, y había que repartirlos por
+ * posición. **Ahora `employee.id` es el id del empleado de verdad**, así que es
+ * un agrupamiento directo.
  *
- * El orden sale de los ids ordenados y no del orden de aparición, para que la
- * asignación no cambie si mañana se agrega un turno al principio de la lista.
+ * Recibe `employees` para no inventar filas: un turno de alguien que ya no está
+ * en el equipo —o de un administrativo, que no debería tener— se descarta en vez
+ * de crear una fila fantasma en el calendario.
  */
 export function appointmentsByEmployee(
   employees: Employee[],
   appointments: Appointment[],
 ): Map<string, Appointment[]> {
   const porEmpleado = new Map<string, Appointment[]>()
-  const atienden = employees.filter(atiende)
-  if (atienden.length === 0) return porEmpleado
-
-  const profesionales = [...new Set(appointments.map((a) => a.professionalId))].sort()
+  const atienden = new Set(employees.filter(atiende).map((employee) => employee.id))
 
   for (const appointment of appointments) {
-    const posicion = profesionales.indexOf(appointment.professionalId)
-    const empleado = atienden[posicion % atienden.length]!
-    const previos = porEmpleado.get(empleado.id) ?? []
+    const id = appointment.employee.id
+    if (!atienden.has(id)) continue
+
+    const previos = porEmpleado.get(id) ?? []
     previos.push(appointment)
-    porEmpleado.set(empleado.id, previos)
+    porEmpleado.set(id, previos)
   }
 
   return porEmpleado

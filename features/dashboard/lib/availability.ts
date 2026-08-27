@@ -1,5 +1,6 @@
 import { timeToMinutes } from "@/lib/time"
 import { toDateInput, toTimeInput } from "@/features/employees/lib/timeOff"
+import { ocupaAgenda } from "@/features/appointments/lib/status"
 import type { Appointment, EmployeeShift, TimeOff } from "@/types"
 import type { TimelineDay } from "./timeline"
 
@@ -57,10 +58,12 @@ export function bookedMinutesByDay(appointments: Appointment[]): Map<string, num
   const porDia = new Map<string, number>()
 
   for (const appointment of appointments) {
-    if (appointment.status === "cancelled") continue
+    // Solo lo que ocupa la hora: `NO_SHOW` sí —esa hora estuvo tomada—, las
+    // cancelaciones y el turno viejo de una reprogramación no.
+    if (!ocupaAgenda(appointment.status)) continue
     const duracion = timeToMinutes(appointment.endTime) - timeToMinutes(appointment.startTime)
     if (duracion <= 0) continue
-    porDia.set(appointment.date, (porDia.get(appointment.date) ?? 0) + duracion)
+    porDia.set(appointment.day, (porDia.get(appointment.day) ?? 0) + duracion)
   }
 
   return porDia

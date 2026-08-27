@@ -4,10 +4,18 @@ import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { timeToMinutes } from "@/lib/time"
 import type { Appointment } from "@/types"
+import { gridRange } from "../lib/agenda"
 import { layoutDay } from "../lib/week"
 import { AppointmentBlock } from "./AppointmentBlock"
 
-/** La jornada que se dibuja. Fuera de esto no hay turnos que mostrar. */
+/**
+ * La jornada que se dibuja **por defecto**.
+ *
+ * Es el piso, no el techo: la grilla se estira para que entre lo que haya. Con
+ * el rango fijo, un turno que arranca 19:55 y termina 20:50 se dibujaba fuera de
+ * la caja y se cortaba solo. Los horarios del local los define cada negocio y
+ * pueden pasarse de las 20.
+ */
 export const HORA_INICIO = 8
 export const HORA_FIN = 20
 
@@ -63,12 +71,13 @@ export function TimeGrid({
   onSlotClick,
   empty,
 }: Props) {
-  const horas = Array.from({ length: HORA_FIN - HORA_INICIO }, (_, i) => HORA_INICIO + i)
+  const { desde, hasta } = gridRange(columns.flatMap((column) => column.appointments))
+  const horas = Array.from({ length: hasta - desde }, (_, i) => desde + i)
   const alto = horas.length * ALTO_HORA
   const vacio = columns.every((column) => column.appointments.length === 0)
 
   const minutosAhora = now.getHours() * 60 + now.getMinutes()
-  const dentroDeLaJornada = minutosAhora >= HORA_INICIO * 60 && minutosAhora <= HORA_FIN * 60
+  const dentroDeLaJornada = minutosAhora >= desde * 60 && minutosAhora <= hasta * 60
 
   return (
     /* El scroll lateral vive acá adentro: la tarjeta entera no se mueve. */
@@ -138,8 +147,8 @@ export function TimeGrid({
 
                     {column.appointments.map((appointment) => {
                       const { lane, lanes } = carriles.get(appointment.id) ?? { lane: 0, lanes: 1 }
-                      const arriba = posicion(appointment.startTime)
-                      const altoBloque = Math.max(posicion(appointment.endTime) - arriba - 4, 24)
+                      const arriba = posicion(appointment.startTime, desde)
+                      const altoBloque = Math.max(posicion(appointment.endTime, desde) - arriba - 4, 24)
                       const ancho = 100 / lanes
 
                       return (
@@ -169,7 +178,7 @@ export function TimeGrid({
             {showNow && dentroDeLaJornada && (
               <div
                 aria-hidden
-                style={{ top: (minutosAhora - HORA_INICIO * 60) * (ALTO_HORA / 60) }}
+                style={{ top: (minutosAhora - desde * 60) * (ALTO_HORA / 60) }}
                 className="pointer-events-none absolute inset-x-0 z-40 flex items-center"
               >
                 <span className="-ml-[5px] size-2.5 shrink-0 rounded-full bg-violet-600 ring-[3px] ring-violet-600/20" />
@@ -193,7 +202,12 @@ function columnas(count: number) {
   return { gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }
 }
 
-/** A qué altura cae una hora del reloj dentro de la grilla. */
-function posicion(time: string): number {
-  return (timeToMinutes(time) - HORA_INICIO * 60) * (ALTO_HORA / 60)
+/**
+ * A qué altura cae una hora del reloj dentro de la grilla.
+ *
+ * Recibe `desde` en vez de leer la constante: la grilla se estira según lo que
+ * haya ese día, así que el cero de la regla se mueve.
+ */
+function posicion(time: string, desde: number): number {
+  return (timeToMinutes(time) - desde * 60) * (ALTO_HORA / 60)
 }

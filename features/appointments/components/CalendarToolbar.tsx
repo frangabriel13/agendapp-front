@@ -3,7 +3,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { pillClasses } from "@/components/Panel"
-import type { AppointmentStatus, Professional } from "@/types"
+import type { AppointmentStatus } from "@/types"
+import type { Quien } from "../lib/display"
 import { STATUS_LABELS, STATUS_ORDER } from "../lib/status"
 import { avatarStyle } from "../lib/tone"
 
@@ -24,7 +25,7 @@ interface Props {
   onPrev: () => void
   onNext: () => void
   onToday: () => void
-  professionals: Professional[]
+  professionals: Quien[]
   professional: string
   onProfessional: (id: string) => void
   status: AppointmentStatus | "all"
@@ -101,7 +102,7 @@ export function CalendarToolbar({
             <Filtro key={p.id} activo={professional === p.id} onClick={() => onProfessional(p.id)}>
               <span
                 aria-hidden
-                style={professional === p.id ? undefined : avatarStyle(p.color)}
+                style={professional === p.id ? undefined : avatarStyle(p.hex)}
                 className={cn(
                   "flex size-[17px] items-center justify-center rounded-full text-[9px] font-bold",
                   professional === p.id && "bg-white/25 text-white",
