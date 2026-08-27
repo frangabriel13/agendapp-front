@@ -6,7 +6,7 @@ import { Page } from "../ui/Page"
 import { Panel, PanelHeader, pillClasses } from "@/components/Panel"
 import { cta } from "@/components/CtaLink"
 import { cn } from "@/lib/utils"
-import { dateToStr } from "@/lib/time"
+import { businessNow, dateToStr } from "@/lib/time"
 import { AgendaCalendar } from "@/features/appointments/components/AgendaCalendar"
 import { AppointmentModal } from "@/features/appointments/components/AppointmentModal"
 import { BookingModal } from "@/features/appointments/components/BookingModal"
@@ -35,9 +35,16 @@ export default function AgendaPage() {
   const [status, setStatus] = useState<AppointmentStatus | "all">("all")
   const [devolucion, setDevolucion] = useState<RefundDecision | null>(null)
 
-  // Se fija al montar: si se recalculara en cada render, cruzar la medianoche
-  // con el panel abierto correría la agenda debajo del mouse.
-  const now = useMemo(() => new Date(), [])
+  /**
+   * **El reloj del negocio, no el de la máquina.** `businessNow()` devuelve un
+   * `Date` corrido para que `getHours()` y `dateToStr()` den la hora y el día del
+   * negocio: así la línea de "ahora", qué turno está en curso y cuál es el
+   * casillero de hoy salen bien aunque quien mira esté en otra zona.
+   *
+   * Se fija al montar: si se recalculara en cada render, cruzar la medianoche con
+   * el panel abierto correría la agenda debajo del mouse.
+   */
+  const now = useMemo(() => businessNow(), [])
   const week = useMemo(() => getWeekDates(now), [now])
 
   /**

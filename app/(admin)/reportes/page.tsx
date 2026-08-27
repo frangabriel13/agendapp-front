@@ -7,7 +7,7 @@ import { pillClasses } from "@/components/Panel"
 import { Page, PageHeader } from "../ui/Page"
 import { cn } from "@/lib/utils"
 import { formatCents } from "@/features/catalog/lib/money"
-import { dateToStr } from "@/lib/time"
+import { businessNow, today } from "@/lib/time"
 import { useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
 import { DayCollections } from "@/features/payments/components/DayCollections"
 import { RevenueBreakdown } from "@/features/reports/components/RevenueBreakdown"
@@ -21,7 +21,7 @@ import {
 export default function ReportesPage() {
   // Se fija al montar: recalcularlo en cada render cambiaría el mes debajo del
   // mouse al cruzar la medianoche con la pantalla abierta.
-  const hoy = useMemo(() => dateToStr(new Date()), [])
+  const hoy = useMemo(() => today(), [])
   const mes = hoy.slice(0, 7)
 
   /**
@@ -29,7 +29,7 @@ export default function ReportesPage() {
    * esta pantalla solo elige el período y compone. **Los montos vienen en
    * centavos**: los formatea `formatCents`.
    */
-  const query = useMonthAppointments(new Date())
+  const query = useMonthAppointments(businessNow())
   const appointments = useMemo(() => query.data ?? [], [query.data])
   const deHoy = useMemo(() => appointments.filter((a) => a.day === hoy), [appointments, hoy])
 

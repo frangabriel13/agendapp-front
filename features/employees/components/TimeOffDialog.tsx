@@ -18,6 +18,7 @@ import {
 } from "../hooks/useEmployees"
 import { fullName } from "../lib/roles"
 import { draftToPayload, formatRange, isPast, sortTimeOff, validateDraft, type TimeOffDraft } from "../lib/timeOff"
+import { today } from "@/lib/time"
 
 interface Props {
   employee: Employee | null
@@ -70,11 +71,6 @@ export function TimeOffDialog({ employee, onClose }: Props) {
       </DialogContent>
     </Dialog>
   )
-}
-
-function today(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
 function NewTimeOffForm({ employeeId, branches }: { employeeId: string; branches: Branch[] }) {

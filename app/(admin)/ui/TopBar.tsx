@@ -20,6 +20,7 @@ import type { Employee, Session } from "@/types"
 import { canManage } from "@/features/auth/hooks/useAuth"
 import { subscriptionNote } from "@/features/dashboard/lib/subscription"
 import { AccountMenu } from "./AccountMenu"
+import { businessTimezone } from "@/lib/time"
 
 /** Cuántas caras entran antes de pasar a contarlas. */
 const AVATARS = 3
@@ -49,14 +50,21 @@ export function TopBar({
   const suscripcion = session ? subscriptionNote(session.tenant) : null
   const puedeGestionar = canManage(session?.employee.role)
 
+  /**
+   * Qué día es **para el negocio**. La zona llega con la sesión, así que va como
+   * dependencia: hasta entonces se formatea con la del navegador, que puede estar
+   * en otro día.
+   */
+  const zona = businessTimezone()
   const hoy = useMemo(() => {
     const texto = new Date().toLocaleDateString("es-AR", {
+      timeZone: zona,
       weekday: "long",
       day: "numeric",
       month: "long",
     })
     return texto.charAt(0).toUpperCase() + texto.slice(1)
-  }, [])
+  }, [zona])
 
   return (
     <header

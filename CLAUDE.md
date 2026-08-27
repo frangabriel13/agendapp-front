@@ -370,7 +370,9 @@ código nuevo, está mal copiado de algún lado:
 - `components/form.ts` — `controlClasses`, `control(error)`, `selectClasses`, `selectControl(error)`
 - `components/Glow.tsx` — halos de fondo
 - `lib/format.ts` — `formatPrice`
-- `lib/time.ts` — `dateToStr` / `parseCalendarDay` y las cuentas de "HH:MM"
+- `lib/time.ts` — **La frontera instante ↔ hora de pared**, en la zona del negocio
+  (`splitInstant`/`toInstant`/`businessNow`/`today`), más el par de días de
+  calendario (`dateToStr`/`parseCalendarDay`), que sigue siendo local. Con tests
 - `features/employees/lib/palette.ts` — `personColor(id)`, color estable por persona
 - `app/(marketing)/ui/` — `Section`, `SectionHeading`, `Badge`, `Card`, `TopBackdrop`, `GradientBand`
 
@@ -512,9 +514,6 @@ Relevada y no atendida todavía:
 - En desarrollo **el pago de la suscripción no se puede confirmar**: el id del
   sandbox choca con el de un pago de turno y el webhook resuelve el del turno.
   Ver "La suscripción del negocio"
-- ⚠️ **El panel muestra las horas en la zona del navegador, no la del negocio.**
-  En una máquina en UTC —la de desarrollo— todo aparece corrido tres horas. Ver el
-  punto 16 del roadmap
 
 ## Alta de empleados — el flujo completo
 1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
@@ -533,9 +532,10 @@ con un `superRefine` en vez de reescribirla, para que no se desincronice.
 **Diez cosas que no son obvias:**
 
 1. **La API manda instantes; el calendario dibuja horas de pared.** Son dos cosas
-   distintas —las 12:00 UTC son las 9 acá—, y la conversión pasa por
+   distintas —las 12:00 UTC son las 9 en Buenos Aires—, y la conversión pasa por
    `splitInstant` / `toInstant` en `lib/time.ts` y por `toAppointment` en
-   `services/appointments.ts`, **por ningún otro lado**. El tipo `Appointment` es
+   `services/appointments.ts`, **por ningún otro lado**. La zona es la del
+   **negocio**, no la del navegador: ver "La zona horaria del negocio". El tipo `Appointment` es
    el de la API **más** `day`, `startTime` y `endTime`, que son derivados: nadie
    los manda de vuelta
 2. **Los estados son siete, no cinco.** Hay **dos formas de cancelar** —quién
@@ -820,6 +820,56 @@ todo, porque es el dato del que dependen los demás.
    invalida la receta del `curl` para este caso. Probar la pantalla de vuelta
    exige controlar la respuesta desde afuera.
 
+## La zona horaria del negocio
+`lib/time.ts`. **La API manda instantes y el calendario dibuja horas de pared**, y
+convertir de una a otra necesita una zona. La del navegador **no sirve**: es la de
+quien mira, no la del negocio.
+
+1. **Hay dos pares de funciones y no hay que mezclarlos.**
+   - `splitInstant` / `toInstant` cruzan la frontera instante ↔ hora de pared y
+     **usan la zona del negocio**
+   - `dateToStr` / `parseCalendarDay` viven en el mundo de los días de calendario
+     —el que arma la grilla con `new Date(año, mes, día)`— y **siguen siendo
+     locales**. Hacerlos mirar la zona del negocio los rompería: medianoche local
+     leída en una zona más atrasada cae el día anterior
+
+2. **La zona se fija en `getSessionRequest`, no en un efecto.** La conversión
+   ocurre dentro de `queryFn`s (`toAppointment`), fuera de todo componente, así que
+   no puede depender de un hook. Poniéndola al traer `/auth/me`, cualquiera que vea
+   `session` ya la tiene. Un `useEffect` dejaría el primer render con la zona
+   equivocada, y eso **no se corrige solo**: los turnos ya convertidos quedan en la
+   caché de React Query.
+
+3. **Por eso el panel no dibuja páginas hasta tener la sesión.** El cascarón sí se
+   monta enseguida —no muestra ningún horario—. Con la sesión en error no se
+   bloquea: el 401 redirige al login por otro lado, y para cualquier otra falla es
+   mejor un panel con la zona del navegador que un "Cargando…" eterno.
+
+4. **`businessNow()` es un reloj de pared disfrazado de `Date`.** Está corrido a
+   propósito para que `getHours()` y `dateToStr()` den la hora y el día del
+   negocio, y así todo lo que dibuja la agenda funciona sin saber de zonas.
+   **Nunca compararlo con un instante**: para eso está `Date.now()`, como en el
+   corte de slots pasados del formulario de agendar.
+
+5. **`toInstant` mide el desfase dos veces**, y no es paranoia. La primera pasada
+   supone que la hora de pared es UTC para averiguar cuánto corre la zona; si esa
+   suposición cae del otro lado de un cambio de horario de verano, mide el desfase
+   equivocado. Con una sola medición, un turno cargado a la 01:30 del domingo del
+   cambio se guarda una hora —y un día— antes. Argentina hoy no tiene DST, pero
+   Chile, Brasil y México están en la lista de zonas que ofrece el panel.
+
+6. **Una zona inválida se ignora en vez de romper.** `Intl` tira excepción con un
+   nombre que no conoce, y eso dejaría la app sin poder dibujar una sola fecha.
+
+7. **Cambiar la zona en `/configuracion` invalida toda la caché.** Los turnos
+   guardados ya tienen el día y la hora derivados con la zona vieja: no se arreglan
+   solos.
+
+8. **Los tests corren con `TZ=America/Argentina/Buenos_Aires`** (`vitest.config.mts`),
+   así que **la zona del navegador y la del negocio coinciden salvo que el test la
+   cambie a mano**. Los casos que prueban la diferencia fijan otra con
+   `setBusinessTimezone`; sin eso se aprobarían solos.
+
 ## Las pantallas de los mails
 Cuatro rutas públicas que reciben un link que mandó el backend. Todas usan
 `AuthCard`, y las que muestran un desenlace en vez de un formulario usan
@@ -874,10 +924,11 @@ Horas de tramo en reloj (`"09:00"`); las ausencias, en cambio, van en ISO con zo
 `features/employees/lib/schedule.ts` lo reordena para mostrar lunes primero.
 
 **Ausencias** (`features/employees/lib/timeOff.ts`): la persona escribe hora de pared
-y la API guarda un instante, así que la conversión pasa por `new Date(y, m, d, …)`,
-que interpreta en la zona del navegador. **No hay campo `allDay` en la API**: un día
-completo se guarda de 00:00 a 23:59 locales y se deduce al releerlo (`isAllDay`).
-`branchId: null` = ausente en todas.
+y la API guarda un instante, así que la conversión pasa por `toInstant` de
+`lib/time.ts` —la misma que usan los turnos, en la zona del **negocio**—. Tenía su
+propia copia atada al navegador y cargaba las ausencias corridas. **No hay campo
+`allDay` en la API**: un día completo se guarda de 00:00 a 23:59 del negocio y se
+deduce al releerlo (`isAllDay`). `branchId: null` = ausente en todas.
 
 ## Horarios comerciales y días especiales — la trampa
 `PUT /branches/:id/business-hours` espera **los 7 días envueltos en `{ days }`**, y
@@ -899,6 +950,10 @@ dispararía cualquier herramienta de monitoreo por un error de usuario normal
 en UTC, `new Date("2026-12-25")` devuelve el día correcto y el bug de interpretar
 un día de calendario como UTC **pasa desapercibido**. Con offset negativo retrocede
 al 24 y el test lo agarra.
+
+**Ojo con el otro lado**: esa zona es también la del negocio de los tests, así que
+la del navegador y la del negocio coinciden y un test que no fije otra a mano **no
+prueba nada sobre zonas**. Los que sí prueban eso llaman a `setBusinessTimezone`.
 
 ## Próximo paso
 Acordado con Franco, en orden:
@@ -1004,24 +1059,15 @@ sino trabajo nuevo; en orden de lo que más se va a extrañar:
    que se ofrecerían serían los de uno solo: se mostrarían huecos que no entran.
    Se destraba haciendo que `availability` acepte `serviceIds`.
 
-### 16. La zona horaria del panel es la del navegador, no la del negocio
-**⚠️ Encontrado el 27/8/2026 y sin resolver.** `lib/time.ts` convierte instantes a
-horas de pared con la zona del navegador. La máquina de desarrollo está en
-`Etc/UTC`, así que **todo el panel muestra los horarios corridos tres horas**: un
-turno a las 16:00 de Buenos Aires se dibuja a las 19:00, y los huecos de un
-profesional que trabaja de 9 a 13 salen de 12 a 16.
+### 16. ~~La zona horaria del panel~~ ✅ hecho
+El panel usa la zona del **negocio** (`tenant.timezone`), no la del navegador. Con
+la máquina en UTC, la agenda ahora dibuja los turnos en hora de Buenos Aires y los
+huecos coinciden con el horario cargado de cada profesional. Las trampas quedaron
+en "La zona horaria del negocio", más arriba.
 
-- En un local argentino con las computadoras en hora, no se nota. Se nota en
-  desarrollo, con alguien de viaje, o el día que un negocio tenga sucursales en
-  dos zonas
-- El dato ya está a mano: `GET /appointments/availability` devuelve `timezone` y
-  `GET /tenants/me` tiene el del negocio
-- El arreglo pasa por `lib/time.ts`, que es el único lugar donde se convierte —
-  esa parte del diseño aguantó. Lo que hay que decidir es cómo llega la zona ahí:
-  un valor de módulo que se fija al abrir la sesión es lo más barato; pasarla por
-  parámetro toca cada llamada
-- **Los tests no lo agarran**: `vitest.config.mts` fija
-  `TZ=America/Argentina/Buenos_Aires`, así que corren en la zona correcta y pasan
+De paso se fue una duplicación: `features/employees/lib/timeOff.ts` tenía su propia
+copia de `toInstant`/`toDateInput`/`toTimeInput`, también atada al navegador, así
+que las ausencias se cargaban corridas. Ahora delegan en `lib/time.ts`.
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`

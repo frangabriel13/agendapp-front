@@ -1,4 +1,5 @@
 import { apiFetch, getRefreshToken } from "@/lib/api"
+import { setBusinessTimezone } from "@/lib/time"
 import type { AuthTokens, LoginCredentials, RegisterPayload, Session } from "@/types"
 
 export function loginRequest(credentials: LoginCredentials): Promise<AuthTokens> {
@@ -18,8 +19,20 @@ export function registerRequest(payload: RegisterPayload): Promise<AuthTokens> {
   )
 }
 
+/**
+ * Quién sos, en qué negocio y con qué rol.
+ *
+ * **Acá se fija la zona horaria del negocio**, y no en un efecto de React: la
+ * conversión de instantes a horas de pared ocurre dentro de `queryFn`s
+ * (`toAppointment`), fuera de todo componente. Poniéndola al traer la sesión,
+ * cualquiera que vea `session` ya la tiene fijada; hacerlo en un `useEffect`
+ * dejaría el primer render dibujando con la zona equivocada.
+ */
 export function getSessionRequest(): Promise<Session> {
-  return apiFetch<Session>("/auth/me")
+  return apiFetch<Session>("/auth/me").then((session) => {
+    setBusinessTimezone(session.tenant.timezone)
+    return session
+  })
 }
 
 /**

@@ -30,6 +30,7 @@ import { absenceKind, KIND_LABEL, type AbsenceKind } from "../lib/absenceKind"
 import { closedDays, type ClosedDay } from "../lib/openDays"
 import { appointmentsByEmployee } from "../lib/roster"
 import { buildDays, rangeLabel, type TimelineDay } from "../lib/timeline"
+import { businessNow } from "@/lib/time"
 
 /** Dos semanas: entra la que se está viviendo y la que hay que planificar. */
 const DAY_COUNT = 14
@@ -78,7 +79,7 @@ export function TeamAvailability({ appointments }: { appointments: Appointment[]
 
   // La ventana se fija al montar: si se recalculara en cada render, cruzar la
   // medianoche con el panel abierto correría el calendario debajo del mouse.
-  const days = useMemo(() => buildDays(new Date(), DAY_COUNT), [])
+  const days = useMemo(() => buildDays(businessNow(), DAY_COUNT), [])
 
   const cerrados = closedDays(days, calendars.hours, calendars.special)
   const porEmpleado = appointmentsByEmployee(team, appointments)

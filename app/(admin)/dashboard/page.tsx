@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { Page } from "../ui/Page"
-import { dateToStr } from "@/lib/time"
+import { businessNow, dateToStr } from "@/lib/time"
 import { useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
 import { ocupaAgenda } from "@/features/appointments/lib/status"
 import { TeamAvailability } from "@/features/dashboard/components/TeamAvailability"
@@ -11,7 +11,7 @@ import { TeamCard } from "@/features/dashboard/components/TeamCard"
 import { UpcomingAppointments } from "@/features/dashboard/components/UpcomingAppointments"
 
 export default function DashboardPage() {
-  const now = useMemo(() => new Date(), [])
+  const now = useMemo(() => businessNow(), [])
 
   /**
    * El mes entero con colchón: el calendario de arriba mira la semana y la
