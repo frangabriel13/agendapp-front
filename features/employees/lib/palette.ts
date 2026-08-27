@@ -14,15 +14,24 @@ export interface PersonColor {
   avatar: string
   /** Aro alrededor del avatar. Es lo que identifica a la persona en la grilla. */
   ring: string
+  /**
+   * El mismo tono en hexa.
+   *
+   * Lo necesita la agenda, que deriva sus gradientes con `color-mix` y no puede
+   * hacerlo desde una clase de Tailwind. **Es el mismo color que `avatar` y
+   * `ring`**: si se desalinean, la misma persona aparece de dos colores según la
+   * pantalla, que es justo lo que el color viene a evitar.
+   */
+  hex: string
 }
 
 const PALETTE: PersonColor[] = [
-  { avatar: "bg-violet-100 text-violet-700", ring: "ring-violet-400" },
-  { avatar: "bg-emerald-100 text-emerald-700", ring: "ring-emerald-400" },
-  { avatar: "bg-sky-100 text-sky-700", ring: "ring-sky-400" },
-  { avatar: "bg-amber-100 text-amber-700", ring: "ring-amber-400" },
-  { avatar: "bg-rose-100 text-rose-700", ring: "ring-rose-400" },
-  { avatar: "bg-indigo-100 text-indigo-700", ring: "ring-indigo-400" },
+  { avatar: "bg-violet-100 text-violet-700", ring: "ring-violet-400", hex: "#7c3aed" },
+  { avatar: "bg-emerald-100 text-emerald-700", ring: "ring-emerald-400", hex: "#059669" },
+  { avatar: "bg-sky-100 text-sky-700", ring: "ring-sky-400", hex: "#0284c7" },
+  { avatar: "bg-amber-100 text-amber-700", ring: "ring-amber-400", hex: "#d97706" },
+  { avatar: "bg-rose-100 text-rose-700", ring: "ring-rose-400", hex: "#e11d48" },
+  { avatar: "bg-indigo-100 text-indigo-700", ring: "ring-indigo-400", hex: "#4f46e5" },
 ]
 
 export function personColor(id: string): PersonColor {

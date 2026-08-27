@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { Receipt, TrendingDown, TrendingUp } from "lucide-react"
 import { Panel, PanelHeader, PanelLink } from "@/components/Panel"
 import { cn } from "@/lib/utils"
-import { formatPrice } from "@/lib/format"
+import { formatCents } from "@/features/catalog/lib/money"
 import {
   dayRevenue,
   monthLabel,
@@ -66,7 +66,7 @@ export function RevenueCard({ appointments }: { appointments: Appointment[] }) {
         >
           <Rotulo tono="violeta">Este mes</Rotulo>
           <p className="text-[32px] leading-none font-semibold tracking-tight text-violet-950 tabular-nums xl:text-[38px] 2xl:text-[44px]">
-            {formatPrice(outlook.actual)}
+            {formatCents(outlook.actual)}
           </p>
           <Variacion valor={outlook.variacion} mesAnterior={mesAnterior} />
         </div>
@@ -129,7 +129,7 @@ function Cuadro({ label, valor, nota, vacio = "—" }: CuadroProps) {
           valor === null ? "text-neutral-400" : "text-neutral-900",
         )}
       >
-        {valor === null ? vacio : formatPrice(valor)}
+        {valor === null ? vacio : formatCents(valor)}
       </p>
       <p className="max-w-full truncate text-[11px] text-neutral-400">{nota}</p>
     </div>

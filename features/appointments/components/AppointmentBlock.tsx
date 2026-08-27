@@ -7,7 +7,8 @@ import { timeToMinutes } from "@/lib/time"
 import type { Appointment } from "@/types"
 import { elapsedFraction } from "../lib/agenda"
 import { avatarStyle, blockLook, blockSkin } from "../lib/tone"
-import { STATUS_LABELS } from "../lib/status"
+import { STATUS_LABELS, noOcurrio } from "../lib/status"
+import { customerName, employeeColor, employeeInitial, serviceName } from "../lib/display"
 
 /**
  * Debajo de este alto no entran el ícono, el servicio y el nombre en líneas
@@ -44,9 +45,9 @@ export function AppointmentBlock({
   style,
   onClick,
 }: Props) {
-  const { patient, professional, service, status } = appointment
+  const { status } = appointment
   const look = blockLook(status)
-  const skin = blockSkin(professional.color, look)
+  const skin = blockSkin(employeeColor(appointment), look)
   const completo = height >= ALTO_COMPLETO && !narrow
   const avance = elapsedFraction(appointment, now)
 
@@ -75,12 +76,12 @@ export function AppointmentBlock({
         )}
         <span
           aria-hidden
-          style={avatarStyle(professional.color)}
+          style={avatarStyle(employeeColor(appointment))}
           className="flex size-[18px] shrink-0 items-center justify-center rounded-full text-[9px] font-bold"
         >
-          {professional.name.charAt(0)}
+          {employeeInitial(appointment)}
         </span>
-        {!completo && <span className={cn(nombre, status === "cancelled" && "line-through")}>{patient.name}</span>}
+        {!completo && <span className={cn(nombre, noOcurrio(status) && "line-through")}>{customerName(appointment)}</span>}
         {!narrow && (
           <span
             style={chip}
@@ -93,8 +94,8 @@ export function AppointmentBlock({
 
       {completo && (
         <>
-          <span className={cn(nombre, status === "cancelled" && "line-through")}>{patient.name}</span>
-          <span className="truncate text-[10px] leading-tight opacity-80">{service.name}</span>
+          <span className={cn(nombre, noOcurrio(status) && "line-through")}>{customerName(appointment)}</span>
+          <span className="truncate text-[10px] leading-tight opacity-80">{serviceName(appointment)}</span>
         </>
       )}
 
@@ -111,8 +112,8 @@ export function AppointmentBlock({
       </span>
 
       <span className="sr-only">
-        {appointment.startTime} a {appointment.endTime}, {patient.name}, {service.name}, con{" "}
-        {professional.name}. {STATUS_LABELS[status]}.
+        {appointment.startTime} a {appointment.endTime}, {customerName(appointment)}, {serviceName(appointment)}, con{" "}
+        {appointment.employee.name}. {STATUS_LABELS[status]}.
       </span>
     </button>
   )

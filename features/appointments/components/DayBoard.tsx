@@ -2,12 +2,13 @@
 
 import { Banknote, Check, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { formatPrice } from "@/lib/format"
+import { formatCents } from "@/features/catalog/lib/money"
 import { cta } from "@/components/CtaLink"
 import type { Appointment, AppointmentStatus } from "@/types"
 import { boardColumns, type BoardKey } from "../lib/agenda"
 import { avatarStyle } from "../lib/tone"
-import { STATUS_LABELS, STATUS_PLURAL } from "../lib/status"
+import { STATUS_LABELS, STATUS_PLURAL, noOcurrio } from "../lib/status"
+import { customerName, employeeColor, employeeInitial, serviceName } from "../lib/display"
 
 interface Props {
   appointments: Appointment[]
@@ -24,19 +25,19 @@ interface Props {
  */
 const COLUMNA: Record<BoardKey, { nombre: string; punto: string; chip: string; vacio: string }> = {
   pending: {
-    nombre: STATUS_PLURAL.pending,
+    nombre: STATUS_PLURAL.PENDING_PAYMENT,
     punto: "bg-amber-500",
     chip: "bg-amber-100 text-amber-700",
-    vacio: "Nada pendiente.",
+    vacio: "Ninguna seña pendiente.",
   },
   confirmed: {
-    nombre: STATUS_PLURAL.confirmed,
+    nombre: STATUS_PLURAL.CONFIRMED,
     punto: "bg-emerald-500",
     chip: "bg-emerald-100 text-emerald-700",
     vacio: "Nada por delante.",
   },
   completed: {
-    nombre: STATUS_PLURAL.completed,
+    nombre: STATUS_PLURAL.ATTENDED,
     punto: "bg-slate-400",
     chip: "bg-slate-100 text-slate-600",
     vacio: "Todavía nadie.",
@@ -99,14 +100,14 @@ export function DayBoard({ appointments, day, now, onOpen, onChangeStatus }: Pro
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-neutral-500">
                 <Banknote size={13} aria-hidden />
-                {formatPrice(columna.plata)}
+                {formatCents(columna.plata)}
               </span>
 
               {columna.key === "pending" && columna.items.length > 0 && (
                 <button
                   type="button"
                   onClick={() =>
-                    columna.items.forEach((a) => onChangeStatus(a, "confirmed"))
+                    columna.items.forEach((a) => onChangeStatus(a, "CONFIRMED"))
                   }
                   className={cn(cta({ size: "sm" }), "ml-auto px-3 py-1 text-[11px]")}
                 >
@@ -131,8 +132,8 @@ function Fila({
   now: Date
   onOpen: () => void
 }) {
-  const { patient, professional, service, status, startTime, endTime } = appointment
-  const enCurso = status === "confirmed" && startTime <= horaDe(now) && endTime > horaDe(now)
+  const { status, startTime, endTime } = appointment
+  const enCurso = status === "CONFIRMED" && startTime <= horaDe(now) && endTime > horaDe(now)
 
   return (
     <button
@@ -142,26 +143,26 @@ function Fila({
     >
       <span
         aria-hidden
-        style={avatarStyle(professional.color)}
+        style={avatarStyle(employeeColor(appointment))}
         className="flex size-[30px] shrink-0 items-center justify-center rounded-full text-xs font-bold"
       >
-        {professional.name.charAt(0)}
+        {employeeInitial(appointment)}
       </span>
       <span className="min-w-0 flex-1">
         <span
           className={cn(
             "block truncate text-[12.5px] font-medium text-neutral-900",
-            status === "cancelled" && "text-neutral-500 line-through",
+            noOcurrio(status) && "text-neutral-500 line-through",
           )}
         >
-          {patient.name}
+          {customerName(appointment)}
         </span>
         <span className="block truncate text-[11px] text-neutral-500">
-          {startTime} · {service.name}
+          {startTime} · {serviceName(appointment)}
         </span>
       </span>
 
-      {status === "completed" && (
+      {status === "ATTENDED" && (
         <span
           aria-hidden
           className="flex size-[19px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"
@@ -169,9 +170,9 @@ function Fila({
           <Check size={11} strokeWidth={3} />
         </span>
       )}
-      {status === "no_show" && (
+      {status === "NO_SHOW" && (
         <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-600">
-          {STATUS_LABELS.no_show}
+          {STATUS_LABELS.NO_SHOW}
         </span>
       )}
       {enCurso && (

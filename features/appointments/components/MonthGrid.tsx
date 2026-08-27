@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { Professional } from "@/types"
+import type { Quien } from "../lib/display"
 import type { MonthCell } from "../lib/agenda"
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -10,7 +10,7 @@ interface Props {
   cells: MonthCell[]
   /** El día más cargado del mes: contra él se mide la barra de los demás. */
   busiest: number
-  professionals: Map<string, Professional>
+  professionals: Map<string, Quien>
   onPickDay: (key: string) => void
 }
 
@@ -65,7 +65,7 @@ function Celda({
 }: {
   cell: MonthCell
   busiest: number
-  professionals: Map<string, Professional>
+  professionals: Map<string, Quien>
   onClick: () => void
 }) {
   if (!cell.inMonth) {
@@ -109,7 +109,7 @@ function Celda({
             {cell.professionals.map((id) => (
               <span
                 key={id}
-                style={{ background: professionals.get(id)?.color ?? "#a3a3a3" }}
+                style={{ background: professionals.get(id)?.hex ?? "#a3a3a3" }}
                 className="size-1.5 rounded-full"
               />
             ))}

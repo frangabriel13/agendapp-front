@@ -39,9 +39,9 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/verificar-email?token=` | **Real.** Confirma la dirección sola al abrirse. Pública |
 | `/activar` | **Real.** Cierra la invitación: token del link + contraseña. Pública |
 | `/equipo` | **Real y completo.** Listar, invitar, rol, alta/baja, sucursales, horarios y ausencias |
-| `/dashboard` | **Mitad real.** Equipo y ausencias salen de la API; los turnos siguen en mock |
-| `/agenda` | **Rediseñada**: resumen de la semana, tablero del día y calendario en mes/semana/día. Sobre mock data |
-| `/reportes` | Facturación del mes, por servicio y por profesional — sobre mock |
+| `/dashboard` | **Real.** Equipo, ausencias y turnos salen de la API |
+| `/agenda` | **Real.** Resumen de la semana, tablero del día y calendario en mes/semana/día. Agenda turnos |
+| `/reportes` | **Real.** Facturación del mes, por servicio y por profesional |
 | `/servicios` | **Real.** Catálogo en tres solapas: servicios, categorías y recursos |
 | `/clientes` | **Real.** Listado paginado, búsqueda, etiquetas y el duplicado de teléfono |
 | `/sucursales` | **Real.** ABM, horarios comerciales, feriados y días especiales |
@@ -130,10 +130,10 @@ qué sección estás, y el título grande es el de la tarjeta principal
 
 | Bloque | Datos |
 |---|---|
-| `TeamAvailability` | Equipo, ausencias y horarios **reales**; los turnos que ocupan, **mock** |
-| `UpcomingAppointments` | La jornada, con el próximo turno destacado — **mock** |
+| `TeamAvailability` | Equipo, ausencias, horarios y los turnos que ocupan — **API real** |
+| `UpcomingAppointments` | La jornada, con el próximo turno destacado — **API real** |
 | `TeamCard` | Equipo, ordenado por lo que hay que hacer — **API real** |
-| `RevenueCard` | Tres cortes de plata: el mes, lo que va de la semana y hoy — **mock** |
+| `RevenueCard` | Tres cortes de plata: el mes, lo que va de la semana y hoy — **API real** |
 
 **El tablero llena la pantalla.** El envoltorio de `main` es `min-h-full`, el
 calendario conserva su alto (`shrink-0`) y la grilla de las tres tarjetas se
@@ -385,6 +385,9 @@ Los halos necesitan `relative isolate` en el ancestro, y `overflow-x-clip` (nunc
 - `features/catalog/lib/assignments.test.ts` — la grilla de (empleado, sucursal)
 - `lib/pagination.test.ts` — la ventana de páginas, el rango y a dónde ir tras borrar
 - `features/customers/lib/customer.test.ts` — nombre, iniciales y la edad sin UTC
+- `features/appointments/lib/subscription.test.ts` — la ventana del aviso de deuda
+- `features/appointments/lib/fixtures.ts` — **no es un test**: el molde de turnos
+  que usan los demás, para no escribir veintipico de campos por caso
 - `features/appointments/lib/agenda.test.ts` — números de la semana, tablero del día, grilla del mes
 - `features/employees/lib/schedule.test.ts` — tramos de trabajo y solapamientos
 - `features/employees/lib/timeOff.test.ts` — ausencias: hora de pared vs instante
@@ -490,12 +493,8 @@ Relevada y no atendida todavía:
   `aria-label`, pero son 84 paradas de tabulación
 - `tsconfig` sin `noUncheckedIndexedAccess`
 - `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
-- **El 402 no está manejado.** Nace recién cuando se cableen los turnos: hoy
-  ningún endpoint que lo devuelva se llama desde el front
-- `/dashboard` y `/agenda` corren sobre `mockData`: **el backend ya tiene turnos (Fase 5)**, falta cablearlos
-- `formatPrice` (`lib/format.ts`) tiene la moneda fija en ARS y recibe **pesos**;
-  el catálogo ya usa `formatCents`, que lee la moneda. Falta migrar las pantallas
-  del mock cuando dejen de serlo
+- `useTeamTimeOff` y `useAssignableEmployees` hacen N pedidos (uno por empleado)
+  porque la API no expone esos datos juntos. Alcanza para los planes actuales
 - `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
   ausencias del tenant juntas. Alcanza para los planes actuales
 
@@ -508,6 +507,71 @@ Relevada y no atendida todavía:
 
 La regla de contraseña vive en `validateNewPassword`; `newPasswordSchema` la reusa
 con un `superRefine` en vez de reescribirla, para que no se desincronice.
+
+## Turnos reales — el mock está muerto
+`/dashboard`, `/agenda` y `/reportes` corren sobre `/appointments`. Se fueron
+`features/appointments/data/mockData.ts` y `lib/format.ts`.
+
+**Diez cosas que no son obvias:**
+
+1. **La API manda instantes; el calendario dibuja horas de pared.** Son dos cosas
+   distintas —las 12:00 UTC son las 9 acá—, y la conversión pasa por
+   `splitInstant` / `toInstant` en `lib/time.ts` y por `toAppointment` en
+   `services/appointments.ts`, **por ningún otro lado**. El tipo `Appointment` es
+   el de la API **más** `day`, `startTime` y `endTime`, que son derivados: nadie
+   los manda de vuelta
+2. **Los estados son siete, no cinco.** Hay **dos formas de cancelar** —quién
+   canceló decide la política de devolución— y `RESCHEDULED` no es una baja: es
+   el turno *viejo*, enlazado con el nuevo por `rescheduledFromId`/`ToId`
+3. **`NO_SHOW` ocupa la agenda; las cancelaciones y `RESCHEDULED` no.** Está en
+   `ocupaAgenda()`, y de ahí sale tanto la carga del calendario de Inicio como
+   qué se dibuja en la grilla
+4. **Los estados finales son finales.** El modal ofrecía "Reabrir" un turno
+   cancelado y eso daba 409. Ahora las acciones salen de `TRANSICIONES`, así que
+   no puede volver a desincronizarse
+5. **Un turno puede encadenar varios servicios.** `services` es una lista, y por
+   eso `revenueByService` cuenta **renglones, no turnos**: un corte + color suma
+   en los dos. `serviceName()` los muestra como "Corte + Color"
+6. **El precio está congelado al reservar.** Se muestra `totalPriceCents` del
+   turno, **nunca** el del servicio: el catálogo pudo cambiar después
+7. **`formatPrice` se borró.** Recibía **pesos** y convivía con datos en
+   centavos; esa convivencia ya costó dos bugs de cien veces el monto.
+   `formatCents` es el único formateador de plata
+8. **La API no guarda un color por empleado.** Sale de `personColor(id).hex`, la
+   misma paleta del calendario de ausencias: la misma persona, el mismo color en
+   todo el panel
+9. **La grilla se estira para que entre lo que haya.** 8–20 es el piso, no el
+   techo: un turno de 19:55 a 20:50 se dibujaba fuera de la caja. Lo resuelve
+   `gridRange()`, testeado
+10. **`GET /appointments` va por rango, no paginado**, hasta 92 días. Un turno
+    que arranca el día anterior y termina dentro del rango **también viene**
+
+### Agendar
+`BookingModal`. El orden de los campos es el del mostrador: primero quién viene,
+después qué se hace, y recién ahí los horarios.
+
+- **`availability` no recorta los slots pasados**: describe lo que el horario
+  permite, no lo que todavía se puede reservar. El corte lo pone la pantalla, y
+  usa `dataUpdatedAt` —cuándo llegó la respuesta— y no el reloj de cada render:
+  leerlo en render no es puro y haría desaparecer un horario mientras lo mirás
+- **Los slots duran duración + buffer**, así que el último del día termina antes
+  del cierre. No es un bug, y el formulario lo dice
+- **`branchClosed` distingue "cerrado" de "sin lugar"**: los dos devuelven
+  `slots: []` y el cartel que corresponde es distinto
+- **El 409 no es un error a reintentar**: alguien tomó el hueco. Se refresca la
+  disponibilidad y se ofrece otro horario
+- **El 402 es la suscripción impaga**, y es 402 y no 403 justamente para poder
+  distinguirlo de un problema de permisos. El aviso preventivo sale de
+  `deudaVisible()` y vive **en la ventana entre atrasarse y ser bloqueado**: antes
+  no hay nada que decir, después lo dice el error. **Ver, cancelar y reprogramar
+  siguen andando aunque deba**
+
+⚠️ **La demo arranca sin ningún turno.** `npm run seed:demo` carga negocio,
+equipo, catálogo y clientes, pero no agenda nada: las tres pantallas se ven
+vacías hasta que alguien reserve. No está roto.
+
+⚠️ **El backend limita las escrituras (~10 por ventana) y el login más todavía
+(5).** Un 429 es el throttler, no un fallo. Importa al sembrar datos de prueba.
 
 ## Clientes — el teléfono es la identidad
 `/clientes` es la primera pantalla **paginada** y la primera que trata un error
@@ -686,9 +750,9 @@ Acordado con Franco, en orden:
 ---
 
 **⚠️ El backend cerró la Fase 6 (pagos y suscripción).** El front venía dos fases
-atrás y ya recuperó la 3 y la 4: **64 de 86 endpoints cableados**. Auth, negocio,
-sucursales, equipo, catálogo y clientes están completos; siguen **sin ninguna
-pantalla que los toque: turnos, pagos y suscripción**. Nada de lo que sigue necesita tocar el
+atrás y ya recuperó la 3, la 4 y la 5: **71 de 86 endpoints cableados**. Auth,
+negocio, sucursales, equipo, catálogo, clientes y turnos están completos; siguen
+sin pantalla **los pagos y el detalle de la suscripción**. Nada de lo que sigue necesita tocar el
 backend: los endpoints existen, andan y están testeados. El detalle de cada uno,
 en `docs/api-contract.md`; qué cambió y qué rompe, en `docs/api-changelog.md`.
 
@@ -734,24 +798,23 @@ pregunta. Las trampas quedaron en "Clientes — el teléfono es la identidad", m
 arriba. **La paginación quedó resuelta para las que vienen**: `lib/pagination.ts`
 y el componente `Pagination`, que solo recibe un `meta` y no sabe de clientes.
 
-### 12. Turnos reales — matar el mock
-El más grande. Borra `features/appointments/data/mockData.ts` y `lib/roster.ts`, y
-`/dashboard`, `/agenda` y `/reportes` dejan de ser mock **los tres juntos**.
-`AppointmentFormModal` ya existe pero no postea a ningún lado.
+### 12. ~~Turnos reales~~ ✅ hecho
+`mockData.ts` y `lib/format.ts` se borraron; `/dashboard`, `/agenda` y
+`/reportes` corren sobre la API. Las trampas quedaron en "Turnos reales — el mock
+está muerto", más arriba. **El 402 del punto 9 se hizo acá**, que es donde nacía.
 
-- `GET /appointments/availability` da los huecos libres con todo restado;
-  `POST /appointments` acepta **cualquier horario que entre** en el tiempo libre —
-  no hace falta un slot exacto
-- **El precio se congela al reservar**: mostrar `totalPriceCents` del turno, nunca
-  el del servicio
-- **Un 409 al agendar es un caso normal** (alguien tomó el hueco primero), no un
-  error a reintentar
-- Las series recurrentes **saltean** las fechas ocupadas y las devuelven en
-  `skipped`: hay que mostrarlas, si no el usuario cree que se agendaron todas
-- `lib/absenceKind.ts` **no se borra todavía**: la API sigue sin campo de tipo de
-  ausencia. Sí se va la constante del 15% en la carga del calendario de Inicio —
-  con los servicios de la Fase 3 el corte del amarillo pasa a ser "no entra ni el
-  más corto"
+Lo que **no** entró y sigue pendiente:
+- **Series recurrentes.** `POST /appointments/recurring` existe y el servicio no
+  lo cablea todavía. Ojo cuando se haga: las fechas que no entran **se saltean**,
+  vuelven en `skipped`, y **hay que mostrarlas** o el usuario cree que se
+  agendaron todas
+- **Reprogramar desde la UI.** `rescheduleRequest` está escrito y probado por
+  tipos, pero ninguna pantalla lo llama
+- **Elegir el profesional al agendar.** Hoy se toma el primero que tenga libre el
+  hueco. `availability` acepta `employeeId` para filtrar
+- **Varios servicios en un turno.** El tipo y las cuentas ya lo soportan
+  (`services` es una lista); el formulario manda uno solo
+- `lib/absenceKind.ts` sigue: la API todavía no tiene campo de tipo de ausencia
 
 ### 13. Cobros
 - `GET /appointments/:id/payments` devuelve `{ balance, payments }`. **Usar

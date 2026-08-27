@@ -6,6 +6,7 @@ import { Panel, PanelHeader, PanelLink } from "@/components/Panel"
 import { cn } from "@/lib/utils"
 import { STATUS_BADGE, STATUS_LABELS } from "@/features/appointments/lib/status"
 import type { Appointment } from "@/types"
+import { customerName, employeeColor, serviceName } from "@/features/appointments/lib/display"
 import { nextUpIndex, nextUpLabel } from "../lib/agenda"
 
 /** Cuántos entran en la lista sin que la tarjeta crezca de más. */
@@ -80,9 +81,9 @@ function NextUp({ appointment, label }: { appointment: Appointment; label: strin
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[15px] font-semibold tracking-tight text-amber-950">
-            {appointment.patient.name}
+            {customerName(appointment)}
           </p>
-          <p className="truncate text-[13px] text-amber-900/80">{appointment.service.name}</p>
+          <p className="truncate text-[13px] text-amber-900/80">{serviceName(appointment)}</p>
         </div>
         <span className="shrink-0 rounded-full bg-white/75 px-2.5 py-1 text-[11px] font-medium text-amber-900">
           {label}
@@ -96,7 +97,7 @@ function NextUp({ appointment, label }: { appointment: Appointment; label: strin
         </span>
         <span className={chip}>
           <User size={12} aria-hidden />
-          {appointment.professional.name}
+          {appointment.employee.name}
         </span>
       </div>
     </div>
@@ -118,11 +119,11 @@ function Row({ appointment, past }: { appointment: Appointment; past: boolean })
       <span
         aria-hidden
         className="size-2 shrink-0 rounded-full"
-        style={{ backgroundColor: appointment.professional.color }}
+        style={{ backgroundColor: employeeColor(appointment) }}
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-neutral-900">{appointment.patient.name}</p>
-        <p className="truncate text-xs text-neutral-500">{appointment.service.name}</p>
+        <p className="truncate text-[13px] font-medium text-neutral-900">{customerName(appointment)}</p>
+        <p className="truncate text-xs text-neutral-500">{serviceName(appointment)}</p>
       </div>
       <span
         className={cn(

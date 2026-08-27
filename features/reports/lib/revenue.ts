@@ -4,12 +4,16 @@ import type { Appointment, AppointmentStatus } from "@/types"
 /**
  * Estados que suman plata.
  *
- * `completed` ya se atendió: es plata hecha. `confirmed` está agendado y en pie,
- * así que se cuenta como plata que va a entrar. Los otros tres no suman:
- * `pending` todavía puede no confirmarse, y `cancelled` y `no_show` no ocurrieron.
+ * `ATTENDED` ya se atendió: es plata hecha. `CONFIRMED` está agendado y en pie,
+ * así que se cuenta como plata que va a entrar. Los otros cinco no suman:
+ * `PENDING_PAYMENT` todavía puede no confirmarse, y las cancelaciones, la
+ * ausencia y el turno viejo de una reprogramación no ocurrieron.
+ *
+ * **Todos los montos van en centavos**, como los devuelve la API. La conversión
+ * a pesos es cosa de la pantalla, con `formatCents`.
  */
-const ATENDIDO: AppointmentStatus = "completed"
-const AGENDADO: AppointmentStatus = "confirmed"
+const ATENDIDO: AppointmentStatus = "ATTENDED"
+const AGENDADO: AppointmentStatus = "CONFIRMED"
 
 export interface Revenue {
   /** Todo lo que suma: atendido + agendado. */
@@ -28,7 +32,7 @@ export interface Revenue {
 
 /** ¿El turno cae en el mes "YYYY-MM"? */
 function esDelMes(appointment: Appointment, month: string): boolean {
-  return appointment.date.startsWith(month)
+  return appointment.day.startsWith(month)
 }
 
 function esFacturable(appointment: Appointment): boolean {
@@ -37,11 +41,11 @@ function esFacturable(appointment: Appointment): boolean {
 
 /** El día del mes de un turno, sin construir un `Date`. */
 function diaDe(appointment: Appointment): number {
-  return Number(appointment.date.slice(8, 10))
+  return Number(appointment.day.slice(8, 10))
 }
 
 function totalDe(appointments: Appointment[]): number {
-  return appointments.reduce((total, appointment) => total + appointment.service.price, 0)
+  return appointments.reduce((total, appointment) => total + appointment.totalPriceCents, 0)
 }
 
 /**
@@ -62,14 +66,14 @@ export function monthRevenue(appointments: Appointment[], month: string): Revenu
  * app: pedirla desde afuera sería recopiar acá qué estado suma y cuál no.
  */
 export function rangeBreakdown(appointments: Appointment[], from: string, to: string): Revenue {
-  return desglose(appointments.filter((a) => a.date >= from && a.date <= to))
+  return desglose(appointments.filter((a) => a.day >= from && a.day <= to))
 }
 
 function desglose(appointments: Appointment[]): Revenue {
   const sumar = (status: AppointmentStatus) =>
     appointments
       .filter((appointment) => appointment.status === status)
-      .reduce((total, appointment) => total + appointment.service.price, 0)
+      .reduce((total, appointment) => total + appointment.totalPriceCents, 0)
 
   const atendido = sumar(ATENDIDO)
   const agendado = sumar(AGENDADO)
@@ -80,7 +84,7 @@ function desglose(appointments: Appointment[]): Revenue {
     total,
     atendido,
     agendado,
-    sinConfirmar: sumar("pending"),
+    sinConfirmar: sumar("PENDING_PAYMENT"),
     turnos,
     // Sin turnos el promedio no es cero: no existe. Devolver 0 evita un NaN en
     // pantalla y se lee igual de bien con la etiqueta al lado.
@@ -96,11 +100,23 @@ export interface RevenueSlice {
   share: number
 }
 
-/** Reparte la facturación del mes por una clave del turno, de mayor a menor. */
+/** Un renglón del corte: a qué se le atribuye cuánta plata. */
+interface Renglon {
+  label: string
+  cents: number
+}
+
+/**
+ * Reparte la facturación del mes de mayor a menor.
+ *
+ * `renglones` devuelve **una lista** y no un solo par porque un turno puede
+ * encadenar varios servicios con el mismo profesional. Por profesional es un
+ * renglón; por servicio, uno por cada uno con su propio precio congelado.
+ */
 function sliceBy(
   appointments: Appointment[],
   month: string,
-  key: (appointment: Appointment) => string,
+  renglones: (appointment: Appointment) => Renglon[],
 ): RevenueSlice[] {
   const acumulado = new Map<string, { total: number; turnos: number }>()
 
@@ -108,12 +124,10 @@ function sliceBy(
     if (!esDelMes(appointment, month)) continue
     if (appointment.status !== ATENDIDO && appointment.status !== AGENDADO) continue
 
-    const label = key(appointment)
-    const previo = acumulado.get(label) ?? { total: 0, turnos: 0 }
-    acumulado.set(label, {
-      total: previo.total + appointment.service.price,
-      turnos: previo.turnos + 1,
-    })
+    for (const { label, cents } of renglones(appointment)) {
+      const previo = acumulado.get(label) ?? { total: 0, turnos: 0 }
+      acumulado.set(label, { total: previo.total + cents, turnos: previo.turnos + 1 })
+    }
   }
 
   const total = [...acumulado.values()].reduce((suma, item) => suma + item.total, 0)
@@ -130,12 +144,24 @@ function sliceBy(
     .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "es"))
 }
 
+/**
+ * Por servicio.
+ *
+ * **Cuenta renglones, no turnos**: un turno de corte + color suma en los dos, con
+ * el precio que cada uno tenía al reservarse. Por eso la suma de `turnos` de este
+ * corte puede ser mayor que la cantidad de turnos del mes, y está bien: la
+ * pregunta es "cuánto trajo cada servicio", no "cuántas veces vino gente".
+ */
 export function revenueByService(appointments: Appointment[], month: string): RevenueSlice[] {
-  return sliceBy(appointments, month, (appointment) => appointment.service.name)
+  return sliceBy(appointments, month, (appointment) =>
+    appointment.services.map((service) => ({ label: service.name, cents: service.priceCents })),
+  )
 }
 
 export function revenueByProfessional(appointments: Appointment[], month: string): RevenueSlice[] {
-  return sliceBy(appointments, month, (appointment) => appointment.professional.name)
+  return sliceBy(appointments, month, (appointment) => [
+    { label: appointment.employee.name, cents: appointment.totalPriceCents },
+  ])
 }
 
 /** "Agosto" a partir de "2026-08". Para titular el período. */
@@ -273,7 +299,7 @@ export function rangeRevenue(
 ): RevenueSnapshot {
   // "YYYY-MM-DD" ordena igual como texto que como fecha: alcanza con comparar
   // las cadenas, sin construir un `Date` por turno.
-  return snapshotDe(appointments.filter((a) => a.date >= from && a.date <= to))
+  return snapshotDe(appointments.filter((a) => a.day >= from && a.day <= to))
 }
 
 /** Lo facturado en un día puntual. */

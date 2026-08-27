@@ -1,6 +1,7 @@
 import { dateToStr, timeToMinutes } from "@/lib/time"
 import { rangeBreakdown } from "@/features/reports/lib/revenue"
 import type { Appointment, AppointmentStatus } from "@/types"
+import { estaCancelado, noOcurrio } from "./status"
 
 export interface WeekStats {
   /** Todos los turnos de la semana, cancelados incluidos. */
@@ -13,18 +14,20 @@ export interface WeekStats {
 }
 
 const ESTADOS_VACIOS: Record<AppointmentStatus, number> = {
-  pending: 0,
-  confirmed: 0,
-  completed: 0,
-  cancelled: 0,
-  no_show: 0,
+  PENDING_PAYMENT: 0,
+  CONFIRMED: 0,
+  ATTENDED: 0,
+  NO_SHOW: 0,
+  CANCELED_BY_CUSTOMER: 0,
+  CANCELED_BY_BUSINESS: 0,
+  RESCHEDULED: 0,
 }
 
 /** Cómo viene una semana: cuántos turnos, en qué estado y cuánta plata. */
 export function weekStats(appointments: Appointment[], week: Date[]): WeekStats {
   const desde = dateToStr(week[0]!)
   const hasta = dateToStr(week[week.length - 1]!)
-  const dentro = appointments.filter((a) => a.date >= desde && a.date <= hasta)
+  const dentro = appointments.filter((a) => a.day >= desde && a.day <= hasta)
 
   const porEstado = { ...ESTADOS_VACIOS }
   for (const appointment of dentro) porEstado[appointment.status]++
@@ -42,9 +45,9 @@ export function weekStats(appointments: Appointment[], week: Date[]): WeekStats 
 /**
  * Las cuatro columnas del día.
  *
- * `cancelled` y `no_show` van juntas: las dos significan que el turno no se
- * hizo, y separarlas daría una quinta columna casi siempre vacía. La ficha de
- * cada turno sigue diciendo cuál de las dos es.
+ * Las dos cancelaciones, la ausencia y el turno viejo de una reprogramación van
+ * a la misma: las cuatro significan que no se hizo, y separarlas daría cuatro
+ * columnas casi siempre vacías. La ficha de cada turno sigue diciendo cuál es.
  */
 export type BoardKey = "pending" | "confirmed" | "completed" | "off"
 
@@ -57,26 +60,28 @@ export interface BoardColumn {
   plata: number
 }
 
-const COLUMNAS: { key: BoardKey; estados: AppointmentStatus[] }[] = [
-  { key: "pending", estados: ["pending"] },
-  { key: "confirmed", estados: ["confirmed"] },
-  { key: "completed", estados: ["completed"] },
-  { key: "off", estados: ["cancelled", "no_show"] },
+const COLUMNAS: { key: BoardKey; incluye: (status: AppointmentStatus) => boolean }[] = [
+  { key: "pending", incluye: (s) => s === "PENDING_PAYMENT" },
+  { key: "confirmed", incluye: (s) => s === "CONFIRMED" },
+  { key: "completed", incluye: (s) => s === "ATTENDED" },
+  { key: "off", incluye: noOcurrio },
 ]
 
 export function boardColumns(appointments: Appointment[], day: Date): BoardColumn[] {
   const key = dateToStr(day)
   const delDia = appointments
-    .filter((a) => a.date === key)
+    .filter((a) => a.day === key)
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
 
-  return COLUMNAS.map(({ key: columna, estados }) => {
-    const items = delDia.filter((a) => estados.includes(a.status))
+  return COLUMNAS.map(({ key: columna, incluye }) => {
+    const items = delDia.filter((a) => incluye(a.status))
     return {
       key: columna,
       items,
       minutos: items.reduce((t, a) => t + timeToMinutes(a.endTime) - timeToMinutes(a.startTime), 0),
-      plata: items.reduce((t, a) => t + a.service.price, 0),
+      // `totalPriceCents`, el precio **congelado al reservar**: el del catálogo
+      // pudo cambiar después y este turno no se movió.
+      plata: items.reduce((t, a) => t + a.totalPriceCents, 0),
     }
   })
 }
@@ -90,8 +95,8 @@ export function boardColumns(appointments: Appointment[], day: Date): BoardColum
  */
 export function elapsedFraction(appointment: Appointment, now: Date): number {
   const hoy = dateToStr(now)
-  if (appointment.date < hoy) return 1
-  if (appointment.date > hoy) return 0
+  if (appointment.day < hoy) return 1
+  if (appointment.day > hoy) return 0
 
   const inicio = timeToMinutes(appointment.startTime)
   const fin = timeToMinutes(appointment.endTime)
@@ -138,11 +143,13 @@ export function monthCells(reference: Date, appointments: Appointment[], now: Da
 
   const porDia = new Map<string, Appointment[]>()
   for (const appointment of appointments) {
-    // Los cancelados no cuentan como carga del día: nadie los va a atender.
-    if (appointment.status === "cancelled") continue
-    const lista = porDia.get(appointment.date)
+    // Los cancelados no cuentan como carga del día: nadie los va a atender. Un
+    // `RESCHEDULED` tampoco —su hueco quedó libre—, pero un `NO_SHOW` sí: esa
+    // hora estuvo tomada igual.
+    if (estaCancelado(appointment.status) || appointment.status === "RESCHEDULED") continue
+    const lista = porDia.get(appointment.day)
     if (lista) lista.push(appointment)
-    else porDia.set(appointment.date, [appointment])
+    else porDia.set(appointment.day, [appointment])
   }
 
   return Array.from({ length: SEMANAS_DEL_MES * 7 }, (_, index) => {
@@ -161,7 +168,7 @@ export function monthCells(reference: Date, appointments: Appointment[], now: Da
       isToday: key === hoy,
       isSunday: date.getDay() === 0,
       count: delDia.length,
-      professionals: [...new Set(delDia.map((a) => a.professionalId))],
+      professionals: [...new Set(delDia.map((a) => a.employee.id))],
     }
   })
 }
@@ -175,4 +182,33 @@ export function monthCells(reference: Date, appointments: Appointment[], now: Da
  */
 export function busiestDay(cells: MonthCell[]): number {
   return cells.reduce((max, cell) => (cell.count > max ? cell.count : max), 0)
+}
+
+/**
+ * El rango de horas que tiene que dibujar la grilla para que no se corte nada.
+ *
+ * `HORA_INICIO`/`HORA_FIN` son el piso, no el techo. Con el rango fijo en 8–20,
+ * un turno que arranca 19:55 y termina 20:50 se dibujaba fuera de la caja y se
+ * cortaba solo. Los horarios los define cada negocio y pueden pasarse.
+ *
+ * Se redondea a la hora entera —para abajo al empezar, para arriba al terminar—
+ * para que la primera y la última fila sigan siendo horas completas y la regla
+ * de la izquierda no quede con medias horas.
+ */
+export function gridRange(
+  appointments: Appointment[],
+  piso = 8,
+  techo = 20,
+): { desde: number; hasta: number } {
+  let desde = piso
+  let hasta = techo
+
+  for (const appointment of appointments) {
+    desde = Math.min(desde, Math.floor(timeToMinutes(appointment.startTime) / 60))
+    hasta = Math.max(hasta, Math.ceil(timeToMinutes(appointment.endTime) / 60))
+  }
+
+  // 24 no existe como hora de arranque de fila: un turno que cruza la medianoche
+  // se corta ahí, que es lo correcto para la grilla de **un** día.
+  return { desde: Math.max(0, desde), hasta: Math.min(24, hasta) }
 }

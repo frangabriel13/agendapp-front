@@ -4,10 +4,11 @@ import { X, Clock, User, Stethoscope, Phone, FileText, Pencil, Check, XCircle, C
 import type { LucideIcon } from "lucide-react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { Appointment, AppointmentStatus } from "@/types"
-import { STATUS_BADGE, STATUS_LABELS } from "../lib/status"
+import { STATUS_BADGE, STATUS_LABELS, TRANSICIONES } from "../lib/status"
+import { customerName, employeeColor, serviceName } from "../lib/display"
 import { cta } from "@/components/CtaLink"
 import { cn } from "@/lib/utils"
-import { formatPrice } from "@/lib/format"
+import { formatCents } from "@/features/catalog/lib/money"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + "T12:00:00")
@@ -21,19 +22,25 @@ interface Props {
   onEdit: () => void
 }
 
-const ACTIONS: Record<AppointmentStatus, { status: AppointmentStatus; label: string; icon: LucideIcon; tone: "primary" | "muted" | "danger" }[]> = {
-  pending: [
-    { status: "confirmed", label: "Confirmar", icon: Check, tone: "primary" },
-    { status: "cancelled", label: "Cancelar", icon: XCircle, tone: "danger" },
-  ],
-  confirmed: [
-    { status: "completed", label: "Completado", icon: CheckCheck, tone: "primary" },
-    { status: "no_show", label: "No asistió", icon: UserX, tone: "muted" },
-    { status: "cancelled", label: "Cancelar", icon: XCircle, tone: "danger" },
-  ],
-  completed: [],
-  cancelled: [{ status: "pending", label: "Reabrir", icon: Check, tone: "muted" }],
-  no_show: [{ status: "pending", label: "Reabrir", icon: Check, tone: "muted" }],
+type Tone = "primary" | "muted" | "danger"
+
+/**
+ * Cómo se ofrece cada destino. **Cuáles se ofrecen sale de `TRANSICIONES`**, no
+ * de una lista escrita acá: el backend rechaza una transición inválida con 409, y
+ * dos listas separadas se desincronizan sin que nada avise.
+ *
+ * Antes esto ofrecía "Reabrir" un turno cancelado. **No se puede**: cancelado,
+ * atendido, ausente y reprogramado son estados finales, así que ese botón daba
+ * 409. Lo correcto para volver atrás es agendar de nuevo.
+ */
+const DESTINO: Record<AppointmentStatus, { label: string; icon: LucideIcon; tone: Tone }> = {
+  PENDING_PAYMENT: { label: "Marcar sin seña", icon: Clock, tone: "muted" },
+  CONFIRMED: { label: "Confirmar", icon: Check, tone: "primary" },
+  ATTENDED: { label: "Atendido", icon: CheckCheck, tone: "primary" },
+  NO_SHOW: { label: "No asistió", icon: UserX, tone: "muted" },
+  CANCELED_BY_CUSTOMER: { label: "Canceló el cliente", icon: XCircle, tone: "danger" },
+  CANCELED_BY_BUSINESS: { label: "Cancelar", icon: XCircle, tone: "danger" },
+  RESCHEDULED: { label: "Reprogramado", icon: Clock, tone: "muted" },
 }
 
 const TONE: Record<"primary" | "muted" | "danger", string> = {
@@ -45,8 +52,8 @@ const TONE: Record<"primary" | "muted" | "danger", string> = {
 }
 
 export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit }: Props) {
-  const { patient, professional, service, date, startTime, endTime, status, notes } = appointment
-  const actions = ACTIONS[status]
+  const { startTime, endTime, status, notes } = appointment
+  const actions = TRANSICIONES[status].map((destino) => ({ status: destino, ...DESTINO[destino] }))
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
@@ -57,8 +64,8 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
       >
         <div className="flex items-start justify-between px-6 py-5 border-b border-black/[0.06]">
           <div>
-            <p className="text-xs text-neutral-400 mb-1 capitalize">{formatDate(date)}</p>
-            <DialogTitle className="text-lg font-bold text-neutral-900">{patient.name}</DialogTitle>
+            <p className="text-xs text-neutral-400 mb-1 capitalize">{formatDate(appointment.day)}</p>
+            <DialogTitle className="text-lg font-bold text-neutral-900">{customerName(appointment)}</DialogTitle>
             <span className={`inline-block text-xs px-2 py-0.5 rounded-full border mt-1 ${STATUS_BADGE[status]}`}>
               {STATUS_LABELS[status]}
             </span>
@@ -73,26 +80,32 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
 
         <div className="px-6 py-5 space-y-4">
           <Row icon={<Stethoscope size={15} />} label="Servicio">
-            <span className="font-medium text-neutral-900">{service.name}</span>
-            <span className="text-neutral-400 text-xs ml-1">— {formatPrice(service.price)}</span>
+            <span className="font-medium text-neutral-900">{serviceName(appointment)}</span>
+            {/* `totalPriceCents`: el precio **congelado al reservar**. El del catálogo
+                pudo cambiar después y este turno no se mueve. */}
+            <span className="text-neutral-400 text-xs ml-1">
+              — {formatCents(appointment.totalPriceCents)}
+            </span>
           </Row>
 
           <Row icon={<Clock size={15} />} label="Horario">
             <span className="font-medium text-neutral-900">{startTime} – {endTime}</span>
-            <span className="text-neutral-400 text-xs ml-1">({service.duration} min)</span>
+            <span className="text-neutral-400 text-xs ml-1">
+              ({appointment.services.reduce((t, x) => t + x.durationMinutes, 0)} min)
+            </span>
           </Row>
 
           <Row icon={<User size={15} />} label="Profesional">
             <span
               className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 shrink-0"
-              style={{ backgroundColor: professional.color }}
+              style={{ backgroundColor: employeeColor(appointment) }}
             />
-            <span className="font-medium text-neutral-900">{professional.name}</span>
-            <span className="text-neutral-400 text-xs ml-1">— {professional.specialty}</span>
+            <span className="font-medium text-neutral-900">{appointment.employee.name}</span>
+            <span className="text-neutral-400 text-xs ml-1">— {appointment.branch.name}</span>
           </Row>
 
           <Row icon={<Phone size={15} />} label="Teléfono">
-            <span className="font-medium text-neutral-900">{patient.phone}</span>
+            <span className="font-medium text-neutral-900">{appointment.customer.phone}</span>
           </Row>
 
           {notes && (

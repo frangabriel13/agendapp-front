@@ -1,6 +1,6 @@
 import { Panel, PanelHeader } from "@/components/Panel"
 import { cn } from "@/lib/utils"
-import { formatPrice } from "@/lib/format"
+import { formatCents } from "@/features/catalog/lib/money"
 import type { RevenueSlice } from "../lib/revenue"
 
 /**
@@ -45,7 +45,7 @@ export function RevenueBreakdown({
                     "w-24 shrink-0 text-right text-[13px] font-semibold text-neutral-900 tabular-nums",
                   )}
                 >
-                  {formatPrice(slice.total)}
+                  {formatCents(slice.total)}
                 </span>
               </div>
             </li>

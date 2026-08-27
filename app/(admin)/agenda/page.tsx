@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CalendarDays, Plus } from "lucide-react"
+import { CalendarDays, Plus, RotateCw } from "lucide-react"
 import { Page } from "../ui/Page"
 import { Panel, PanelHeader, pillClasses } from "@/components/Panel"
 import { cta } from "@/components/CtaLink"
@@ -9,22 +9,14 @@ import { cn } from "@/lib/utils"
 import { dateToStr } from "@/lib/time"
 import { AgendaCalendar } from "@/features/appointments/components/AgendaCalendar"
 import { AppointmentModal } from "@/features/appointments/components/AppointmentModal"
-import { AppointmentFormModal } from "@/features/appointments/components/AppointmentFormModal"
+import { BookingModal } from "@/features/appointments/components/BookingModal"
 import { DayBoard } from "@/features/appointments/components/DayBoard"
 import { WeekSummary } from "@/features/appointments/components/WeekSummary"
 import { getWeekDates } from "@/features/appointments/lib/week"
-import { mockAppointments, mockProfessionals, mockServices } from "@/features/appointments/data/mockData"
+import { useChangeStatus, useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
+import { quienesAtienden } from "@/features/appointments/lib/display"
+import { apiErrorMessage } from "@/lib/errors"
 import type { Appointment, AppointmentStatus } from "@/types"
-
-interface FormState {
-  mode: "create" | "edit"
-  initial: {
-    date: string
-    startTime: string
-    professionalId?: string
-    appointment?: Appointment
-  }
-}
 
 /**
  * La agenda, en tres bandas.
@@ -38,9 +30,8 @@ interface FormState {
  * cambiarían debajo del mouse al pasar de semana para mirar algo.
  */
 export default function AgendaPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments)
   const [detailId, setDetailId] = useState<string | null>(null)
-  const [form, setForm] = useState<FormState | null>(null)
+  const [booking, setBooking] = useState<Date | null>(null)
   const [status, setStatus] = useState<AppointmentStatus | "all">("all")
 
   // Se fija al montar: si se recalculara en cada render, cruzar la medianoche
@@ -48,30 +39,26 @@ export default function AgendaPage() {
   const now = useMemo(() => new Date(), [])
   const week = useMemo(() => getWeekDates(now), [now])
 
+  /**
+   * Se pide **el mes entero de una vez**, no la semana visible: moverse entre
+   * semanas dentro del mes no dispara una request por paso, y el resumen de la
+   * banda de arriba necesita la semana en curso aunque el calendario esté
+   * mirando otra.
+   */
+  const query = useMonthAppointments(now)
+  const appointments = query.data ?? []
+  const cambiarEstado = useChangeStatus()
+
   const detail = appointments.find((a) => a.id === detailId) ?? null
+  const equipo = quienesAtienden(appointments)
 
-  function openSlot(date: string, startTime: string) {
-    setForm({ mode: "create", initial: { date, startTime } })
-  }
-
-  function openEdit(appointment: Appointment) {
-    setDetailId(null)
-    setForm({
-      mode: "edit",
-      initial: { date: appointment.date, startTime: appointment.startTime, appointment },
-    })
-  }
-
-  function handleSubmit(appointment: Appointment) {
-    setAppointments((prev) => {
-      const exists = prev.some((a) => a.id === appointment.id)
-      return exists ? prev.map((a) => (a.id === appointment.id ? appointment : a)) : [...prev, appointment]
-    })
-    setForm(null)
-  }
+  // Antes los turnos eran locales y siempre estaban; ahora viajan, y las tres
+  // bandas dirían "0 turnos" mientras cargan. Un cero es una afirmación.
+  if (query.isPending) return <AgendaCargando />
+  if (query.isError) return <AgendaCaida error={query.error} onRetry={() => query.refetch()} />
 
   function changeStatus(appointment: Appointment, next: AppointmentStatus) {
-    setAppointments((prev) => prev.map((a) => (a.id === appointment.id ? { ...a, status: next } : a)))
+    cambiarEstado.mutate({ id: appointment.id, status: next })
   }
 
   return (
@@ -88,7 +75,7 @@ export default function AgendaPage() {
               </span>
               <button
                 type="button"
-                onClick={() => openSlot(dateToStr(now), "09:00")}
+                onClick={() => setBooking(now)}
                 className={cn(cta({ size: "sm" }))}
               >
                 <Plus size={16} aria-hidden />
@@ -121,13 +108,13 @@ export default function AgendaPage() {
       <Panel className="overflow-hidden">
         <AgendaCalendar
           appointments={appointments}
-          professionals={mockProfessionals}
+          professionals={equipo}
           now={now}
           selectedId={detailId}
           status={status}
           onStatus={setStatus}
           onAppointmentClick={(a) => setDetailId(a.id)}
-          onSlotClick={openSlot}
+          onSlotClick={(date) => setBooking(new Date(`${date}T12:00:00`))}
         />
       </Panel>
 
@@ -136,27 +123,61 @@ export default function AgendaPage() {
           appointment={detail}
           onClose={() => setDetailId(null)}
           onChangeStatus={(next) => changeStatus(detail, next)}
-          onEdit={() => openEdit(detail)}
+          onEdit={() => setBooking(new Date(`${detail.day}T12:00:00`))}
         />
       )}
 
-      {form && (
-        <AppointmentFormModal
-          mode={form.mode}
-          professionals={mockProfessionals}
-          services={mockServices}
-          initial={form.initial}
-          onClose={() => setForm(null)}
-          onSubmit={handleSubmit}
-        />
-      )}
+      <BookingModal
+        open={booking !== null}
+        day={booking ?? now}
+        onClose={() => setBooking(null)}
+      />
+    </Page>
+  )
+}
+
+function AgendaCargando() {
+  return (
+    <Page width="full" className="flex flex-col gap-3">
+      <Panel>
+        <div className="h-28 animate-pulse rounded-xl bg-neutral-100" />
+      </Panel>
+      <Panel>
+        <div className="h-44 animate-pulse rounded-xl bg-neutral-100" />
+      </Panel>
+      <Panel className="flex-1">
+        <div className="h-full min-h-64 animate-pulse rounded-xl bg-neutral-100" />
+      </Panel>
+    </Page>
+  )
+}
+
+function AgendaCaida({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  return (
+    <Page width="full" className="flex flex-col gap-3">
+      <Panel>
+        <div className="px-2 py-12 text-center">
+          <p className="text-sm font-medium text-neutral-900">No pudimos cargar la agenda</p>
+          <p className="mx-auto mt-1 max-w-sm text-[13px] text-neutral-500">
+            {apiErrorMessage(error, "Revisá tu conexión y probá de nuevo.")}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className={cn(cta({ variant: "outline", size: "sm" }), "mt-5")}
+          >
+            <RotateCw size={15} />
+            Reintentar
+          </button>
+        </div>
+      </Panel>
     </Page>
   )
 }
 
 function deHoy(appointments: Appointment[], now: Date): number {
   const key = dateToStr(now)
-  return appointments.filter((a) => a.date === key).length
+  return appointments.filter((a) => a.day === key).length
 }
 
 function rango(week: Date[]): string {

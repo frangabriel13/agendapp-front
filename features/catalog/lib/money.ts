@@ -6,8 +6,10 @@
  * factor de 100 pasa desapercibido en el código y no en la factura—, así que la
  * conversión vive acá sola y nadie multiplica por 100 a mano.
  *
- * No se usa `formatPrice` de `lib/format.ts`: ese recibe pesos enteros y lo usan
- * las pantallas del mock. Mezclarlos es exactamente cómo se cuela el factor 100.
+ * **Es el único formateador de plata de la app.** Antes convivía con un
+ * `formatPrice` que recibía **pesos**, y esa convivencia ya costó dos bugs de
+ * cien veces el monto: mientras existan los dos, alguien va a llamar al que no
+ * era. `formatPrice` se borró.
  */
 
 /**
@@ -59,9 +61,9 @@ export function inputToCents(value: string): number | null {
 /**
  * Centavos → texto para mostrar.
  *
- * La moneda sale del negocio (`tenant.currency`) y no está fija en ARS: el
- * catálogo es la primera pantalla que trabaja con plata de verdad de la API, y
- * dejarla clavada acá sería heredar la deuda que ya arrastra `formatPrice`.
+ * La moneda es un parámetro con default y no una constante: cuando el panel
+ * atienda un negocio fuera de Argentina, sale de `tenant.currency` y este es el
+ * único lugar que se toca.
  */
 export function formatCents(cents: number, currency = "ARS"): string {
   return (cents / 100).toLocaleString("es-AR", {

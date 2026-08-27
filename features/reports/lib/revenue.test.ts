@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Appointment, AppointmentStatus } from "@/types"
+import { turno as base } from "@/features/appointments/lib/fixtures"
 import {
   dayRevenue,
   weekToDateRevenue,
@@ -10,33 +11,39 @@ import {
   revenueByService,
 } from "./revenue"
 
+/**
+ * **Los montos van en centavos**, como los devuelve la API. Los números de este
+ * archivo son chicos a propósito —22_000 centavos son $220—: lo que se prueba es
+ * la aritmética del corte, no el precio de un servicio real.
+ */
 const turno = (
-  date: string,
+  day: string,
   status: AppointmentStatus,
-  price: number,
+  cents: number,
   service = "HIFU",
   professional = "Valentina",
 ): Appointment =>
-  ({
-    id: `${date}-${service}-${price}`,
-    date,
+  base({
+    id: `${day}-${service}-${cents}`,
+    day,
     status,
-    service: { name: service, price },
-    professional: { name: professional },
-  }) as Appointment
+    cents,
+    employeeName: professional,
+    services: [{ name: service, priceCents: cents }],
+  })
 
 const AGOSTO = "2026-08"
 
 const AGENDA = [
-  turno("2026-08-03", "completed", 22_000, "Cavitación", "Sofía"),
-  turno("2026-08-10", "confirmed", 45_000, "HIFU Facial", "Valentina"),
-  turno("2026-08-10", "confirmed", 18_000, "Limpieza", "Camila"),
-  turno("2026-08-18", "confirmed", 28_000, "Hydrafacial", "Valentina"),
-  turno("2026-08-18", "pending", 65_000, "Liposonix", "Valentina"),
-  turno("2026-08-20", "cancelled", 40_000, "HIFU Facial", "Camila"),
-  turno("2026-08-21", "no_show", 30_000, "Limpieza", "Sofía"),
+  turno("2026-08-03", "ATTENDED", 22_000, "Cavitación", "Sofía"),
+  turno("2026-08-10", "CONFIRMED", 45_000, "HIFU Facial", "Valentina"),
+  turno("2026-08-10", "CONFIRMED", 18_000, "Limpieza", "Camila"),
+  turno("2026-08-18", "CONFIRMED", 28_000, "Hydrafacial", "Valentina"),
+  turno("2026-08-18", "PENDING_PAYMENT", 65_000, "Liposonix", "Valentina"),
+  turno("2026-08-20", "CANCELED_BY_CUSTOMER", 40_000, "HIFU Facial", "Camila"),
+  turno("2026-08-21", "NO_SHOW", 30_000, "Limpieza", "Sofía"),
   // Otro mes: no tiene que aparecer en ninguna cuenta.
-  turno("2026-07-30", "completed", 99_000, "HIFU Facial", "Valentina"),
+  turno("2026-07-30", "ATTENDED", 99_000, "HIFU Facial", "Valentina"),
 ]
 
 describe("monthRevenue", () => {
@@ -58,8 +65,8 @@ describe("monthRevenue", () => {
 
   it("no cuenta cancelados ni ausencias", () => {
     const soloDescartados = [
-      turno("2026-08-01", "cancelled", 50_000),
-      turno("2026-08-02", "no_show", 50_000),
+      turno("2026-08-01", "CANCELED_BY_CUSTOMER", 50_000),
+      turno("2026-08-02", "NO_SHOW", 50_000),
     ]
 
     expect(monthRevenue(soloDescartados, AGOSTO)).toMatchObject({ total: 0, turnos: 0 })
@@ -120,8 +127,8 @@ describe("revenueByProfessional", () => {
 
   it("empatados en plata, ordena alfabético para que no bailen entre renders", () => {
     const empate = [
-      turno("2026-08-01", "confirmed", 10_000, "A", "Zoe"),
-      turno("2026-08-02", "confirmed", 10_000, "B", "Ana"),
+      turno("2026-08-01", "CONFIRMED", 10_000, "A", "Zoe"),
+      turno("2026-08-02", "CONFIRMED", 10_000, "B", "Ana"),
     ]
 
     expect(revenueByProfessional(empate, AGOSTO).map((s) => s.label)).toEqual(["Ana", "Zoe"])
@@ -146,18 +153,18 @@ describe("monthOutlook", () => {
 
   const HISTORIAL = [
     // Julio, antes del 18.
-    turno("2026-07-05", "completed", 30_000),
-    turno("2026-07-12", "completed", 40_000),
+    turno("2026-07-05", "ATTENDED", 30_000),
+    turno("2026-07-12", "ATTENDED", 40_000),
     // Julio, después del 18: entra en el cierre pero no en la comparación.
-    turno("2026-07-25", "completed", 50_000),
+    turno("2026-07-25", "ATTENDED", 50_000),
     // Agosto, hasta hoy.
-    turno("2026-08-03", "completed", 22_000),
-    turno("2026-08-18", "confirmed", 45_000),
+    turno("2026-08-03", "ATTENDED", 22_000),
+    turno("2026-08-18", "CONFIRMED", 45_000),
     // Agosto, por venir.
-    turno("2026-08-20", "confirmed", 28_000),
+    turno("2026-08-20", "CONFIRMED", 28_000),
     // No suman.
-    turno("2026-08-19", "pending", 99_000),
-    turno("2026-07-08", "cancelled", 99_000),
+    turno("2026-08-19", "PENDING_PAYMENT", 99_000),
+    turno("2026-07-08", "CANCELED_BY_CUSTOMER", 99_000),
   ]
 
   it("el actual llega hasta hoy, no hasta fin de mes", () => {
@@ -179,7 +186,7 @@ describe("monthOutlook", () => {
   })
 
   it("sin registro del mes anterior no inventa un cero", () => {
-    const soloAgosto = HISTORIAL.filter((t) => t.date.startsWith("2026-08"))
+    const soloAgosto = HISTORIAL.filter((t) => t.day.startsWith("2026-08"))
     const outlook = monthOutlook(soloAgosto, HOY)
 
     expect(outlook.anteriorAlMismoDia).toBeNull()
@@ -191,8 +198,8 @@ describe("monthOutlook", () => {
   it("un mes anterior en cero no da variación infinita", () => {
     const anteriorVacio = [
       // Existe el registro del mes, pero nada facturable.
-      turno("2026-07-05", "cancelled", 30_000),
-      turno("2026-08-03", "completed", 22_000),
+      turno("2026-07-05", "CANCELED_BY_CUSTOMER", 30_000),
+      turno("2026-08-03", "ATTENDED", 22_000),
     ]
 
     expect(monthOutlook(anteriorVacio, HOY).variacion).toBeNull()
@@ -230,7 +237,7 @@ describe("monthOutlook", () => {
 
   it("cruza el cambio de año hacia atrás", () => {
     const enero = new Date(2027, 0, 10)
-    const outlook = monthOutlook([turno("2026-12-05", "completed", 10_000)], enero)
+    const outlook = monthOutlook([turno("2026-12-05", "ATTENDED", 10_000)], enero)
 
     expect(outlook.mes).toBe("2027-01")
     expect(outlook.mesAnterior).toBe("2026-12")
@@ -240,7 +247,7 @@ describe("monthOutlook", () => {
   it("un mes anterior más corto no rompe la comparación", () => {
     // 31 de marzo contra febrero, que tiene 28. "Hasta el día 31" es todo febrero.
     const marzo31 = new Date(2026, 2, 31)
-    const outlook = monthOutlook([turno("2026-02-27", "completed", 10_000)], marzo31)
+    const outlook = monthOutlook([turno("2026-02-27", "ATTENDED", 10_000)], marzo31)
 
     expect(outlook.anteriorAlMismoDia).toBe(10_000)
     expect(outlook.anteriorCierre).toBe(10_000)
@@ -260,18 +267,18 @@ describe("dayRevenue y weekToDateRevenue", () => {
 
   const SEMANAS = [
     // Semana anterior: lunes 10 a domingo 16.
-    turno("2026-08-10", "completed", 10_000),
-    turno("2026-08-14", "completed", 20_000),
-    turno("2026-08-16", "completed", 30_000),
-    turno("2026-08-16", "cancelled", 99_000),
+    turno("2026-08-10", "ATTENDED", 10_000),
+    turno("2026-08-14", "ATTENDED", 20_000),
+    turno("2026-08-16", "ATTENDED", 30_000),
+    turno("2026-08-16", "CANCELED_BY_CUSTOMER", 99_000),
     // Domingo 9: es de la semana de antes, queda afuera.
-    turno("2026-08-09", "completed", 77_000),
+    turno("2026-08-09", "ATTENDED", 77_000),
     // Lunes 17: ya es esta semana, queda afuera.
-    turno("2026-08-17", "completed", 55_000),
+    turno("2026-08-17", "ATTENDED", 55_000),
     // Hoy.
-    turno("2026-08-18", "completed", 40_000),
-    turno("2026-08-18", "confirmed", 25_000),
-    turno("2026-08-18", "pending", 99_000),
+    turno("2026-08-18", "ATTENDED", 40_000),
+    turno("2026-08-18", "CONFIRMED", 25_000),
+    turno("2026-08-18", "PENDING_PAYMENT", 99_000),
   ]
 
   it("el día cuenta solo lo facturable de esa fecha", () => {
@@ -286,7 +293,7 @@ describe("dayRevenue y weekToDateRevenue", () => {
   it("no arrastra nada de la semana anterior", () => {
     // Sacar el domingo 16 y el resto de la semana pasada no tiene que cambiar
     // el número: si lo cambia, es que los estaba contando.
-    const sinSemanaPasada = SEMANAS.filter((t) => t.date >= "2026-08-17")
+    const sinSemanaPasada = SEMANAS.filter((t) => t.day >= "2026-08-17")
 
     expect(weekToDateRevenue(SEMANAS, MARTES)).toEqual(weekToDateRevenue(sinSemanaPasada, MARTES))
   })
@@ -294,7 +301,7 @@ describe("dayRevenue y weekToDateRevenue", () => {
   it("corta en hoy: lo ya agendado para el resto de la semana no suma", () => {
     // Es "lo que va", no "lo que va a haber": si contara el jueves, el número
     // crecería solo por reservar.
-    const conFuturo = [...SEMANAS, turno("2026-08-20", "confirmed", 88_000)]
+    const conFuturo = [...SEMANAS, turno("2026-08-20", "CONFIRMED", 88_000)]
 
     expect(weekToDateRevenue(conFuturo, MARTES).total).toBe(120_000)
   })
@@ -310,7 +317,7 @@ describe("dayRevenue y weekToDateRevenue", () => {
 
   it("cruza el fin de mes sin perder días", () => {
     // Martes 1 de septiembre: su lunes es el 31 de agosto.
-    const cruce = [turno("2026-08-31", "completed", 9_000), turno("2026-09-01", "completed", 4_000)]
+    const cruce = [turno("2026-08-31", "ATTENDED", 9_000), turno("2026-09-01", "ATTENDED", 4_000)]
 
     expect(weekToDateRevenue(cruce, new Date(2026, 8, 1))).toEqual({ total: 13_000, turnos: 2 })
   })
