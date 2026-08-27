@@ -1,4 +1,4 @@
-import { parseCalendarDay, timeToMinutes } from "@/lib/time"
+import { businessNow, parseCalendarDay, timeToMinutes } from "@/lib/time"
 import type { SpecialDay } from "@/types"
 
 const FORMATTER = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "long" })
@@ -8,7 +8,7 @@ export function formatCalendarDay(date: string): string {
 }
 
 /** Los más próximos primero; lo ya pasado al final. */
-export function sortSpecialDays(days: SpecialDay[], today = new Date()): SpecialDay[] {
+export function sortSpecialDays(days: SpecialDay[], today = businessNow()): SpecialDay[] {
   const hoy = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
 
   return [...days].sort((a, b) => {
@@ -22,7 +22,7 @@ export function sortSpecialDays(days: SpecialDay[], today = new Date()): Special
   })
 }
 
-export function isPastDay(date: string, today = new Date()): boolean {
+export function isPastDay(date: string, today = businessNow()): boolean {
   const hoy = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
   return parseCalendarDay(date).getTime() < hoy
 }

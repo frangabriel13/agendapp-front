@@ -8,6 +8,7 @@ import { STATUS_BADGE, STATUS_LABELS } from "@/features/appointments/lib/status"
 import type { Appointment } from "@/types"
 import { customerName, employeeColor, serviceName } from "@/features/appointments/lib/display"
 import { nextUpIndex, nextUpLabel } from "../lib/agenda"
+import { businessNow, clockTime } from "@/lib/time"
 
 /** Cuántos entran en la lista sin que la tarjeta crezca de más. */
 const VISIBLE = 5
@@ -23,10 +24,7 @@ const VISIBLE = 5
  * ejemplo y mañana de la API, y esta tarjeta no tiene por qué enterarse.
  */
 export function UpcomingAppointments({ appointments }: { appointments: Appointment[] }) {
-  const now = useMemo(() => {
-    const ahora = new Date()
-    return `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
-  }, [])
+  const now = useMemo(() => clockTime(businessNow()), [])
 
   const nextIndex = nextUpIndex(appointments, now)
   const siguiente = nextIndex === -1 ? undefined : appointments[nextIndex]

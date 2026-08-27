@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
+import { setBusinessTimezone } from "@/lib/time"
 import {
   draftToPayload,
   formatRange,
@@ -193,5 +194,50 @@ describe("isPast", () => {
 
     expect(isPast({ endsAt: iso(2026, 8, 15, 18, 0) }, ahora)).toBe(false)
     expect(isPast({ endsAt: iso(2026, 8, 15, 11, 0) }, ahora)).toBe(true)
+  })
+})
+
+/**
+ * El resto del archivo corre con la zona del negocio sin fijar, o sea la del
+ * navegador —que en los tests es Buenos Aires—, así que **no distinguiría** una
+ * conversión atada al navegador de una atada al negocio. Este bloque fija otra
+ * zona y ahí sí se ve la diferencia: era el bug que tenía la copia propia de
+ * `toInstant` que vivía en este archivo.
+ */
+describe("la zona del negocio manda sobre la del navegador", () => {
+  afterEach(() => setBusinessTimezone(null))
+
+  it("guarda la hora de pared del negocio, no la de quien carga", () => {
+    setBusinessTimezone("America/Mexico_City") // UTC−6 en agosto
+
+    expect(toInstant("2026-08-20", "09:00")).toBe("2026-08-20T15:00:00.000Z")
+  })
+
+  it("relee esa hora igual que como se guardó", () => {
+    setBusinessTimezone("America/Mexico_City")
+
+    expect(toDateInput("2026-08-20T15:00:00.000Z")).toBe("2026-08-20")
+    expect(toTimeInput("2026-08-20T15:00:00.000Z")).toBe("09:00")
+  })
+
+  /** Un día completo son las 00:00 y las 23:59 **del negocio**. */
+  it("reconoce el día completo en la zona del negocio", () => {
+    setBusinessTimezone("America/Mexico_City")
+
+    const payload = draftToPayload({
+      allDay: true,
+      startDate: "2026-08-20",
+      startTime: "",
+      endDate: "2026-08-22",
+      endTime: "",
+      branchId: "",
+      reason: "",
+    })
+
+    expect(isAllDay(payload.startsAt, payload.endsAt)).toBe(true)
+    // Las 00:00 de México son las 03:00 de Buenos Aires, que es la zona del
+    // navegador en los tests: si `isAllDay` mirara la hora local vería un 3 y
+    // diría que no es día completo.
+    expect(new Date(payload.startsAt).getHours()).toBe(3)
   })
 })

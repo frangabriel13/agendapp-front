@@ -20,7 +20,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const logout = useLogout()
   const hasToken = useHasToken()
-  const { data: session } = useSession()
+  const sesion = useSession()
+  const session = sesion.data
+
+  /**
+   * **Las páginas no dibujan hasta saber en qué zona horaria está el negocio.**
+   *
+   * La conversión de instantes a horas de pared la fija `getSessionRequest` al
+   * traer `/auth/me`; hasta entonces se usaría la del navegador, y una agenda
+   * dibujada con la zona equivocada no se corrige sola —los turnos ya convertidos
+   * quedan en la caché de React Query—. El cascarón sí se monta enseguida: no
+   * dibuja ningún horario.
+   *
+   * Con la sesión en error no se bloquea: el 401 ya redirige al login por otro
+   * lado, y para cualquier otra falla es mejor un panel con la zona del navegador
+   * que un "Cargando…" para siempre.
+   */
+  const zonaLista = sesion.data !== undefined || sesion.isError
   const [menuOpen, setMenuOpen] = useState(false)
 
   /** La barra del tablero existe solo en Inicio, y de `lg` para arriba. */
@@ -106,13 +122,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
              */
             <div className="flex min-h-full flex-col gap-3">
               <TopBar session={session} onLogout={logout} />
-              {children}
+              {zonaLista ? children : <Esperando />}
             </div>
-          ) : (
+          ) : zonaLista ? (
             children
+          ) : (
+            <Esperando />
           )}
         </main>
       </div>
+    </div>
+  )
+}
+
+/** Mientras llega la sesión, que es de donde sale la zona horaria del negocio. */
+function Esperando() {
+  return (
+    <div className="flex min-h-64 items-center justify-center">
+      <p className="text-sm text-neutral-400">Cargando…</p>
     </div>
   )
 }

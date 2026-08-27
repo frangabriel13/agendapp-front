@@ -1,3 +1,4 @@
+import { splitInstant, toInstant as aInstante } from "@/lib/time"
 import type { CreateTimeOffPayload, TimeOff } from "@/types"
 
 /** Lo que se edita en el formulario, en horas de pared. */
@@ -15,45 +16,36 @@ export interface TimeOffDraft {
 }
 
 /**
- * Convierte fecha y hora locales a un instante ISO.
+ * Fecha y hora **del negocio** a instante ISO.
  *
  * La persona escribe hora de pared —"el 20 a las 9"— pero la API guarda un
- * instante absoluto. `new Date(y, m, d, …)` interpreta los números en la zona
- * del navegador, que es justo lo que se quiere: las 9 de quien carga el dato.
+ * instante absoluto. **Es la misma conversión que la de los turnos**, así que sale
+ * de `lib/time.ts` y no de una copia acá: la copia usaba la zona del navegador y
+ * cargaba las ausencias corridas cuando esa zona no era la del negocio.
  */
-export function toInstant(date: string, time: string): string {
-  const [year, month, day] = date.split("-").map(Number)
-  const [hours, minutes] = time.split(":").map(Number)
-  return new Date(year!, month! - 1, day!, hours!, minutes!, 0, 0).toISOString()
-}
+export { toInstant } from "@/lib/time"
 
-/** "YYYY-MM-DD" de un instante, en hora local. */
+/** "YYYY-MM-DD" de un instante, en el día del negocio. */
 export function toDateInput(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  return splitInstant(iso).day
 }
 
-/** "HH:MM" de un instante, en hora local. */
+/** "HH:MM" de un instante, en la hora del negocio. */
 export function toTimeInput(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+  return splitInstant(iso).time
 }
 
 /**
- * Una ausencia de día completo se guarda de 00:00 a 23:59 locales. No hay un
- * campo `allDay` en la API, así que se deduce de las horas al releerla.
+ * Una ausencia de día completo se guarda de 00:00 a 23:59 **del negocio**. No hay
+ * un campo `allDay` en la API, así que se deduce de las horas al releerla.
  */
 export function isAllDay(startsAt: string, endsAt: string): boolean {
-  const start = new Date(startsAt)
-  const end = new Date(endsAt)
-  return (
-    start.getHours() === 0 && start.getMinutes() === 0 && end.getHours() === 23 && end.getMinutes() === 59
-  )
+  return toTimeInput(startsAt) === "00:00" && toTimeInput(endsAt) === "23:59"
 }
 
 export function draftToPayload(draft: TimeOffDraft): CreateTimeOffPayload {
-  const startsAt = toInstant(draft.startDate, draft.allDay ? "00:00" : draft.startTime)
-  const endsAt = toInstant(draft.endDate, draft.allDay ? "23:59" : draft.endTime)
+  const startsAt = aInstante(draft.startDate, draft.allDay ? "00:00" : draft.startTime)
+  const endsAt = aInstante(draft.endDate, draft.allDay ? "23:59" : draft.endTime)
 
   return {
     startsAt,

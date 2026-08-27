@@ -105,13 +105,27 @@ export function useUpdateTenant() {
 
   return useMutation({
     mutationFn: updateTenantRequest,
-    onSuccess: async () => {
+    onSuccess: async (_datos, payload) => {
       // El nombre del negocio también viaja en `GET /auth/me`, que alimenta el
       // sidebar: sin invalidar la sesión queda el nombre viejo hasta recargar.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: TENANT_KEY }),
         queryClient.invalidateQueries({ queryKey: ["session"] }),
       ])
+
+      /**
+       * **Cambiar la zona horaria invalida todo lo demás.**
+       *
+       * Los turnos guardados en caché ya tienen el día y la hora de pared
+       * calculados con la zona vieja —`toAppointment` los deriva al traerlos—, así
+       * que no se arreglan solos: hay que volver a pedirlos. Es una acción rara,
+       * y el precio de refrescar de más es mucho menor que el de una agenda que
+       * muestra horarios de otra zona sin decirlo.
+       */
+      if (payload.timezone !== undefined) {
+        await queryClient.invalidateQueries()
+      }
+
       toast.success("Cambios guardados")
     },
     onError: (error) => toast.error(apiErrorMessage(error, "No pudimos guardar los datos del negocio")),

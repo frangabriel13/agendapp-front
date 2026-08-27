@@ -12,6 +12,7 @@ import {
   weekToDateRevenue,
 } from "@/features/reports/lib/revenue"
 import type { Appointment } from "@/types"
+import { businessNow } from "@/lib/time"
 
 /**
  * Cómo viene la plata, en tres cortes.
@@ -30,7 +31,7 @@ import type { Appointment } from "@/types"
 export function RevenueCard({ appointments }: { appointments: Appointment[] }) {
   // La fecha se fija al montar: recalcularla en cada render movería los cortes
   // "hasta hoy" debajo del mouse al cruzar la medianoche.
-  const hoy = useMemo(() => new Date(), [])
+  const hoy = useMemo(() => businessNow(), [])
 
   const { outlook, semana, dia } = useMemo(
     () => ({

@@ -46,6 +46,7 @@ import { useDebounced } from "@/features/customers/hooks/useDebounced"
 import { age, birthdayToday, fullName, initials } from "@/features/customers/lib/customer"
 import type { Customer } from "@/types"
 import { Page, PageHeader } from "../ui/Page"
+import { businessNow } from "@/lib/time"
 
 export default function ClientesPage() {
   const { data: session } = useSession()
@@ -74,7 +75,7 @@ export default function ClientesPage() {
 
   // `now` una sola vez: si se recalculara en cada render, cruzar la medianoche
   // cambiaría las edades a mitad de una interacción.
-  const now = useMemo(() => new Date(), [])
+  const now = useMemo(() => businessNow(), [])
 
   const meta = customers.data?.meta
   const lista = customers.data?.data ?? []
