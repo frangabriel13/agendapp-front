@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest"
-import type { AppointmentBalance, Payment } from "@/types"
+import type { AppointmentBalance, AppointmentStatus, Payment } from "@/types"
+import { turno } from "@/features/appointments/lib/fixtures"
 import { formatCents } from "@/features/catalog/lib/money"
-import { cobroSugerido, linkPendiente, resumenSaldo, sePuedeCobrar, signo } from "./balance"
+import {
+  cobroSugerido,
+  cobrosDelDia,
+  linkPendiente,
+  resumenSaldo,
+  sePuedeCobrar,
+  signo,
+} from "./balance"
 
 // Los importes se arman con `formatCents` y no se escriben a mano: lo que se
 // prueba acá es qué frase sale, no cómo separa los miles el locale —que además
@@ -235,5 +243,67 @@ describe("signo", () => {
   it("da vuelta la devolución", () => {
     expect(signo(pago({ paymentType: "REFUND" }))).toBe(-1)
     expect(signo(pago({ paymentType: "DEPOSIT" }))).toBe(1)
+  })
+})
+
+describe("cobrosDelDia", () => {
+  const conSaldo = (
+    id: string,
+    status: AppointmentStatus,
+    paidCents: number,
+    dueCents: number,
+  ) => ({
+    appointment: turno({ id, status }),
+    balance: saldo({ paidCents, dueCents, fullyPaid: dueCents === 0 }),
+  })
+
+  it("suma lo cobrado y lo que falta", () => {
+    const caja = cobrosDelDia([
+      conSaldo("a", "ATTENDED", 1500000, 0),
+      conSaldo("b", "ATTENDED", 500000, 1000000),
+    ])
+
+    expect(caja.cobrado).toBe(2000000)
+    expect(caja.pendiente).toBe(1000000)
+    expect(caja.turnos).toBe(2)
+  })
+
+  /**
+   * Lo pendiente de un turno cancelado no es una deuda de nadie, y encima el
+   * backend ya no acepta movimientos ahí. Contarlo inflaría el número que se mira
+   * al cerrar el día.
+   */
+  it("deja los cancelados afuera de todo", () => {
+    const caja = cobrosDelDia([
+      conSaldo("a", "ATTENDED", 1500000, 0),
+      conSaldo("b", "CANCELED_BY_CUSTOMER", 0, 1500000),
+    ])
+
+    expect(caja.turnos).toBe(1)
+    expect(caja.pendiente).toBe(0)
+    expect(caja.deudores).toHaveLength(0)
+  })
+
+  // Esa hora estuvo tomada: el ausente se cobra igual, así que sigue debiendo.
+  it("el ausente sigue contando como deudor", () => {
+    const caja = cobrosDelDia([conSaldo("a", "NO_SHOW", 0, 1500000)])
+
+    expect(caja.deudores).toHaveLength(1)
+    expect(caja.pendiente).toBe(1500000)
+  })
+
+  it("lista a los deudores de mayor a menor", () => {
+    const caja = cobrosDelDia([
+      conSaldo("a", "ATTENDED", 0, 500000),
+      conSaldo("b", "ATTENDED", 0, 3000000),
+      conSaldo("c", "ATTENDED", 1500000, 0),
+    ])
+
+    expect(caja.deudores.map((d) => d.cents)).toEqual([3000000, 500000])
+    expect(caja.deudores[0]?.nombre).toBe("María González")
+  })
+
+  it("con un día vacío no rompe", () => {
+    expect(cobrosDelDia([])).toEqual({ cobrado: 0, pendiente: 0, turnos: 0, deudores: [] })
   })
 })

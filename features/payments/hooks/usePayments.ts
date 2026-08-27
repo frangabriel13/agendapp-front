@@ -5,13 +5,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { apiErrorMessage } from "@/lib/errors"
 import { APPOINTMENTS_KEY } from "@/features/appointments/hooks/useAppointments"
+import { mapLimit } from "@/lib/async"
 import {
   createCheckoutRequest,
   getPaymentsRequest,
   recordManualPaymentRequest,
 } from "@/services/payments"
-import type { CheckoutType, RecordManualPaymentPayload } from "@/types"
-import { linkPendiente } from "../lib/balance"
+import type { Appointment, CheckoutType, RecordManualPaymentPayload } from "@/types"
+import { cobrosDelDia, linkPendiente, type CobrosDelDia } from "../lib/balance"
 
 export const PAYMENTS_KEY = ["payments"] as const
 
@@ -118,5 +119,47 @@ export function useRecordManualPayment(appointmentId: string) {
       toast.success(payment.paymentType === "REFUND" ? "Devolución registrada" : "Cobro registrado")
     },
     onError: (error) => toast.error(apiErrorMessage(error, "No pudimos registrar el movimiento")),
+  })
+}
+
+/**
+ * Cuántos saldos se piden a la vez.
+ *
+ * El backend permite 10 pedidos por segundo. Cuatro deja lugar para lo que el
+ * resto de la pantalla esté haciendo: llenar el balde con esto solo conseguiría
+ * que la consulta de al lado se coma el 429.
+ */
+const SALDOS_A_LA_VEZ = 4
+
+/**
+ * Los cobros de un día, turno por turno.
+ *
+ * **Cuesta un pedido por turno**, porque la API no expone los pagos de varios
+ * turnos juntos: `GET /appointments/:id/payments` es de a uno. Por eso arranca
+ * apagado (`enabled`) y lo enciende la pantalla cuando alguien lo pide, en vez de
+ * salir a hacer treinta pedidos apenas se abre `/reportes`.
+ *
+ * Y por eso mismo **es de un día y no de un mes**: un mes de un local con
+ * movimiento son cientos de pedidos, que además chocarían contra el límite de 100
+ * cada 50 s. Un mes de facturación cobrada necesita un endpoint que hoy no existe.
+ */
+export function useDayCollections(day: string, appointments: Appointment[], enabled: boolean) {
+  const ids = appointments.map((appointment) => appointment.id)
+
+  return useQuery<CobrosDelDia>({
+    // Los ids en la clave y no solo el día: si se agenda o se cancela algo, la
+    // lista cambia y el resultado guardado dejó de corresponder.
+    queryKey: [...PAYMENTS_KEY, "dia", day, ids],
+    queryFn: async () => {
+      const saldos = await mapLimit(appointments, SALDOS_A_LA_VEZ, (appointment) =>
+        getPaymentsRequest(appointment.id).then((datos) => ({
+          appointment,
+          balance: datos.balance,
+        })),
+      )
+      return cobrosDelDia(saldos)
+    },
+    enabled: enabled && appointments.length > 0,
+    staleTime: 60_000,
   })
 }

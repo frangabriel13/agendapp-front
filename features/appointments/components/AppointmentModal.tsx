@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { X, Clock, User, Stethoscope, Phone, FileText, Pencil, Check, XCircle, CheckCheck, UserX, Wallet } from "lucide-react"
+import { X, Clock, User, Stethoscope, Phone, FileText, Pencil, Check, XCircle, CheckCheck, UserX, Wallet, CalendarClock } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import type { Appointment, AppointmentStatus } from "@/types"
+import type { Appointment, AppointmentStatus, RefundDecision } from "@/types"
 import { STATUS_BADGE, STATUS_LABELS, TRANSICIONES } from "../lib/status"
 import { customerName, employeeColor, serviceName } from "../lib/display"
+import { avisoDevolucion } from "../lib/refund"
+import { RescheduleForm } from "./RescheduleForm"
 import { cta } from "@/components/CtaLink"
 import { cn } from "@/lib/utils"
 import { formatCents } from "@/features/catalog/lib/money"
@@ -21,9 +23,16 @@ function formatDate(dateStr: string): string {
 
 interface Props {
   appointment: Appointment
+  /**
+   * Qué corresponde devolver, si el último cambio de estado fue una cancelación.
+   * Lo calcula el backend con la política del negocio.
+   */
+  refund?: RefundDecision | null
   onClose: () => void
   onChangeStatus: (status: AppointmentStatus) => void
   onEdit: () => void
+  /** Reprogramar devuelve **otro turno**: la pantalla pasa a mostrar ese. */
+  onRescheduled: (nuevoId: string) => void
 }
 
 type Tone = "primary" | "muted" | "danger"
@@ -55,7 +64,14 @@ const TONE: Record<"primary" | "muted" | "danger", string> = {
   danger: cn(cta({ variant: "outline", size: "sm" }), "border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"),
 }
 
-export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit }: Props) {
+export function AppointmentModal({
+  appointment,
+  refund,
+  onClose,
+  onChangeStatus,
+  onEdit,
+  onRescheduled,
+}: Props) {
   const { startTime, endTime, status, notes } = appointment
   const actions = TRANSICIONES[status].map((destino) => ({ status: destino, ...DESTINO[destino] }))
 
@@ -65,6 +81,7 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
    */
   const pagos = usePayments(appointment.id)
   const cobrado = pagos.data?.balance.paidCents ?? 0
+  const aviso = avisoDevolucion(refund, cobrado)
 
   /**
    * Cancelar con plata adentro **deja la devolución sin poder registrarse**.
@@ -75,6 +92,16 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
    * caja del mes queda diciendo que ese dinero está.
    */
   const [confirmar, setConfirmar] = useState<AppointmentStatus | null>(null)
+  const [moviendo, setMoviendo] = useState(false)
+
+  /**
+   * Solo se mueve lo que todavía puede ocurrir.
+   *
+   * Sale de `TRANSICIONES` en vez de una lista aparte: si el turno ya no tiene a
+   * dónde ir —atendido, ausente, cancelado, o ya reprogramado— tampoco tiene
+   * sentido moverlo de hora, y el backend lo rechazaría igual.
+   */
+  const sePuedeMover = TRANSICIONES[status].length > 0
 
   function elegir(destino: AppointmentStatus) {
     if (estaCancelado(destino) && cobrado > 0) return setConfirmar(destino)
@@ -153,8 +180,67 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
               </div>
               <p className="text-xs text-neutral-400">Cobros</p>
             </div>
+            {/*
+              **Llega después de cancelar, que es cuando ya no se puede
+              registrar.** El backend calcula la devolución con su política y la
+              manda en la respuesta del cambio de estado; para ese momento el
+              turno está cancelado y rechaza cualquier movimiento con 409. O sea
+              que este número no es un botón: es lo que hay que devolver por
+              fuera, y decirlo es mejor que tirarlo, que es lo que se hacía.
+            */}
+            {aviso && (
+              <div
+                className={cn(
+                  "mb-3 rounded-xl border px-4 py-3",
+                  aviso.hayQueDevolver
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-black/[0.08] bg-neutral-50",
+                )}
+              >
+                <p
+                  className={cn(
+                    "text-[13px] font-medium",
+                    aviso.hayQueDevolver ? "text-amber-900" : "text-neutral-800",
+                  )}
+                >
+                  {aviso.titulo}
+                </p>
+                <p
+                  className={cn(
+                    "mt-0.5 text-xs",
+                    aviso.hayQueDevolver ? "text-amber-800/80" : "text-neutral-500",
+                  )}
+                >
+                  {aviso.detalle}
+                  {aviso.hayQueDevolver &&
+                    " El turno cancelado ya no acepta movimientos: registrala por fuera."}
+                </p>
+              </div>
+            )}
+
             <PaymentsPanel appointment={appointment} />
           </div>
+
+          {moviendo && (
+            <div className="border-t border-black/[0.06] pt-4">
+              {cobrado > 0 && (
+                // La plata queda en el turno viejo, que después de reprogramar
+                // tampoco acepta movimientos. Es el mismo callejón que cancelar.
+                <p className="mb-2.5 text-xs text-amber-700">
+                  Este turno tiene {formatCents(cobrado)} cobrados. La plata queda asentada acá, no
+                  se muda al turno nuevo.
+                </p>
+              )}
+              <RescheduleForm
+                appointment={appointment}
+                onDone={(nuevoId) => {
+                  setMoviendo(false)
+                  onRescheduled(nuevoId)
+                }}
+                onCancel={() => setMoviendo(false)}
+              />
+            </div>
+          )}
         </div>
 
         {confirmar !== null ? (
@@ -197,9 +283,18 @@ export function AppointmentModal({ appointment, onClose, onChangeStatus, onEdit 
                 {label}
               </button>
             ))}
+            {sePuedeMover && (
+              <button
+                onClick={() => setMoviendo((abierto) => !abierto)}
+                className={cn(cta({ variant: "outline", size: "sm" }), "ml-auto")}
+              >
+                <CalendarClock size={15} />
+                Reprogramar
+              </button>
+            )}
             <button
               onClick={onEdit}
-              className={cn(cta({ variant: "outline", size: "sm" }), "ml-auto")}
+              className={cn(cta({ variant: "outline", size: "sm" }), sePuedeMover ? "" : "ml-auto")}
             >
               <Pencil size={15} />
               Editar

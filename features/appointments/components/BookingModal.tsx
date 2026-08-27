@@ -16,16 +16,18 @@ import { cn } from "@/lib/utils"
 import { apiErrorMessage } from "@/lib/errors"
 import { ApiError } from "@/lib/api"
 import { dateToStr, splitInstant } from "@/lib/time"
+import type { RecurrenceFrequency, RecurringResult } from "@/types"
 import { useBranches } from "@/features/branches/hooks/useBranches"
-import { useServices } from "@/features/catalog/hooks/useCatalog"
+import { useServiceEmployees, useServices } from "@/features/catalog/hooks/useCatalog"
 import { formatCents, formatDuration } from "@/features/catalog/lib/money"
 import { useCustomers } from "@/features/customers/hooks/useCustomers"
 import { useDebounced } from "@/features/customers/hooks/useDebounced"
 import { fullName } from "@/features/customers/lib/customer"
-import { useAvailability, useCreateAppointment } from "../hooks/useAppointments"
+import { useAvailability, useCreateAppointment, useCreateRecurring } from "../hooks/useAppointments"
 import { canManage, useSession } from "@/features/auth/hooks/useAuth"
 import { useSubscription } from "@/features/tenants/hooks/useTenant"
 import { deudaVisible } from "@/features/tenants/lib/subscription"
+import { FRECUENCIAS, resumenSerie } from "../lib/recurrence"
 
 interface Props {
   open: boolean
@@ -64,6 +66,12 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   const [branchId, setBranchId] = useState<string | null>(null)
   const [fecha, setFecha] = useState(dateToStr(day))
   const [slot, setSlot] = useState<{ startsAt: string; employeeId: string } | null>(null)
+  /** `null` = cualquiera de los que presten el servicio ahí. */
+  const [employeeId, setEmployeeId] = useState<string | null>(null)
+  const [repite, setRepite] = useState(false)
+  const [frecuencia, setFrecuencia] = useState<RecurrenceFrequency>("WEEKLY")
+  /** Cuenta **el primero**: 4 son cuatro turnos, no cinco. */
+  const [veces, setVeces] = useState(4)
 
   const branches = useBranches()
   const services = useServices()
@@ -71,12 +79,25 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   const { data: session } = useSession()
   const subscription = useSubscription()
   const agendar = useCreateAppointment()
+  const serie = useCreateRecurring()
 
   const sucursal = branchId ?? branches.data?.[0]?.id ?? null
   const servicio = services.data?.find((s) => s.id === serviceId) ?? null
   const cliente = customers.data?.data.find((c) => c.id === customerId) ?? null
 
-  const disponibilidad = useAvailability({ branchId: sucursal, serviceId, date: fecha })
+  /**
+   * Quiénes prestan ese servicio **en esa sucursal**. El par es la unidad, no la
+   * persona: alguien puede hacer coloración en el centro y no en la otra sede.
+   */
+  const staff = useServiceEmployees(serviceId)
+  const profesionales = (staff.data ?? []).filter((par) => par.branchId === sucursal)
+
+  const disponibilidad = useAvailability({
+    branchId: sucursal,
+    serviceId,
+    date: fecha,
+    ...(employeeId ? { employeeId } : {}),
+  })
 
   /**
    * `availability` **no recorta los slots que ya pasaron**: describe lo que el
@@ -108,21 +129,28 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
     event.preventDefault()
     if (!cliente || !servicio || !sucursal || !slot) return
 
-    agendar.mutate(
-      {
-        branchId: sucursal,
-        employeeId: slot.employeeId,
-        customerId: cliente.id,
-        serviceIds: [servicio.id],
-        startsAt: slot.startsAt,
-      },
-      { onSuccess: onDone },
-    )
+    const base = {
+      branchId: sucursal,
+      employeeId: slot.employeeId,
+      customerId: cliente.id,
+      serviceIds: [servicio.id],
+      startsAt: slot.startsAt,
+    }
+
+    if (repite) {
+      // **No se cierra al terminar**: el desenlace de una serie incluye qué
+      // fechas quedaron afuera, y cerrar sería tirar ese dato.
+      serie.mutate({ ...base, frequency: frecuencia, occurrences: veces })
+      return
+    }
+
+    agendar.mutate(base, { onSuccess: onDone })
   }
 
-  const error = agendar.error
-  const chocó = error instanceof ApiError && error.statusCode === 409
+  const error = agendar.error ?? serie.error
+  const chocó = error instanceof ApiError && error.statusCode === 409 && !repite
   const debe = error instanceof ApiError && error.statusCode === 402
+  const guardando = agendar.isPending || serie.isPending
 
   return (
     <form onSubmit={submit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-0.5">
@@ -207,6 +235,7 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
             onChange={(e) => {
               setBranchId(e.target.value)
               setSlot(null)
+              setEmployeeId(null)
             }}
             className={selectControl()}
           >
@@ -245,6 +274,10 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
           onChange={(e) => {
             setServiceId(e.target.value || null)
             setSlot(null)
+            // Quien atendía el servicio anterior puede no prestar este, y un
+            // `employeeId` viejo filtraría la disponibilidad a cero sin decir
+            // por qué.
+            setEmployeeId(null)
           }}
           className={selectControl()}
         >
@@ -259,6 +292,39 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
             ))}
         </select>
       </div>
+
+      {/*
+        **Va después del servicio y antes del horario**, que es el orden real: no
+        se puede elegir quién atiende hasta saber qué se hace, y elegirlo recorta
+        los horarios que se ofrecen abajo.
+
+        "Cualquiera" es el default y no un valor más: en un local chico es lo
+        normal, y obligar a elegir persona antes de ver horarios escondería huecos
+        que sí existen.
+      */}
+      {serviceId && profesionales.length > 1 && (
+        <div>
+          <label htmlFor="b-emp" className="mb-1.5 block text-[13px] font-medium text-neutral-700">
+            Profesional
+          </label>
+          <select
+            id="b-emp"
+            value={employeeId ?? ""}
+            onChange={(e) => {
+              setEmployeeId(e.target.value || null)
+              setSlot(null)
+            }}
+            className={selectControl()}
+          >
+            <option value="">Cualquiera</option>
+            {profesionales.map((par) => (
+              <option key={par.employeeId} value={par.employeeId}>
+                {par.employeeName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <span className="mb-2 block text-[13px] font-medium text-neutral-700">Horario</span>
@@ -386,6 +452,67 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
         </div>
       )}
 
+      {/*
+        **Repetir es una casilla y no otro formulario.** Es el mismo turno con dos
+        datos más, y separarlo en otra pantalla obligaría a volver a elegir
+        cliente, servicio y horario.
+      */}
+      {slot && (
+        <div className="rounded-xl border border-black/[0.08] bg-neutral-50/60 p-3.5">
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={repite}
+              onChange={(e) => setRepite(e.target.checked)}
+              className="size-4 accent-violet-600"
+            />
+            <span className="text-[13px] font-medium text-neutral-800">Repetir este turno</span>
+          </label>
+
+          {repite && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="b-frec" className="mb-1.5 block text-xs font-medium text-neutral-600">
+                  Cada cuánto
+                </label>
+                <select
+                  id="b-frec"
+                  value={frecuencia}
+                  onChange={(e) => setFrecuencia(e.target.value as RecurrenceFrequency)}
+                  className={selectControl()}
+                >
+                  {FRECUENCIAS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="b-veces" className="mb-1.5 block text-xs font-medium text-neutral-600">
+                  Cuántos turnos
+                </label>
+                <input
+                  id="b-veces"
+                  type="number"
+                  min={2}
+                  max={52}
+                  value={veces}
+                  onChange={(e) => setVeces(Math.max(2, Math.min(52, Number(e.target.value) || 2)))}
+                  className={control()}
+                />
+                {/* El backend cuenta el primero dentro de `occurrences`; decirlo
+                    evita que alguien pida 4 y reciba 5. */}
+                <p className="mt-1 text-xs text-neutral-400">Contando el de arriba.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {serie.data && <ResultadoSerie resultado={serie.data} onDone={onDone} />}
+
       <div className="flex items-center justify-between gap-3 pt-1">
         {/* Nombra **lo que falta**, no la lista entera: con el cliente y el
             servicio ya elegidos, "falta elegir cliente" manda a buscar algo que
@@ -404,13 +531,84 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
           </button>
           <button
             type="submit"
-            disabled={agendar.isPending || !cliente || !servicio || !slot}
+            // `serie.data` significa que la serie ya se creó: sin esto el botón
+            // seguía habilitado y un segundo clic agendaba todo de nuevo. El
+            // desenlace de una serie es el panel de arriba, no otro intento.
+            disabled={guardando || !cliente || !servicio || !slot || serie.data !== undefined}
             className={cn(cta({ size: "sm" }))}
           >
-            {agendar.isPending ? "Agendando…" : "Agendar"}
+            {guardando ? "Agendando…" : repite ? `Agendar ${veces} turnos` : "Agendar"}
           </button>
         </div>
       </div>
     </form>
+  )
+}
+
+/**
+ * Cómo terminó la serie.
+ *
+ * **Las fechas salteadas son el motivo de que esto exista.** El backend crea lo
+ * que entra y devuelve el resto en `skipped` con el motivo; sin mostrarlas, quien
+ * agendó una serie de seis se va convencido de que tiene seis turnos.
+ */
+function ResultadoSerie({
+  resultado,
+  onDone,
+}: {
+  resultado: RecurringResult
+  onDone: () => void
+}) {
+  const resumen = resumenSerie(resultado)
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border px-3.5 py-3",
+        resumen.hayHuecos ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50",
+      )}
+    >
+      <p
+        className={cn(
+          "text-[13px] font-medium",
+          resumen.hayHuecos ? "text-amber-900" : "text-emerald-800",
+        )}
+      >
+        {resumen.titulo}
+      </p>
+
+      {resumen.hayHuecos && (
+        <>
+          <p className="mt-0.5 text-xs text-amber-800/80">
+            Estas fechas quedaron afuera. Hay que resolverlas a mano:
+          </p>
+          <ul className="mt-2 space-y-1">
+            {resultado.skipped.map((fecha) => {
+              const { day, time } = splitInstant(fecha.startsAt)
+              return (
+                <li key={fecha.startsAt} className="text-xs text-amber-900">
+                  <span className="font-medium">
+                    {new Date(`${day}T12:00:00`).toLocaleDateString("es-AR", {
+                      day: "numeric",
+                      month: "short",
+                    })}{" "}
+                    {time}
+                  </span>{" "}
+                  — {fecha.reason}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+
+      <button
+        type="button"
+        onClick={onDone}
+        className={cn(cta({ variant: "outline", size: "sm" }), "mt-3 bg-white/70")}
+      >
+        Listo
+      </button>
+    </div>
   )
 }
