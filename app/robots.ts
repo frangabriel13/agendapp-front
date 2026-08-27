@@ -11,8 +11,9 @@ export default function robots(): MetadataRoute.Robots {
       // solo uso en la query: además de no aportar nada indexadas, un crawler que
       // las visite quema el link.
       //
-      // `/pago` son las vueltas del checkout: llevan identificadores del cobro y
-      // solo tienen sentido inmediatamente después de pagar.
+      // `/pago` y `/suscripcion` son las vueltas del checkout: llevan
+      // identificadores del cobro y solo tienen sentido inmediatamente después de
+      // pagar.
       disallow: [
         "/dashboard",
         "/agenda",
@@ -29,6 +30,7 @@ export default function robots(): MetadataRoute.Robots {
         "/restablecer",
         "/verificar-email",
         "/pago",
+        "/suscripcion",
       ],
     },
     sitemap: `${siteUrl}/sitemap.xml`,

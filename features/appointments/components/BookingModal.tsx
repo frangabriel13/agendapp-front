@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { CalendarClock, CreditCard, TriangleAlert, UserRoundSearch } from "lucide-react"
 import {
   Dialog,
@@ -21,8 +22,10 @@ import { formatCents, formatDuration } from "@/features/catalog/lib/money"
 import { useCustomers } from "@/features/customers/hooks/useCustomers"
 import { useDebounced } from "@/features/customers/hooks/useDebounced"
 import { fullName } from "@/features/customers/lib/customer"
-import { useAvailability, useCreateAppointment, useSubscription } from "../hooks/useAppointments"
-import { deudaVisible } from "../lib/subscription"
+import { useAvailability, useCreateAppointment } from "../hooks/useAppointments"
+import { canManage, useSession } from "@/features/auth/hooks/useAuth"
+import { useSubscription } from "@/features/tenants/hooks/useTenant"
+import { deudaVisible } from "@/features/tenants/lib/subscription"
 
 interface Props {
   open: boolean
@@ -65,6 +68,7 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   const branches = useBranches()
   const services = useServices()
   const customers = useCustomers({ pageSize: 8, ...(busqueda ? { search: busqueda } : {}) })
+  const { data: session } = useSession()
   const subscription = useSubscription()
   const agendar = useCreateAppointment()
 
@@ -90,6 +94,15 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   )
 
   const aviso = deudaVisible(subscription.data)
+
+  /**
+   * Quién puede hacer algo con el aviso.
+   *
+   * Un `PROFESSIONAL` no puede pagar la suscripción —los endpoints le contestan
+   * 403—, así que mandarlo a `/configuracion` sería mandarlo a mirar. El aviso lo
+   * ve igual, porque le explica por qué no puede agendar; el atajo, no.
+   */
+  const puedePagar = canManage(session?.employee.role)
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -118,7 +131,14 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
       {aviso && !debe && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
           <CreditCard size={15} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
-          <p className="text-[13px] text-amber-900">{aviso}</p>
+          <p className="text-[13px] text-amber-900">
+            {aviso}{" "}
+            {puedePagar && (
+              <Link href="/configuracion" className="font-medium underline underline-offset-2">
+                Pagarlo ahora
+              </Link>
+            )}
+          </p>
         </div>
       )}
 
@@ -337,13 +357,27 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
             // 402 y no 403 justamente para poder distinguirlo de un problema de
             // permisos. Ver, cancelar y reprogramar siguen andando: no se bloquea
             // la app entera.
-            <p className="flex items-start gap-2 text-[13px] text-amber-900">
+            <div className="flex items-start gap-2 text-[13px] text-amber-900">
               <TriangleAlert size={15} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
-              <span>
-                {apiErrorMessage(error, "Hay un pago de la suscripción pendiente.")} Mientras tanto
-                podés ver, cancelar y reprogramar los turnos que ya tenés.
-              </span>
-            </p>
+              <div>
+                <p>
+                  {apiErrorMessage(error, "Hay un pago de la suscripción pendiente.")} Mientras
+                  tanto podés ver, cancelar y reprogramar los turnos que ya tenés.
+                </p>
+                {/* El error dice qué pasa; el link dice qué hacer. Sin esto el
+                    cartel es un callejón sin salida: enterarse de que hay que
+                    pagar sin poder pagar. */}
+                {puedePagar && (
+                  <Link
+                    href="/configuracion"
+                    className={cn(cta({ size: "sm" }), "mt-3")}
+                  >
+                    <CreditCard size={15} aria-hidden />
+                    Pagar la suscripción
+                  </Link>
+                )}
+              </div>
+            </div>
           ) : (
             <p className="text-[13px] text-red-600">
               {apiErrorMessage(error, "No pudimos agendar el turno.")}

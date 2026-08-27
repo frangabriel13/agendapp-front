@@ -315,8 +315,47 @@ export type CreateAppointmentPayload = Omit<Schema["CreateAppointmentDto"], "not
   notes?: string
 }
 
-/** Estado de la suscripción del negocio. El 402 al agendar se explica con esto. */
-export type Subscription = Schema["SubscriptionDto"]
+/**
+ * El plan contratado, tal como lo devuelve la suscripción.
+ *
+ * `priceMonthlyCents` en `null` **no es "gratis"**: es un plan que se cotiza con
+ * soporte (Empresa). Ese no se puede pagar solo desde el panel —el checkout
+ * devuelve 409—, así que el `null` es la condición para no ofrecer el botón.
+ */
+export type SubscriptionPlan = Omit<Schema["SubscriptionPlanDto"], "priceMonthlyCents"> & {
+  priceMonthlyCents: number | null
+}
+
+/** Mismo parche que en el resto: el spec deja estos dos campos sin tipo. */
+export type SubscriptionPayment = Omit<
+  Schema["SubscriptionPaymentDto"],
+  "paidAt" | "failureReason"
+> & {
+  paidAt: string | null
+  failureReason: string | null
+}
+
+/**
+ * La cuenta que **el negocio le paga a reservApp**, distinta de lo que le cobra a
+ * su clientela.
+ *
+ * Los dos campos que van juntos son `daysOverdue` y `blocked`: **deber no bloquea
+ * enseguida**, hay una ventana de `graceDays`. Ahí es cuando el aviso sirve;
+ * después ya es tarde y lo dice el 402 al intentar agendar.
+ */
+export type Subscription = Omit<Schema["SubscriptionDto"], "plan" | "payments"> & {
+  plan: SubscriptionPlan
+  payments: SubscriptionPayment[]
+}
+
+/**
+ * El link para pagarle el mes a reservApp.
+ *
+ * **`periodStart` y `periodEnd` no son decorativos**: pedir el checkout estando al
+ * día genera el cobro del **período siguiente**, no un duplicado del actual. Sin
+ * mostrarlos, el dueño paga sin saber qué mes está pagando.
+ */
+export type SubscriptionCheckout = Schema["SubscriptionCheckoutDto"]
 
 /**
  * El saldo de un turno. **No es un campo guardado: el backend lo calcula** con

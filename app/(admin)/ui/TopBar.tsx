@@ -17,6 +17,7 @@ import { useEmployees } from "@/features/employees/hooks/useEmployees"
 import { personColor } from "@/features/employees/lib/palette"
 import { fullName, initials } from "@/features/employees/lib/roles"
 import type { Employee, Session } from "@/types"
+import { canManage } from "@/features/auth/hooks/useAuth"
 import { subscriptionNote } from "@/features/dashboard/lib/subscription"
 import { AccountMenu } from "./AccountMenu"
 
@@ -46,6 +47,7 @@ export function TopBar({
 }) {
   const employees = useEmployees()
   const suscripcion = session ? subscriptionNote(session.tenant) : null
+  const puedeGestionar = canManage(session?.employee.role)
 
   const hoy = useMemo(() => {
     const texto = new Date().toLocaleDateString("es-AR", {
@@ -73,19 +75,38 @@ export function TopBar({
       </span>
 
       {/* Solo cuando hay algo que decir: una suscripción al día no merece cartel.
-          Vivía en la tarjeta de atajos, que ya no está. */}
-      {suscripcion && (
-        <span
-          className={cn(
-            pillClasses,
-            "hidden lg:inline-flex",
-            suscripcion.urgent && "border-amber-200 bg-amber-50 text-amber-800",
-          )}
-        >
-          {suscripcion.urgent && <TriangleAlert size={12} aria-hidden />}
-          {suscripcion.text}
-        </span>
-      )}
+          Vivía en la tarjeta de atajos, que ya no está.
+
+          **Es un link solo para quien puede hacer algo.** Los endpoints de la
+          suscripción le contestan 403 a un `PROFESSIONAL`, así que para él el
+          atajo llevaría a una pantalla donde no puede ni ver el estado. */}
+      {suscripcion &&
+        (puedeGestionar ? (
+          <Link
+            href="/configuracion"
+            className={cn(
+              pillClasses,
+              "hidden transition-colors lg:inline-flex",
+              suscripcion.urgent
+                ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                : "hover:border-black/15",
+            )}
+          >
+            {suscripcion.urgent && <TriangleAlert size={12} aria-hidden />}
+            {suscripcion.text}
+          </Link>
+        ) : (
+          <span
+            className={cn(
+              pillClasses,
+              "hidden lg:inline-flex",
+              suscripcion.urgent && "border-amber-200 bg-amber-50 text-amber-800",
+            )}
+          >
+            {suscripcion.urgent && <TriangleAlert size={12} aria-hidden />}
+            {suscripcion.text}
+          </span>
+        ))}
 
       <div className="ml-auto flex items-center gap-2">
         {employees.data && employees.data.length > 0 && <AvatarStack employees={employees.data} />}

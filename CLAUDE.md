@@ -49,6 +49,9 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 | `/pago/exito` | **Real.** Vuelta del checkout. Pública, **la abre el cliente del negocio** |
 | `/pago/pendiente` | **Real.** El pago quedó a la espera (efectivo, transferencia). Pública |
 | `/pago/error` | **Real.** El pago no se concretó. Pública |
+| `/suscripcion/exito` | **Real.** Vuelta del pago del mes. **Dentro del panel**: la abre el dueño |
+| `/suscripcion/pendiente` | **Real.** El pago del mes quedó a la espera |
+| `/suscripcion/error` | **Real.** El pago del mes no se concretó |
 
 ## Grupos de rutas
 - `app/(marketing)` → landing pública
@@ -431,6 +434,8 @@ ancho de pantalla). No hay script commiteado todavía.
   única conversión centavos ↔ pesos. `formatPrice` se borró
 - `features/payments/lib/balance.ts` — Qué decir con un saldo, qué cobro proponer y a
   qué turnos se les puede mover plata. Con tests
+- `features/tenants/lib/subscription.ts` — El estado de la cuenta que el negocio le
+  paga a reservApp, y si se puede pagar desde el panel. Con tests
 - `services/payments.ts` — Las tres llamadas de cobro
 - `app/(admin)/layout.tsx` — Sidebar **y guard de sesión**
 
@@ -496,10 +501,11 @@ Relevada y no atendida todavía:
 - `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
 - `useTeamTimeOff` y `useAssignableEmployees` hacen N pedidos (uno por empleado)
   porque la API no expone esos datos juntos. Alcanza para los planes actuales
-- `useTeamTimeOff` hace N pedidos (uno por empleado) porque la API no expone las
-  ausencias del tenant juntas. Alcanza para los planes actuales
 - `/reportes` mide lo **agendado** (`totalPriceCents`), no lo **cobrado**
   (`balance.paidCents`). Desde el punto 13 las dos cifras existen y son distintas
+- En desarrollo **el pago de la suscripción no se puede confirmar**: el id del
+  sandbox choca con el de un pago de turno y el webhook resuelve el del turno.
+  Ver "La suscripción del negocio"
 
 ## Alta de empleados — el flujo completo
 1. `POST /employees` da de alta sin contraseña y devuelve un `activationUrl`
@@ -737,6 +743,58 @@ hace con el turno abierto adelante y mirando a quien vino.
     registrar cobros —probado contra la API—, que es lo correcto en un local
     chico: quien atiende es quien recibe la plata.
 
+## La suscripción del negocio — el aviso tiene que llevar a algún lado
+`GET/POST /tenants/me/subscription`. Es lo que **reservApp le cobra al negocio**,
+no lo que el negocio le cobra a su clientela. Vive en `/configuracion`, arriba de
+todo, porque es el dato del que dependen los demás.
+
+1. **⚠️ Pide `OWNER` o `ADMINISTRATIVE`: a un `PROFESSIONAL` le contesta 403.** Y
+   no es teórico: `useSubscription` no tenía la guarda y cada profesional que
+   abría el formulario de agendar disparaba **tres 403 en los primeros seis
+   segundos**, más los que seguían con backoff. No rompía nada visible, que es lo
+   peor que puede tener un error. Ahora la consulta va con `enabled:
+   canManage(rol)` y **un 403 no se reintenta**: es una respuesta definitiva.
+   `/configuracion` muestra dos tarjetas distintas según el rol por lo mismo.
+
+2. **Pagar estando al día cobra el mes siguiente, no un duplicado.** Por eso la
+   respuesta trae `periodStart`/`periodEnd` y la pantalla los muestra: sin las
+   fechas, alguien paga sin saber qué mes pagó y con razón cree que pagó dos veces.
+   El botón lo dice antes de apretarlo ("Pagar el próximo mes" / "Pagar ahora").
+
+3. **El historial de la suscripción no trae `checkoutUrl`**, a diferencia del de
+   un turno. Volver a pedir el checkout es la **única** forma de recuperar el link
+   de un cobro pendiente —devuelve el mismo, con `reused: true`—, así que ahí el
+   botón dice "Retomar el pago" y no "Pagar el próximo mes", que haría pensar en un
+   segundo cobro del mismo mes.
+
+4. **`priceMonthlyCents: null` no es gratis**: es un plan que se cotiza con soporte
+   (Empresa). Su checkout devuelve **409**, así que `sePuedePagar` decide que el
+   botón no exista, en vez de existir para explicar el error después.
+
+5. **La pantalla de vuelta sí consulta, y es la diferencia con `/pago/*`.** Esas
+   las abre el cliente del negocio, sin sesión y sin endpoint público que
+   preguntar; `/suscripcion/exito` la abre el dueño, autenticado, así que espera la
+   confirmación real y la canta cuando llega. **El signo de que terminó es que no
+   quede ningún cobro `PENDING`** (`hayPagoEsperando`), no que la cuenta figure al
+   día: quien paga por adelantado ya estaba al día antes de pagar.
+
+6. **`/suscripcion/pendiente` no espera nada, a propósito.** Un pago en efectivo o
+   por transferencia puede tardar días hábiles, y una pantalla girando todo ese
+   rato solo consigue parecer colgada.
+
+7. **El aviso de deuda ahora lleva a pagar.** `deudaVisible` en el formulario de
+   agendar, el 402 cuando ya está bloqueado y la píldora de la barra de arriba
+   linkean a `/configuracion` — **solo para quien puede pagar**. A un profesional
+   el atajo lo llevaría a una pantalla donde ni siquiera puede ver el estado.
+
+8. **⚠️ En dev no se puede confirmar el pago de la suscripción.** El
+   `checkoutUrl` del sandbox trae `?sandbox=sandbox-payment-1`, **el mismo id que
+   ya tiene un pago de turno**, y el webhook resuelve el del turno: contesta
+   `applied` y el cobro de la suscripción sigue `PENDING`. Es del entorno de
+   desarrollo —en producción los ids los da Mercado Pago y son únicos—, pero
+   invalida la receta del `curl` para este caso. Probar la pantalla de vuelta
+   exige controlar la respuesta desde afuera.
+
 ## Las pantallas de los mails
 Cuatro rutas públicas que reciben un link que mandó el backend. Todas usan
 `AuthCard`, y las que muestran un desenlace en vez de un formulario usan
@@ -831,11 +889,11 @@ Acordado con Franco, en orden:
 ---
 
 **⚠️ El backend cerró la Fase 6 (pagos y suscripción).** El front venía dos fases
-atrás y las recuperó todas: **74 de 86 endpoints cableados**. Auth, negocio,
-sucursales, equipo, catálogo, clientes, turnos y cobros están completos. Sigue sin
-pantalla **el detalle de la suscripción del negocio** —lo que reservApp le cobra a
-él, no lo que él le cobra a su clientela—, que es lo último que queda. Nada de eso
-necesita tocar el backend: los endpoints existen, andan y están testeados. El detalle de cada uno,
+atrás y las recuperó todas: **75 de 86 endpoints cableados**, y no queda ninguna
+pantalla pendiente del roadmap. Lo que falta cablear son endpoints que el panel no
+necesita —los `GET /:id` de detalle, que ya salen del listado—, el webhook (que el
+front **no debe** llamar nunca), `/health`, y las series recurrentes, que son
+funcionalidad nueva y no una pantalla faltante. El detalle de cada uno,
 en `docs/api-contract.md`; qué cambió y qué rompe, en `docs/api-changelog.md`.
 
 ### 9. ~~Las pantallas de los mails~~ ✅ hecho
@@ -874,48 +932,40 @@ y el componente `Pagination`, que solo recibe un `meta` y no sabe de clientes.
 `/reportes` corren sobre la API. Las trampas quedaron en "Turnos reales — el mock
 está muerto", más arriba. **El 402 del punto 9 se hizo acá**, que es donde nacía.
 
-Lo que **no** entró y sigue pendiente:
-- **Series recurrentes.** `POST /appointments/recurring` existe y el servicio no
-  lo cablea todavía. Ojo cuando se haga: las fechas que no entran **se saltean**,
-  vuelven en `skipped`, y **hay que mostrarlas** o el usuario cree que se
-  agendaron todas
-- **Reprogramar desde la UI.** `rescheduleRequest` está escrito y probado por
-  tipos, pero ninguna pantalla lo llama
-- **Elegir el profesional al agendar.** Hoy se toma el primero que tenga libre el
-  hueco. `availability` acepta `employeeId` para filtrar
-- **Varios servicios en un turno.** El tipo y las cuentas ya lo soportan
-  (`services` es una lista); el formulario manda uno solo
-- `lib/absenceKind.ts` sigue: la API todavía no tiene campo de tipo de ausencia
+Lo que no entró está en el punto 15. Sigue además `lib/absenceKind.ts`: la API
+todavía no tiene campo de tipo de ausencia.
 
 ### 13. ~~Cobros~~ ✅ hecho
 Saldo, historial, cobro de mostrador, devolución y link de pago online, todo
 dentro del turno. Las tres pantallas de vuelta del checkout existen. Las trampas
 quedaron en "Cobros — la plata va en dos tiempos", más arriba.
 
-Lo que **no** entró y sigue pendiente:
-- **`/reportes` sigue midiendo lo agendado, no lo cobrado.** Las dos cifras son
-  útiles y ahora por fin son distintas: `totalPriceCents` es lo que se acordó y
-  `balance.paidCents` lo que entró. Hoy solo se ve la primera
-- **Nadie ve la plata del día junta.** El saldo se lee turno por turno; no hay un
-  corte de caja
-- **La devolución que sugiere el backend al cancelar no se usa.**
-  `ChangeStatusResultDto.refund` dice cuánto corresponde devolver según la
-  política del negocio, y hoy se descarta. Ojo al hacerlo: **es justo lo que hay
-  que ofrecer antes de cancelar**, porque después el 409 ya no deja registrarlo
+Lo que no entró está en el punto 15, junto con el resto.
 
-### 14. La suscripción del negocio
-Lo último que queda. Es lo que reservApp le cobra al negocio, no lo que el negocio
-le cobra a su clientela.
-- Hoy `deudaVisible` avisa que hay un pago pendiente **y no ofrece pagarlo**:
-  `POST /tenants/me/subscription/checkout` existe y nadie lo llama. El aviso es un
-  callejón sin salida
-- `GET /tenants/me/subscription` ya está cableado y trae plan, período, historial
-  de cobros, `daysOverdue`, `graceDays` y `blocked`
-- Mismo cobro en dos tiempos que el del turno, incluido `reused: true`. Si el plan
-  no tiene precio de lista (Empresa, que se cotiza con soporte) da **409**
-- Faltan `/suscripcion/exito`, `/suscripcion/error` y `/suscripcion/pendiente`
-- **Estos endpoints sí piden `OWNER` o `ADMINISTRATIVE`**, a diferencia de los
-  cobros del turno: un profesional no tiene por qué ver cuánto paga su empleador
+### 14. ~~La suscripción del negocio~~ ✅ hecho
+Estado de la cuenta, historial de cobros y link para pagar el mes, en
+`/configuracion`. El aviso de deuda dejó de ser un callejón sin salida: desde el
+formulario de agendar, desde el 402 y desde la barra de arriba se llega a pagar.
+Las trampas quedaron en "La suscripción del negocio", más arriba.
+
+**Con esto el roadmap queda cerrado.** Lo que sigue no es una pantalla faltante
+sino trabajo nuevo; en orden de lo que más se va a extrañar:
+
+### 15. Lo que quedó afuera, por si sirve de orden
+- **`/reportes` mide lo agendado, no lo cobrado.** Las dos cifras existen desde el
+  punto 13 y son distintas: `totalPriceCents` es lo que se acordó, `paidCents` lo
+  que entró. Es el agujero más grande que queda
+- **No hay corte de caja del día.** El saldo se lee turno por turno
+- **La devolución que sugiere el backend al cancelar se descarta.**
+  `ChangeStatusResultDto.refund` dice cuánto corresponde según la política, y **es
+  justo lo que hay que ofrecer antes de cancelar**: después el 409 ya no deja
+  registrarlo
+- **Series recurrentes** (`POST /appointments/recurring`). Las fechas ocupadas se
+  saltean y vuelven en `skipped`: **hay que mostrarlas** o el usuario cree que se
+  agendaron todas
+- **Reprogramar desde la UI.** `rescheduleRequest` está escrito y nadie lo llama
+- **Elegir el profesional al agendar** y **varios servicios en un turno**
+- `/registro`, que sigue sin decidirse — ver abajo
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`

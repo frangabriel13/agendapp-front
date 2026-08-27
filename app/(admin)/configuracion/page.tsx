@@ -9,6 +9,7 @@ import { canManage, useSession } from "@/features/auth/hooks/useAuth"
 import { BookingSection } from "@/features/tenants/components/BookingSection"
 import { BrandingSection } from "@/features/tenants/components/BrandingSection"
 import { BusinessSection } from "@/features/tenants/components/BusinessSection"
+import { SubscriptionCard } from "@/features/tenants/components/SubscriptionCard"
 import { useBranding, useSettings, useTenant } from "@/features/tenants/hooks/useTenant"
 import { SUBSCRIPTION_LABELS } from "@/features/tenants/lib/options"
 import type { Tenant } from "@/types"
@@ -62,7 +63,14 @@ export default function ConfiguracionPage() {
           Cada sección se monta con su dato ya cargado y arranca su estado desde
           las props, así no hace falta un efecto que copie datos a estado.
         */}
-        {!cargando && !error && tenant.data && <PlanCard tenant={tenant.data} />}
+        {/*
+          Dos tarjetas para el mismo lugar, según el rol. `GET
+          /tenants/me/subscription` pide OWNER o ADMINISTRATIVE y a un profesional
+          le contesta 403, así que él ve la versión corta —el plan y sus límites,
+          que sí puede leer de `GET /tenants/me`— y no un error.
+        */}
+        {!cargando && !error && tenant.data &&
+          (manage ? <SubscriptionCard tenant={tenant.data} /> : <PlanCard tenant={tenant.data} />)}
         {!cargando && !error && tenant.data && <BusinessSection tenant={tenant.data} canSave={manage} />}
         {!cargando && !error && branding.data && <BrandingSection branding={branding.data} canSave={manage} />}
         {!cargando && !error && settings.data && <BookingSection settings={settings.data} canSave={manage} />}
@@ -71,6 +79,7 @@ export default function ConfiguracionPage() {
   )
 }
 
+/** La versión que ve un `PROFESSIONAL`: el plan, sin nada de la cuenta. */
 function PlanCard({ tenant }: { tenant: Tenant }) {
   const { plan } = tenant
   const limite = (valor: number | null) => (valor === null ? "Sin límite" : String(valor))

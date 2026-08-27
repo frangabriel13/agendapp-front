@@ -6,7 +6,6 @@ import type {
   AppointmentStatus,
   Availability,
   CreateAppointmentPayload,
-  Subscription,
 } from "@/types"
 
 /**
@@ -152,9 +151,4 @@ export function rescheduleRequest(id: string, startsAt: string): Promise<Appoint
     method: "POST",
     body: JSON.stringify({ startsAt }),
   }).then(toAppointment)
-}
-
-/** Estado de la suscripción. Es lo que le da un texto útil al 402. */
-export function getSubscriptionRequest(): Promise<Subscription> {
-  return apiFetch<Subscription>("/tenants/me/subscription")
 }
