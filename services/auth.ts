@@ -1,5 +1,6 @@
 import { apiFetch, getRefreshToken } from "@/lib/api"
 import { setBusinessTimezone } from "@/lib/time"
+import { setBusinessCurrency } from "@/features/catalog/lib/money"
 import type { AuthTokens, LoginCredentials, RegisterPayload, Session } from "@/types"
 
 export function loginRequest(credentials: LoginCredentials): Promise<AuthTokens> {
@@ -22,15 +23,17 @@ export function registerRequest(payload: RegisterPayload): Promise<AuthTokens> {
 /**
  * Quién sos, en qué negocio y con qué rol.
  *
- * **Acá se fija la zona horaria del negocio**, y no en un efecto de React: la
- * conversión de instantes a horas de pared ocurre dentro de `queryFn`s
- * (`toAppointment`), fuera de todo componente. Poniéndola al traer la sesión,
- * cualquiera que vea `session` ya la tiene fijada; hacerlo en un `useEffect`
- * dejaría el primer render dibujando con la zona equivocada.
+ * **Acá se fijan la zona horaria y la moneda del negocio**, y no en un efecto de
+ * React: la conversión de instantes a horas de pared ocurre dentro de `queryFn`s
+ * (`toAppointment`) y el formateo de plata dentro de funciones puras, las dos
+ * fuera de todo componente. Poniéndolas al traer la sesión, cualquiera que vea
+ * `session` ya las tiene fijadas; hacerlo en un `useEffect` dejaría el primer
+ * render dibujando con la zona y la moneda equivocadas.
  */
 export function getSessionRequest(): Promise<Session> {
   return apiFetch<Session>("/auth/me").then((session) => {
     setBusinessTimezone(session.tenant.timezone)
+    setBusinessCurrency(session.tenant.currency)
     return session
   })
 }

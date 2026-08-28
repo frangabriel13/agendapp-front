@@ -127,11 +127,24 @@ export function TimeGrid({
                       column.today && "bg-violet-600/5",
                     )}
                   >
+                    {/*
+                      **Fuera del orden de tabulación, a propósito.** Son una
+                      hora por día: con una semana a la vista eran más de ochenta
+                      paradas de teclado —todas vacías, todas iguales— entre el
+                      encabezado y el primer turno. Es un atajo de mouse sobre
+                      una grilla que se lee mirando.
+
+                      Con teclado no se pierde nada: "Nuevo turno" abre el mismo
+                      formulario y ahí los horarios son los que de verdad están
+                      libres, que es mejor que este atajo —acá se puede clickear
+                      una hora ocupada y descubrirlo después—.
+                    */}
                     {horas.map((hora) => (
                       <button
                         key={hora}
                         type="button"
-                        aria-label={`Agendar a las ${hora}:00`}
+                        tabIndex={-1}
+                        aria-hidden
                         onClick={() => onSlotClick(column.key, `${String(hora).padStart(2, "0")}:00`)}
                         style={{ height: ALTO_HORA }}
                         className="block w-full border-b border-black/[0.045] transition-colors hover:bg-violet-600/5"

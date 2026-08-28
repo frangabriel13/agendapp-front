@@ -1,6 +1,9 @@
 export function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number)
-  return h * 60 + m
+  // Se convierte después de partir, no antes: partido, un "HH:MM" mal formado
+  // deja partes `undefined`, y `Number(undefined)` ya es `NaN`. Así el tipo dice
+  // la verdad sin un `!` que la tape ni un default que invente las 00:00.
+  const [h, m] = time.split(":")
+  return Number(h) * 60 + Number(m)
 }
 
 export function minutesToTime(total: number): string {

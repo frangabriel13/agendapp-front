@@ -503,13 +503,12 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 
 ## Deuda conocida
 Relevada y no atendida todavía:
-- Un botón vacío por hora y por día en la grilla de `TimeGrid` —desde el punto 12
-  el rango es variable, así que no son 84 fijos—: tienen `aria-label`, pero son
-  decenas de paradas de tabulación
-- `tsconfig` sin `noUncheckedIndexedAccess`
 - `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
-- `useTeamTimeOff` y `useAssignableEmployees` hacen N pedidos (uno por empleado)
-  porque la API no expone esos datos juntos. Alcanza para los planes actuales
+- `useTeamTimeOff`, `useTeamSchedules` y `useAssignableEmployees` hacen N pedidos
+  (uno por empleado) porque la API no expone esos datos juntos. **Siguen siendo
+  N**, pero desde el punto 19 salen a lo sumo de a 8 por segundo: la ráfaga ya no
+  se lleva puesto el rate limiting. Un endpoint que los devuelva juntos sería
+  mejor igual
 - `/reportes` muestra las dos cifras desde el punto 17: lo **agendado**
   (`totalPriceCents`) arriba y lo **cobrado** del mes (`GET /payments`) abajo.
   Lo que sigue sin poder verse de un mes es lo que **falta** cobrar: el endpoint
@@ -1125,6 +1124,37 @@ medias ofrecería justo a quien no presta el servicio que falta.
 Tocar la lista de servicios **borra el horario y el profesional elegidos**: la
 duración cambió y quien hacía uno puede no hacer el otro, y un `employeeId` viejo
 filtra la disponibilidad a cero sin decir por qué.
+
+### 19. ~~Cuatro deudas viejas~~ ✅ hecho
+**La moneda sale de `tenant.currency`.** `/configuracion` la deja elegir entre
+ocho —ARS, USD, UYU, CLP, PYG, BOB, PEN, COP—, la guardaba, y `formatCents` la
+ignoraba con un ARS fijo: un negocio uruguayo elegía UYU y veía 45 renglones en
+pesos argentinos. Se fija con `setBusinessCurrency` al traer la sesión, **igual y
+por lo mismo que la zona horaria**: la plata se formatea dentro de funciones puras
+que no pueden leer un contexto de React, y enhebrar la moneda por 45 llamadas
+significaba olvidarse en una. Un código que `Intl` no conoce vuelve a ARS en vez
+de tirar la pantalla abajo. Cambiarla invalida todas las queries, como la zona: la
+moneda no queda pegada a los datos, pero sí a lo que ya está dibujado.
+
+**Las celdas vacías de `TimeGrid` salieron del orden de tabulación**
+(`tabIndex={-1}` + `aria-hidden`). Con la semana a la vista eran más de ochenta
+paradas de teclado, todas iguales, antes del primer turno: medido, la agenda pasó
+de más de 120 paradas a 43. Con teclado no se pierde nada —"Nuevo turno" abre el
+mismo formulario, y ahí los horarios son los que de verdad están libres—.
+
+**`noUncheckedIndexedAccess` está prendido.** Costó dos errores, los dos en
+`timeToMinutes`: ahora convierte **después** de partir, así un "HH:MM" mal formado
+sigue dando `NaN` como siempre, sin un `!` que tape el tipo ni un default que
+invente las 00:00.
+
+**Y hay un freno de mano contra el rate limiting**, `lib/throttle.ts`, enchufado
+en `send()` de `lib/api.ts` —ahí y no en `apiFetch` para que el reintento de token
+también pida turno—. **El dashboard con tres empleados disparaba 16 pedidos en un
+segundo contra un límite de 10**: ausencias y horarios de cada uno, que la API da
+de a una persona. Ahora salen de a 8 por ventana deslizante, medido en el
+navegador. La ventana del cliente es de 1,1 s contra el segundo del servidor, a
+propósito: con 1000 exactos, dos tandas separadas por un segundo caen en la misma
+ventana del servidor apenas su corte esté corrido unos milisegundos.
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`
