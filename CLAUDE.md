@@ -575,10 +575,12 @@ con un `superRefine` en vez de reescribirla, para que no se desincronice.
     cierto y engaña: el titular nombra los dos números. `occurrences` **cuenta el
     primero**. Si no entró ninguna, ahí sí es 409.
 
-12. **`availability` acepta un solo `serviceId`.** Repetirlo da 400. Por eso el
-    formulario manda un servicio por turno aunque `POST /appointments` acepte
-    varios: con dos, los horarios ofrecidos serían los de uno y se mostrarían
-    huecos donde no entra.
+12. **`availability` se pregunta con todos los servicios del turno.**
+    `serviceIds` repetido en la query; `serviceId` ya no existe y mandarlo da 400.
+    La duración del hueco es la **suma** de los servicios con sus buffers, y la
+    lista de profesionales es la **intersección** —los que prestan todos—, porque
+    el turno lo atiende una sola persona. De ahí `noEmployeeForServices`, el único
+    motivo de `slots: []` que no se arregla cambiando de día.
 
 13. **`GET /appointments` va por rango, no paginado**, hasta 92 días. Un turno
     que arranca el día anterior y termina dentro del rango **también viene**
@@ -1049,7 +1051,7 @@ sino trabajo nuevo; en orden de lo que más se va a extrañar:
 - `/registro`, que sigue sin decidirse — ver abajo
 
 **Lo que estaba bloqueado por la API — los dos se destrabaron el 2026-08-27**, y
-**los dos ya están cableados**: ver el punto 17. El detalle y las trampas de cada
+**los dos ya están cableados**: ver los puntos 17 y 18. El detalle y las trampas de cada
 uno están en `docs/api-changelog.md`, en las dos entradas de esa fecha.
 
 1. **Facturación cobrada por mes** — ✅ destrabado. Existe
@@ -1103,6 +1105,26 @@ falla, se pierde un día de plata en silencio.
 
 `DayCollections` **queda igual y sigue costando un pedido por turno**: contesta
 otra pregunta —quién quedó debiendo— que el endpoint de rango no puede contestar.
+
+### 18. ~~Varios servicios en un turno~~ ✅ hecho
+Corte + color en la misma visita, que era para lo que el backend cambió
+`availability`. El selector pasó de elegir uno a **agregar a una lista**: un local
+puede tener treinta servicios y lo normal sigue siendo uno, así que marcar
+casillas en una grilla habría hecho más pesado el caso común. Los elegidos quedan
+a la vista con lo que dura y lo que sale cada uno, y con más de uno se dice el
+total y que **lo atiende una sola persona** —que es la razón de que la lista de
+profesionales se achique al agregar servicios—.
+
+**La intersección vive en `features/catalog/lib/staff.ts`**, con tests: si Lucía
+hace corte y Ana color pero ninguna las dos, para corte+color no hay nadie.
+Ofrecer la unión sería ofrecer gente que después rebota. El par empleado+sucursal
+es la unidad, no la persona. `useServicesEmployees` pide uno por servicio
+—la API los da de a uno— y **no intersecta hasta tenerlos todos**: con una lista a
+medias ofrecería justo a quien no presta el servicio que falta.
+
+Tocar la lista de servicios **borra el horario y el profesional elegidos**: la
+duración cambió y quien hacía uno puede no hacer el otro, y un `employeeId` viejo
+filtra la disponibilidad a cero sin decir por qué.
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`

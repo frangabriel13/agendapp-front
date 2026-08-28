@@ -132,7 +132,10 @@ export function AppointmentModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <Row icon={<Stethoscope size={15} />} label="Servicio">
+          <Row
+            icon={<Stethoscope size={15} />}
+            label={appointment.services.length > 1 ? "Servicios" : "Servicio"}
+          >
             <span className="font-medium text-neutral-900">{serviceName(appointment)}</span>
             {/* `totalPriceCents`: el precio **congelado al reservar**. El del catálogo
                 pudo cambiar después y este turno no se mueve. */}
