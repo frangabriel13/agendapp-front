@@ -8,8 +8,10 @@ import { Page, PageHeader } from "../ui/Page"
 import { cn } from "@/lib/utils"
 import { formatCents } from "@/features/catalog/lib/money"
 import { businessNow, today } from "@/lib/time"
+import { canManage, useSession } from "@/features/auth/hooks/useAuth"
 import { useMonthAppointments } from "@/features/appointments/hooks/useAppointments"
 import { DayCollections } from "@/features/payments/components/DayCollections"
+import { MonthCollections } from "@/features/payments/components/MonthCollections"
 import { RevenueBreakdown } from "@/features/reports/components/RevenueBreakdown"
 import {
   monthLabel,
@@ -23,6 +25,15 @@ export default function ReportesPage() {
   // mouse al cruzar la medianoche con la pantalla abierta.
   const hoy = useMemo(() => today(), [])
   const mes = hoy.slice(0, 7)
+
+  /**
+   * **Lo cobrado del mes pide `OWNER` o `ADMINISTRATIVE`.** A un profesional el
+   * endpoint le contesta 403, así que el panel no se monta — pero la pantalla
+   * sí: lo agendado y los turnos de hoy los puede ver cualquiera, y esconderle
+   * `/reportes` entero le sacaría algo que hoy tiene.
+   */
+  const { data: session } = useSession()
+  const vePlataDelNegocio = canManage(session?.employee.role)
 
   /**
    * Las cuentas viven en `features/reports/lib/revenue.ts` y no acá, así que
@@ -46,7 +57,16 @@ export default function ReportesPage() {
     <Page width="wide">
       <PageHeader
         title="Reportes"
-        description="Cuánto se agendó este mes. Es lo pactado, no lo que entró en la caja."
+        /*
+          La bajada cambia con el rol porque el panel de lo cobrado no se monta
+          para un profesional: prometerle "cuánto entró en la caja" y no
+          mostrárselo se lee como si faltara algo.
+        */
+        description={
+          vePlataDelNegocio
+            ? "Cuánto se agendó este mes y cuánto entró en la caja. No son lo mismo."
+            : "Cuánto se agendó este mes. Es lo pactado, no lo que entró en la caja."
+        }
         badge={
           <span className={cn(pillClasses, "text-neutral-500")}>
             <Receipt size={12} aria-hidden />
@@ -59,10 +79,9 @@ export default function ReportesPage() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {/*
             **Dice "agendado" y no "facturación" a propósito.** Sale de
-            `totalPriceCents`, que es lo que se pactó al reservar; lo que
-            realmente entró son los pagos, y la API no los expone de a un mes.
-            Llamar "facturación" a esto hacía que la cifra se leyera como plata en
-            la caja.
+            `totalPriceCents`, que es lo que se pactó al reservar. Lo que
+            realmente entró está abajo, en "Lo cobrado": son dos cifras distintas
+            y confundirlas es leer como plata en la caja algo que todavía no lo es.
           */}
           <Cifra
             icon={Wallet}
@@ -98,9 +117,13 @@ export default function ReportesPage() {
         )}
 
         {/*
-          Lo cobrado va acá abajo y **solo del día**: la API da los pagos de a un
-          turno, así que un mes serían cientos de pedidos. Ver `useDayCollections`.
+          Dos preguntas distintas, no una repetida: arriba **cuánto entró** en el
+          mes, que sale de los pagos acreditados; abajo **quién quedó debiendo**
+          hoy, que sale del saldo de cada turno y por eso sigue costando un pedido
+          por turno.
         */}
+        {vePlataDelNegocio && <MonthCollections month={mes} label={monthLabel(mes)} />}
+
         <DayCollections day={hoy} appointments={deHoy} />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

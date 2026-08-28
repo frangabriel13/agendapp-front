@@ -214,6 +214,22 @@ export function today(): string {
   return `${p.year}-${dosCifras(p.month)}-${dosCifras(p.day)}`
 }
 
+/**
+ * El primer y el último día de un mes, "YYYY-MM-DD" los dos y los dos incluidos.
+ * `month` es "YYYY-MM".
+ *
+ * **Es un par de días de calendario, no un rango de instantes**, así que no
+ * interviene ninguna zona horaria: quien lo recibe decide qué significa "ese día"
+ * —`GET /payments` los interpreta en la zona del negocio—. Un rango mal calculado
+ * no falla: se pierde un día de plata en silencio.
+ */
+export function monthRange(month: string): { from: string; to: string } {
+  const [year, monthNumber] = month.split("-").map(Number)
+  // El día 0 del mes siguiente es el último del actual: así no hay que saber
+  // cuántos días tiene febrero ni tratar diciembre aparte.
+  return { from: `${month}-01`, to: dateToStr(new Date(year!, monthNumber!, 0)) }
+}
+
 function dosCifras(n: number): string {
   return String(n).padStart(2, "0")
 }

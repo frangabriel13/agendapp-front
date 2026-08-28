@@ -3,6 +3,7 @@ import {
   businessNow,
   businessTimezone,
   dateToStr,
+  monthRange,
   parseCalendarDay,
   setBusinessTimezone,
   splitInstant,
@@ -273,5 +274,35 @@ describe("businessNow", () => {
       setBusinessTimezone(zona)
       expect(dateToStr(businessNow())).toBe(today())
     }
+  })
+})
+
+describe("monthRange", () => {
+  it("toma el mes entero, del 1 al último", () => {
+    expect(monthRange("2026-08")).toEqual({ from: "2026-08-01", to: "2026-08-31" })
+  })
+
+  it("no se le escapa el día 30 de un mes de 30", () => {
+    expect(monthRange("2026-09")).toEqual({ from: "2026-09-01", to: "2026-09-30" })
+  })
+
+  it("febrero de un año bisiesto llega al 29", () => {
+    expect(monthRange("2028-02")).toEqual({ from: "2028-02-01", to: "2028-02-29" })
+  })
+
+  it("y de uno común, al 28", () => {
+    expect(monthRange("2026-02")).toEqual({ from: "2026-02-01", to: "2026-02-28" })
+  })
+
+  it("diciembre termina en diciembre, no en enero", () => {
+    expect(monthRange("2026-12")).toEqual({ from: "2026-12-01", to: "2026-12-31" })
+  })
+
+  it("no depende de la zona del negocio: son días de calendario", () => {
+    setBusinessTimezone("Asia/Tokyo")
+    const tokio = monthRange("2026-08")
+    setBusinessTimezone("America/Mexico_City")
+
+    expect(monthRange("2026-08")).toEqual(tokio)
   })
 })
