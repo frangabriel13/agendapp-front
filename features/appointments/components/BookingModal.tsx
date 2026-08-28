@@ -132,6 +132,24 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
     [disponibilidad.data, llegada],
   )
 
+  /**
+   * **Un negocio recién creado no tiene ni sucursales ni servicios**, y lo primero
+   * que hace cualquiera es apretar "Nuevo turno". Sin esto el formulario pide una
+   * sucursal de una lista vacía y un servicio que no existe: un callejón sin
+   * salida que además no explica qué falta. Se espera a que los dos listados
+   * lleguen para no acusar de vacío a algo que todavía está cargando.
+   */
+  const listasListas = branches.data !== undefined && services.data !== undefined
+  const faltaConfigurar = listasListas
+    ? [
+        branches.data.length === 0 && { que: "una sucursal", donde: "/sucursales" },
+        catalogo.filter((service) => service.isActive).length === 0 && {
+          que: "un servicio",
+          donde: "/servicios",
+        },
+      ].filter((f) => f !== false)
+    : []
+
   const aviso = deudaVisible(subscription.data)
 
   /**
@@ -181,6 +199,32 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   const chocó = error instanceof ApiError && error.statusCode === 409 && !repite
   const debe = error instanceof ApiError && error.statusCode === 402
   const guardando = agendar.isPending || serie.isPending
+
+  if (faltaConfigurar.length > 0) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+        <p className="flex items-start gap-2 text-[13px] text-amber-900">
+          <TriangleAlert size={15} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
+          <span>
+            Antes de agendar falta cargar{" "}
+            {faltaConfigurar.map((falta) => falta.que).join(" y ")}. Un turno es alguien
+            atendiendo algo en algún lado: sin eso no hay nada que reservar.
+          </span>
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {faltaConfigurar.map((falta) => (
+            <Link
+              key={falta.donde}
+              href={falta.donde}
+              className={cn(cta({ variant: "outline", size: "sm" }), "bg-white/70")}
+            >
+              Cargar {falta.que}
+            </Link>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={submit} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-0.5">

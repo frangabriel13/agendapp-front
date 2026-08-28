@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { newPasswordSchema, validateEmail, validateNewPassword } from "./validators"
+import {
+  newPasswordSchema,
+  validateEmail,
+  validateNewPassword,
+  validateNombre,
+} from "./validators"
 
 /** El primer mensaje de error del campo, o `null` si el campo pasó. */
 function errorDe(values: { password: string; confirm: string }, campo: "password" | "confirm") {
@@ -70,5 +75,31 @@ describe("newPasswordSchema", () => {
 
   it("no deja pasar dos iguales pero inválidas", () => {
     expect(newPasswordSchema.safeParse({ password: "abc", confirm: "abc" }).success).toBe(false)
+  })
+})
+
+describe("validateNombre", () => {
+  it("acepta un nombre normal", () => {
+    expect(validateNombre("Ana", "El nombre")).toBeNull()
+    expect(validateNombre("Peluquería Ana", "El nombre del negocio")).toBeNull()
+  })
+
+  it("pide el campo cuando está vacío, y los espacios no cuentan", () => {
+    expect(validateNombre("", "El nombre")).toBe("El nombre es requerido")
+    expect(validateNombre("   ", "El apellido")).toBe("El apellido es requerido")
+  })
+
+  it("espeja el mínimo de dos del backend", () => {
+    // Sin esto el rebote llega en inglés: "must be longer than or equal to 2".
+    expect(validateNombre("A", "El nombre")).toBe("El nombre es demasiado corto")
+    expect(validateNombre("Al", "El nombre")).toBeNull()
+  })
+
+  it("mide después de recortar: dos espacios y una letra siguen siendo una", () => {
+    expect(validateNombre(" A ", "El nombre")).toBe("El nombre es demasiado corto")
+  })
+
+  it("nombra el campo del que habla", () => {
+    expect(validateNombre("", "El nombre del negocio")).toBe("El nombre del negocio es requerido")
   })
 })

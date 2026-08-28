@@ -503,7 +503,6 @@ Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 
 ## Deuda conocida
 Relevada y no atendida todavía:
-- `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
 - `useTeamTimeOff`, `useTeamSchedules` y `useAssignableEmployees` hacen N pedidos
   (uno por empleado) porque la API no expone esos datos juntos. **Siguen siendo
   N**, pero desde el punto 19 salen a lo sumo de a 8 por segundo: la ráfaga ya no
@@ -1156,8 +1155,28 @@ navegador. La ventana del cliente es de 1,1 s contra el segundo del servidor, a
 propósito: con 1000 exactos, dos tandas separadas por un segundo caen en la misma
 ventana del servidor apenas su corte esté corrido unos milisegundos.
 
-### Sin decidir
-`/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`
-existe y funciona hace rato. Si el alta es a propósito por teléfono —onboarding
-manual, que para vender a estéticas tiene sentido— no hay nada que hacer.
-**Preguntarle a Franco antes de construirla.**
+### 20. ~~El alta~~ ✅ hecho — Franco decidió que se registren solos
+`/registro` era un cartel de "próximamente" y ahora es el formulario:
+nombre, apellido, negocio, email, teléfono (opcional) y contraseña. `POST
+/auth/register` **crea la persona y el negocio juntos y devuelve los tokens**, así
+que no hay pantalla intermedia: se completa y se cae en el panel con catorce días
+de prueba corriendo.
+
+**Los nombres se validan en el front aunque el backend también los valide**, y no
+por ahorrar un viaje: sus mensajes de largo mínimo vienen **en inglés**
+("firstName must be longer than or equal to 2 characters"), que sería lo único en
+inglés que ve alguien creando su cuenta. De ahí `validateNombre`. El email
+repetido sí se deja rebotar: el 409 trae "Ya existe una cuenta con ese email"
+escrito, y lo que importa ahí no es el cartel sino la salida — un link a `/login`.
+
+**Un nombre de negocio repetido se permite** (probado): el backend resuelve el
+slug solo, así que dos "Peluquería Ana" conviven y el formulario no tiene que
+tratarlo.
+
+**Lo que faltaba no era el formulario, era lo que pasa después.** Un negocio
+recién creado viene con 0 sucursales, 0 servicios, 0 clientes y un empleado. Todas
+las pantallas aguantan vacías —tienen su estado escrito— menos la que aprieta
+cualquiera primero: el modal de agendar pedía una sucursal de una lista vacía y un
+servicio inexistente, sin decir que faltaba cargarlos. Ahora dice qué falta y
+lleva a cargarlo. Le pasa a cualquier negocio sin servicios activos, no solo a uno
+nuevo.
