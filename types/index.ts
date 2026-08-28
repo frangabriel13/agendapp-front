@@ -456,6 +456,23 @@ export interface AppointmentPayments {
 }
 
 /**
+ * Un cobro acreditado, tal como lo lista `GET /payments`. Trae de qué turno era
+ * para poder reconocerlo sin pedir el turno aparte.
+ */
+export type PaymentRangeItem = Schema["PaymentRangeItemDto"]
+
+/**
+ * Los totales de `GET /payments`. Son del **rango entero, no de la página**, así
+ * que paginar no los mueve y no hay que ir sumando página por página.
+ *
+ * `netCents` —cobrado menos devuelto— es el número del reporte.
+ */
+export type PaymentRangeTotals = Schema["PaymentRangeTotalsDto"]
+
+/** La respuesta de `GET /payments`: `{ data, meta, totals }`. */
+export type PaymentRange = Schema["PaymentRangeResponseDto"]
+
+/**
  * El link de pago recién pedido.
  *
  * **`reused: true` no es un error**: pedir el mismo cobro dos veces devuelve el

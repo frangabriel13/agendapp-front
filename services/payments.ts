@@ -4,6 +4,7 @@ import type {
   Checkout,
   CheckoutType,
   Payment,
+  PaymentRange,
   RecordManualPaymentPayload,
 } from "@/types"
 
@@ -58,4 +59,38 @@ export function recordManualPaymentRequest(
     method: "POST",
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * Lo cobrado en un rango de días, con los totales del rango ya sumados.
+ *
+ * **Es el reemplazo de pedir el saldo turno por turno.** Un mes de un local con
+ * movimiento eran cientos de llamadas contra el límite de 100 cada 50 s; esto es
+ * una sola.
+ *
+ * `from` y `to` van en `YYYY-MM-DD`, los dos obligatorios y los dos **incluidos**,
+ * y son **días del calendario del negocio**: un cobro de las 21:30 en Buenos
+ * Aires cuenta para ese día y no para el siguiente.
+ *
+ * ⚠️ **Devuelve plata liquidada, no el estado de cobranza.** El filtro es por
+ * cuándo entró la plata (`paidAt`), y un cobro pendiente o fallado no tiene esa
+ * fecha: no puede aparecer nunca. Pedirlos a propósito (`status: "PENDING"`) da
+ * 400, no una lista vacía. Lo que falta cobrar de un turno sale de su `balance`.
+ *
+ * ⚠️ **Pide `OWNER` o `ADMINISTRATIVE`**: a un `PROFESSIONAL` le contesta 403. El
+ * saldo de a un turno, en cambio, sigue abierto a cualquier empleado — cobrar es
+ * trabajo de mostrador. La pantalla tiene que preguntar por el rol antes de
+ * montar esto, no descubrirlo con un 403.
+ */
+export function getPaymentsRangeRequest(range: {
+  from: string
+  to: string
+  page?: number
+  pageSize?: number
+}): Promise<PaymentRange> {
+  const params = new URLSearchParams({ from: range.from, to: range.to })
+  if (range.page) params.set("page", String(range.page))
+  if (range.pageSize) params.set("pageSize", String(range.pageSize))
+
+  return apiFetch<PaymentRange>(`/payments?${params}`)
 }

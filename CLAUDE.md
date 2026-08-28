@@ -510,8 +510,10 @@ Relevada y no atendida todavía:
 - `/registro` sigue siendo un cartel de "próximamente" — a decidir, ver el final
 - `useTeamTimeOff` y `useAssignableEmployees` hacen N pedidos (uno por empleado)
   porque la API no expone esos datos juntos. Alcanza para los planes actuales
-- `/reportes` mide lo **agendado** (`totalPriceCents`), no lo **cobrado**
-  (`balance.paidCents`). Desde el punto 13 las dos cifras existen y son distintas
+- `/reportes` muestra las dos cifras desde el punto 17: lo **agendado**
+  (`totalPriceCents`) arriba y lo **cobrado** del mes (`GET /payments`) abajo.
+  Lo que sigue sin poder verse de un mes es lo que **falta** cobrar: el endpoint
+  de rango filtra por cuándo entró la plata, así que un pendiente no aparece
 - En desarrollo **el pago de la suscripción no se puede confirmar**: el id del
   sandbox choca con el de un pago de turno y el webhook resuelve el del turno.
   Ver "La suscripción del negocio"
@@ -1046,10 +1048,9 @@ sino trabajo nuevo; en orden de lo que más se va a extrañar:
   ese servicio en esa sucursal
 - `/registro`, que sigue sin decidirse — ver abajo
 
-**Lo que estaba bloqueado por la API — los dos se destrabaron el 2026-08-27.**
-El backend construyó las dos cosas; falta cablearlas de este lado. El detalle y
-las trampas de cada una están en `docs/api-changelog.md`, en las dos entradas de
-esa fecha.
+**Lo que estaba bloqueado por la API — los dos se destrabaron el 2026-08-27**, y
+**los dos ya están cableados**: ver el punto 17. El detalle y las trampas de cada
+uno están en `docs/api-changelog.md`, en las dos entradas de esa fecha.
 
 1. **Facturación cobrada por mes** — ✅ destrabado. Existe
    **`GET /payments?from&to`**: los cobros de un rango, paginados y con los
@@ -1077,6 +1078,31 @@ en "La zona horaria del negocio", más arriba.
 De paso se fue una duplicación: `features/employees/lib/timeOff.ts` tenía su propia
 copia de `toInstant`/`toDateInput`/`toTimeInput`, también atada al navegador, así
 que las ausencias se cargaban corridas. Ahora delegan en `lib/time.ts`.
+
+### 17. ~~Los dos destrabes del backend~~ ✅ hecho
+**La disponibilidad se pregunta con todos los servicios del turno.**
+`getAvailabilityRequest` manda `serviceIds` repetido y `useAvailability` los
+**ordena** antes de armar el `queryKey`: corte+color y color+corte son la misma
+pregunta y sin ordenar eran dos entradas de caché. En `RescheduleForm` se fueron
+`primerServicio`, `variosServicios` y el aviso ámbar — ya no puede no dar la
+cuenta. El tercer motivo de `slots: []` vive en
+`features/appointments/lib/slots.ts`: cuando vienen `branchClosed` y
+`noEmployeeForServices` los dos en `true` **gana el segundo**, porque "elegí otro
+día" ahí es un consejo equivocado.
+
+**`/reportes` muestra lo cobrado del mes**, en `MonthCollections`, en un solo
+pedido. Se piden `totals` con `pageSize: 1`: son del rango entero y no de la
+página, así que traer veinte filas para descartarlas sería pagar de más. El panel
+**se monta solo con `canManage`** —el endpoint da 403 a un `PROFESSIONAL`— pero la
+sección no se esconde: lo agendado y los turnos de hoy los sigue viendo cualquiera.
+**La bajada de la página cambia con el rol**: prometerle a un profesional "cuánto
+entró en la caja" y después no mostrárselo se lee como si faltara algo.
+
+El rango sale de `monthRange` en `lib/time.ts`, con tests: un mes mal calculado no
+falla, se pierde un día de plata en silencio.
+
+`DayCollections` **queda igual y sigue costando un pedido por turno**: contesta
+otra pregunta —quién quedó debiendo— que el endpoint de rango no puede contestar.
 
 ### Sin decidir
 `/registro` es un placeholder que deriva a `/#contacto`, pero `POST /auth/register`

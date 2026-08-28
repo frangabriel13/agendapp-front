@@ -6,8 +6,10 @@ import { toast } from "sonner"
 import { apiErrorMessage } from "@/lib/errors"
 import { APPOINTMENTS_KEY } from "@/features/appointments/hooks/useAppointments"
 import { mapLimit } from "@/lib/async"
+import { monthRange } from "@/lib/time"
 import {
   createCheckoutRequest,
+  getPaymentsRangeRequest,
   getPaymentsRequest,
   recordManualPaymentRequest,
 } from "@/services/payments"
@@ -134,14 +136,15 @@ const SALDOS_A_LA_VEZ = 4
 /**
  * Los cobros de un día, turno por turno.
  *
- * **Cuesta un pedido por turno**, porque la API no expone los pagos de varios
- * turnos juntos: `GET /appointments/:id/payments` es de a uno. Por eso arranca
- * apagado (`enabled`) y lo enciende la pantalla cuando alguien lo pide, en vez de
- * salir a hacer treinta pedidos apenas se abre `/reportes`.
+ * **Cuesta un pedido por turno**, porque `GET /appointments/:id/payments` es de a
+ * uno. Por eso arranca apagado (`enabled`) y lo enciende la pantalla cuando
+ * alguien lo pide, en vez de salir a hacer treinta pedidos apenas se abre
+ * `/reportes`.
  *
- * Y por eso mismo **es de un día y no de un mes**: un mes de un local con
- * movimiento son cientos de pedidos, que además chocarían contra el límite de 100
- * cada 50 s. Un mes de facturación cobrada necesita un endpoint que hoy no existe.
+ * **Sigue existiendo aunque ya haya `GET /payments`**, porque contesta otra
+ * pregunta: cuánto **falta** cobrar. El endpoint de rango filtra por cuándo entró
+ * la plata, así que un pendiente no tiene fecha y no puede aparecer nunca ahí. Lo
+ * que se debe sale del saldo del turno, no de contar filas.
  */
 export function useDayCollections(day: string, appointments: Appointment[], enabled: boolean) {
   const ids = appointments.map((appointment) => appointment.id)
@@ -160,6 +163,34 @@ export function useDayCollections(day: string, appointments: Appointment[], enab
       return cobrosDelDia(saldos)
     },
     enabled: enabled && appointments.length > 0,
+    staleTime: 60_000,
+  })
+}
+
+/**
+ * Lo cobrado en un mes.
+ *
+ * **Una sola llamada**, a diferencia de `useDayCollections`, que cuesta un pedido
+ * por turno. Por eso esta no arranca apagada: preguntarla al abrir la pantalla no
+ * cuesta lo suficiente como para poner un botón en el medio.
+ *
+ * **Solo la pide quien puede verla.** El endpoint pide `OWNER` o
+ * `ADMINISTRATIVE`; a un profesional le contesta 403, así que `enabled` es el rol
+ * y no un botón. Descubrirlo con el error sería mostrar un panel roto a alguien
+ * que no hizo nada mal.
+ *
+ * `month` es `"YYYY-MM"`.
+ */
+export function useMonthCollections(month: string, enabled: boolean) {
+  const rango = monthRange(month)
+
+  return useQuery({
+    queryKey: [...PAYMENTS_KEY, "mes", month],
+    // `pageSize: 1` porque de acá solo se usan los `totals`, que son del rango
+    // entero y no de la página: traer veinte filas para descartarlas sería pagar
+    // de más en cada visita a la pantalla.
+    queryFn: () => getPaymentsRangeRequest({ ...rango, pageSize: 1 }),
+    enabled,
     staleTime: 60_000,
   })
 }
