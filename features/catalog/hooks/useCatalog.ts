@@ -70,6 +70,32 @@ export function useServiceEmployees(serviceId: string | null) {
   })
 }
 
+/**
+ * Los mismos pares, para **varios servicios a la vez**.
+ *
+ * Es un pedido por servicio —la API los expone de a uno— pero son los servicios
+ * de un turno, no una lista abierta: uno o dos, tres si alguien se entusiasma. Y
+ * comparte caché con `useServiceEmployees`, que usa la misma `queryKey`.
+ *
+ * **`listas` es `null` hasta que están todas.** Intersectar con una lista a
+ * medias ofrecería profesionales que no prestan el servicio que todavía no
+ * llegó, que es justo el error que la intersección existe para evitar.
+ */
+export function useServicesEmployees(serviceIds: string[]) {
+  return useQueries({
+    queries: serviceIds.map((serviceId) => ({
+      queryKey: [...CATALOG_KEY, "servicios", serviceId, "empleados"],
+      queryFn: () => getServiceEmployeesRequest(serviceId),
+    })),
+    combine: (resultados) => ({
+      listas: resultados.every((r) => r.data !== undefined)
+        ? resultados.map((r) => r.data!)
+        : null,
+      isPending: resultados.some((r) => r.isPending),
+    }),
+  })
+}
+
 export function useServiceResources(serviceId: string | null) {
   return useQuery({
     queryKey: [...CATALOG_KEY, "servicios", serviceId, "recursos"],

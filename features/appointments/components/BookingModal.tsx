@@ -18,7 +18,8 @@ import { ApiError } from "@/lib/api"
 import { dateToStr, splitInstant } from "@/lib/time"
 import type { RecurrenceFrequency, RecurringResult } from "@/types"
 import { useBranches } from "@/features/branches/hooks/useBranches"
-import { useServiceEmployees, useServices } from "@/features/catalog/hooks/useCatalog"
+import { useServices, useServicesEmployees } from "@/features/catalog/hooks/useCatalog"
+import { quienesPrestanTodos } from "@/features/catalog/lib/staff"
 import { formatCents, formatDuration } from "@/features/catalog/lib/money"
 import { useCustomers } from "@/features/customers/hooks/useCustomers"
 import { useDebounced } from "@/features/customers/hooks/useDebounced"
@@ -42,7 +43,7 @@ interface Props {
  *
  * El orden de los campos es el del mostrador: **primero quién viene**, después
  * qué se hace, y recién ahí los horarios posibles. Al revés obligaría a elegir un
- * horario antes de saber cuánto dura el servicio.
+ * horario antes de saber cuánto dura el turno, que es la suma de los servicios.
  */
 export function BookingModal({ open, day, onClose }: Props) {
   return (
@@ -63,11 +64,12 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   const [texto, setTexto] = useState("")
   const busqueda = useDebounced(texto)
   const [customerId, setCustomerId] = useState<string | null>(null)
-  const [serviceId, setServiceId] = useState<string | null>(null)
+  /** En el orden en que se eligieron: es como se leen después en el turno. */
+  const [serviceIds, setServiceIds] = useState<string[]>([])
   const [branchId, setBranchId] = useState<string | null>(null)
   const [fecha, setFecha] = useState(dateToStr(day))
   const [slot, setSlot] = useState<{ startsAt: string; employeeId: string } | null>(null)
-  /** `null` = cualquiera de los que presten el servicio ahí. */
+  /** `null` = cualquiera de los que presten todos esos servicios ahí. */
   const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [repite, setRepite] = useState(false)
   const [frecuencia, setFrecuencia] = useState<RecurrenceFrequency>("WEEKLY")
@@ -83,21 +85,34 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
   const serie = useCreateRecurring()
 
   const sucursal = branchId ?? branches.data?.[0]?.id ?? null
-  const servicio = services.data?.find((s) => s.id === serviceId) ?? null
+  const catalogo = services.data ?? []
+  // `flatMap` sobre los ids y no `filter` sobre el catálogo: así el orden es el
+  // de elección y no el del listado.
+  const servicios = serviceIds.flatMap((id) => catalogo.find((s) => s.id === id) ?? [])
   const cliente = customers.data?.data.find((c) => c.id === customerId) ?? null
 
+  /** Los que todavía se pueden sumar: activos y no elegidos ya. */
+  const porAgregar = catalogo.filter(
+    (service) => service.isActive && !serviceIds.includes(service.id),
+  )
+
+  /** Lo que se cobra y cuánto se está en el sillón. Los buffers van aparte. */
+  const precio = servicios.reduce((total, s) => total + s.priceCents, 0)
+  const duracion = servicios.reduce((total, s) => total + s.durationMinutes, 0)
+
   /**
-   * Quiénes prestan ese servicio **en esa sucursal**. El par es la unidad, no la
-   * persona: alguien puede hacer coloración en el centro y no en la otra sede.
+   * Quiénes prestan **todos** los servicios elegidos en esa sucursal. Con uno es
+   * la lista de siempre; con varios es la intersección, porque el turno lo
+   * atiende una sola persona.
    */
-  const staff = useServiceEmployees(serviceId)
-  const profesionales = (staff.data ?? []).filter((par) => par.branchId === sucursal)
+  const staff = useServicesEmployees(serviceIds)
+  const profesionales = quienesPrestanTodos(staff.listas ?? [], sucursal)
 
   const disponibilidad = useAvailability({
     branchId: sucursal,
-    // Este modal agenda un servicio por turno; la API igual pide la lista, que
-    // es la que fija la duración del hueco.
-    serviceIds: serviceId ? [serviceId] : [],
+    // Todos juntos: la duración del hueco es la suma, y preguntando por uno la
+    // API ofrecía horarios donde el turno entero no entra.
+    serviceIds,
     date: fecha,
     ...(employeeId ? { employeeId } : {}),
   })
@@ -128,15 +143,27 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
    */
   const puedePagar = canManage(session?.employee.role)
 
+  /**
+   * Tocar la lista de servicios invalida lo elegido más abajo: el horario porque
+   * la duración cambió, y el profesional porque quien hacía uno puede no hacer el
+   * otro —y un `employeeId` viejo filtra la disponibilidad a cero sin decir por
+   * qué—.
+   */
+  const cambiarServicios = (siguiente: string[]) => {
+    setServiceIds(siguiente)
+    setSlot(null)
+    setEmployeeId(null)
+  }
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
-    if (!cliente || !servicio || !sucursal || !slot) return
+    if (!cliente || servicios.length === 0 || !sucursal || !slot) return
 
     const base = {
       branchId: sucursal,
       employeeId: slot.employeeId,
       customerId: cliente.id,
-      serviceIds: [servicio.id],
+      serviceIds: servicios.map((s) => s.id),
       startsAt: slot.startsAt,
     }
 
@@ -267,45 +294,91 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
         </div>
       </div>
 
+      {/*
+        **Se agregan de a uno a una lista, no se marcan en una grilla.** Un local
+        puede tener treinta servicios y lo normal es un turno de uno: el selector
+        se mantiene compacto y los elegidos quedan a la vista, con lo que se cobra
+        y lo que dura cada uno. Es el mismo gesto que el cliente de arriba —elegir
+        y ver lo elegido—, no un formulario nuevo.
+      */}
       <div>
-        <label htmlFor="b-ser" className="mb-1.5 block text-[13px] font-medium text-neutral-700">
-          Servicio
-        </label>
-        <select
-          id="b-ser"
-          value={serviceId ?? ""}
-          onChange={(e) => {
-            setServiceId(e.target.value || null)
-            setSlot(null)
-            // Quien atendía el servicio anterior puede no prestar este, y un
-            // `employeeId` viejo filtraría la disponibilidad a cero sin decir
-            // por qué.
-            setEmployeeId(null)
-          }}
-          className={selectControl()}
+        {/* Sin `htmlFor` cuando no queda nada por agregar: el selector no está
+            en el DOM y una etiqueta apuntando a un id inexistente es una promesa
+            rota para quien navega con lector de pantalla. */}
+        <label
+          htmlFor={porAgregar.length > 0 ? "b-ser" : undefined}
+          className="mb-1.5 block text-[13px] font-medium text-neutral-700"
         >
-          <option value="">Elegí un servicio</option>
-          {(services.data ?? [])
-            .filter((service) => service.isActive)
-            .map((service) => (
+          Servicios
+        </label>
+
+        {servicios.length > 0 && (
+          <ul className="mb-2 space-y-1.5">
+            {servicios.map((service) => (
+              <li
+                key={service.id}
+                className="flex items-center justify-between gap-2 rounded-xl border border-black/10 px-3.5 py-2.5"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-neutral-900">{service.name}</span>
+                  <span className="block text-xs text-neutral-500">
+                    {formatDuration(service.durationMinutes)} · {formatCents(service.priceCents)}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => cambiarServicios(serviceIds.filter((id) => id !== service.id))}
+                  className="shrink-0 text-[13px] font-medium text-violet-600 hover:text-violet-500"
+                >
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {porAgregar.length > 0 && (
+          <select
+            id="b-ser"
+            // Siempre vacío: es un "agregar", no un valor elegido. Lo elegido está
+            // en la lista de arriba.
+            value=""
+            onChange={(e) => e.target.value && cambiarServicios([...serviceIds, e.target.value])}
+            className={selectControl()}
+          >
+            <option value="">
+              {servicios.length === 0 ? "Elegí un servicio" : "Agregar otro servicio"}
+            </option>
+            {porAgregar.map((service) => (
               <option key={service.id} value={service.id}>
                 {service.name} — {formatDuration(service.durationMinutes)} —{" "}
                 {formatCents(service.priceCents)}
               </option>
             ))}
-        </select>
+          </select>
+        )}
+
+        {/* Con varios, las dos cosas que sorprenden: cuánto ocupa el turno y que
+            lo atiende una sola persona —de ahí que la lista de profesionales se
+            achique al agregar servicios—. */}
+        {servicios.length > 1 && (
+          <p className="mt-1.5 text-xs text-neutral-500">
+            {formatDuration(duracion)} en total, con una sola persona atendiendo.
+          </p>
+        )}
       </div>
 
       {/*
-        **Va después del servicio y antes del horario**, que es el orden real: no
-        se puede elegir quién atiende hasta saber qué se hace, y elegirlo recorta
-        los horarios que se ofrecen abajo.
+        **Va después de los servicios y antes del horario**, que es el orden
+        real: no se puede elegir quién atiende hasta saber qué se hace, y elegirlo
+        recorta los horarios que se ofrecen abajo. Con varios servicios la lista
+        se achica sola: son los que prestan **todos**.
 
         "Cualquiera" es el default y no un valor más: en un local chico es lo
         normal, y obligar a elegir persona antes de ver horarios escondería huecos
         que sí existen.
       */}
-      {serviceId && profesionales.length > 1 && (
+      {servicios.length > 0 && profesionales.length > 1 && (
         <div>
           <label htmlFor="b-emp" className="mb-1.5 block text-[13px] font-medium text-neutral-700">
             Profesional
@@ -332,13 +405,13 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
       <div>
         <span className="mb-2 block text-[13px] font-medium text-neutral-700">Horario</span>
 
-        {!serviceId && (
+        {servicios.length === 0 && (
           <p className="rounded-xl bg-neutral-50 px-3.5 py-3 text-[13px] text-neutral-500">
             Elegí un servicio y te mostramos los horarios libres.
           </p>
         )}
 
-        {serviceId && disponibilidad.isPending && (
+        {servicios.length > 0 && disponibilidad.isPending && (
           <div className="grid grid-cols-4 gap-1.5">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-9 animate-pulse rounded-lg bg-neutral-100" />
@@ -346,9 +419,9 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
           </div>
         )}
 
-        {serviceId && disponibilidad.data && slots.length === 0 && (
+        {servicios.length > 0 && disponibilidad.data && slots.length === 0 && (
           <p className="rounded-xl bg-neutral-50 px-3.5 py-3 text-[13px] text-neutral-500">
-            {motivoSinHorarios(disponibilidad.data, 1)}
+            {motivoSinHorarios(disponibilidad.data, servicios.length)}
           </p>
         )}
 
@@ -517,9 +590,13 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
             servicio ya elegidos, "falta elegir cliente" manda a buscar algo que
             está hecho. */}
         <p className="text-xs text-neutral-400">
-          {servicio && slot
-            ? `${formatCents(servicio.priceCents)} · ${formatDuration(servicio.durationMinutes)}`
-            : `Falta ${[!cliente && "el cliente", !servicio && "el servicio", !slot && "el horario"]
+          {servicios.length > 0 && slot
+            ? `${formatCents(precio)} · ${formatDuration(duracion)}`
+            : `Falta ${[
+                !cliente && "el cliente",
+                servicios.length === 0 && "el servicio",
+                !slot && "el horario",
+              ]
                 .filter(Boolean)
                 .join(", ")
                 .replace(/, ([^,]*)$/, " y $1")}.`}
@@ -533,7 +610,9 @@ function BookingForm({ day, onDone }: { day: Date; onDone: () => void }) {
             // `serie.data` significa que la serie ya se creó: sin esto el botón
             // seguía habilitado y un segundo clic agendaba todo de nuevo. El
             // desenlace de una serie es el panel de arriba, no otro intento.
-            disabled={guardando || !cliente || !servicio || !slot || serie.data !== undefined}
+            disabled={
+              guardando || !cliente || servicios.length === 0 || !slot || serie.data !== undefined
+            }
             className={cn(cta({ size: "sm" }))}
           >
             {guardando ? "Agendando…" : repite ? `Agendar ${veces} turnos` : "Agendar"}
