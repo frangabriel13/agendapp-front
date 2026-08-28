@@ -58,14 +58,57 @@ export function inputToCents(value: string): number | null {
   return Math.round(numero * 100)
 }
 
+/** La del negocio, cuando se sabe. `null` mientras no hay sesión. */
+let monedaDelNegocio: string | null = null
+
+/**
+ * Fija la moneda del negocio, una vez, al traer la sesión.
+ *
+ * **Es el mismo arreglo que `setBusinessTimezone`, y por el mismo motivo.** La
+ * plata se formatea dentro de funciones puras —`resumenSaldo`, `revenueByService`,
+ * `cobrosDelDia`— que no son componentes y no pueden leer un contexto de React.
+ * Pasar la moneda por parámetro obligaría a enhebrarla por 45 llamadas y por cada
+ * lib que las usa, y bastaría olvidarse en una para que un negocio uruguayo vea
+ * un renglón en pesos argentinos.
+ *
+ * **Una moneda que `Intl` no conoce se ignora en vez de romper.** `toLocaleString`
+ * tira `RangeError` con un código inválido, y eso dejaría al panel sin poder
+ * mostrar un solo monto. Volver al peso argentino está mal, pero mucho menos mal
+ * que una pantalla en blanco.
+ */
+export function setBusinessCurrency(currency: string | null | undefined): void {
+  if (!currency) {
+    monedaDelNegocio = null
+    return
+  }
+
+  try {
+    ;(0).toLocaleString("es-AR", { style: "currency", currency })
+    monedaDelNegocio = currency
+  } catch {
+    monedaDelNegocio = null
+  }
+}
+
+/**
+ * Con qué moneda se está mostrando la plata.
+ *
+ * El default es ARS y no una excepción: el panel se dibuja una vez antes de que
+ * llegue `/auth/me` —y las pantallas públicas no la traen nunca—, y la enorme
+ * mayoría de los negocios cobra en pesos argentinos.
+ */
+export function businessCurrency(): string {
+  return monedaDelNegocio ?? "ARS"
+}
+
 /**
  * Centavos → texto para mostrar.
  *
- * La moneda es un parámetro con default y no una constante: cuando el panel
- * atienda un negocio fuera de Argentina, sale de `tenant.currency` y este es el
- * único lugar que se toca.
+ * La moneda sale de `tenant.currency` —`/configuracion` la deja elegir— y el
+ * parámetro queda para los casos donde el dato trae la suya, como un cobro que
+ * `GET /payments` devuelve con su propio `currency`.
  */
-export function formatCents(cents: number, currency = "ARS"): string {
+export function formatCents(cents: number, currency = businessCurrency()): string {
   return (cents / 100).toLocaleString("es-AR", {
     style: "currency",
     currency,

@@ -1,3 +1,4 @@
+import { esperarTurno } from "./throttle"
 import type { AuthTokens } from "@/types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -126,6 +127,10 @@ async function send(
 
   const timeout = AbortSignal.timeout(timeoutMs)
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+
+  // El turno se pide acá y no en `apiFetch` para que el reintento después de
+  // refrescar el token también lo pida: es otro pedido para el servidor.
+  await esperarTurno()
 
   try {
     return await fetch(`${API_URL}${path}`, { ...init, headers, signal })

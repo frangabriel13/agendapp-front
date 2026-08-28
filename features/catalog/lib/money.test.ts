@@ -1,5 +1,19 @@
-import { describe, expect, it } from "vitest"
-import { centsToInput, checkDeposit, formatCents, formatDuration, inputToCents } from "./money"
+import { afterEach, describe, expect, it } from "vitest"
+import {
+  businessCurrency,
+  centsToInput,
+  checkDeposit,
+  formatCents,
+  formatDuration,
+  inputToCents,
+  setBusinessCurrency,
+} from "./money"
+
+// La moneda es estado de módulo, como la zona en `lib/time.ts`: si un bloque la
+// deja puesta, el siguiente formatea con la de otro negocio.
+afterEach(() => {
+  setBusinessCurrency(null)
+})
 
 describe("centsToInput", () => {
   it("pasa centavos a pesos", () => {
@@ -97,8 +111,56 @@ describe("formatCents", () => {
     expect(formatCents(150050)).toContain("1.500,5")
   })
 
-  it("respeta la moneda del negocio en vez de fijar ARS", () => {
+  it("respeta la moneda que le pasan en vez de fijar ARS", () => {
     expect(formatCents(1500000, "USD")).toContain("US$")
+  })
+
+  it("usa la del negocio sin que nadie se la pase", () => {
+    setBusinessCurrency("UYU")
+
+    // La gracia es esta: 45 llamadas en la app no pasan moneda y todas cambian.
+    expect(formatCents(1500000)).not.toBe(formatCents(1500000, "ARS"))
+    expect(formatCents(1500000)).toBe(formatCents(1500000, "UYU"))
+  })
+
+  it("el parámetro le gana a la del negocio: un cobro trae la suya", () => {
+    setBusinessCurrency("UYU")
+
+    expect(formatCents(1500000, "ARS")).toBe(formatCents(1500000, "ARS"))
+    expect(formatCents(1500000, "ARS")).not.toBe(formatCents(1500000))
+  })
+})
+
+describe("setBusinessCurrency", () => {
+  it("sin sesión todavía, pesos argentinos", () => {
+    expect(businessCurrency()).toBe("ARS")
+  })
+
+  it("la fija cuando llega la sesión", () => {
+    setBusinessCurrency("CLP")
+
+    expect(businessCurrency()).toBe("CLP")
+  })
+
+  it("cerrar sesión la devuelve al default", () => {
+    setBusinessCurrency("CLP")
+    setBusinessCurrency(null)
+
+    expect(businessCurrency()).toBe("ARS")
+  })
+
+  it("un código que Intl no conoce se ignora en vez de romper la app", () => {
+    setBusinessCurrency("PESOS")
+
+    expect(businessCurrency()).toBe("ARS")
+    // Lo que importa no es el valor: es que siga pudiendo dibujar un monto.
+    expect(() => formatCents(1500000)).not.toThrow()
+  })
+
+  it("una cadena vacía tampoco pisa nada", () => {
+    setBusinessCurrency("")
+
+    expect(businessCurrency()).toBe("ARS")
   })
 })
 

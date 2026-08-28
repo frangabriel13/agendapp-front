@@ -114,15 +114,22 @@ export function useUpdateTenant() {
       ])
 
       /**
-       * **Cambiar la zona horaria invalida todo lo demás.**
+       * **Cambiar la zona horaria o la moneda invalida todo lo demás.**
        *
        * Los turnos guardados en caché ya tienen el día y la hora de pared
        * calculados con la zona vieja —`toAppointment` los deriva al traerlos—, así
-       * que no se arreglan solos: hay que volver a pedirlos. Es una acción rara,
-       * y el precio de refrescar de más es mucho menor que el de una agenda que
-       * muestra horarios de otra zona sin decirlo.
+       * que no se arreglan solos: hay que volver a pedirlos.
+       *
+       * La moneda no queda pegada a los datos —`formatCents` la lee al dibujar—
+       * pero sí a lo que ya está en pantalla: la sesión nueva fija la moneda
+       * nueva y nada obliga a redibujar a quien no mira la sesión. Refrescar deja
+       * todos los montos coherentes de una.
+       *
+       * Las dos son acciones raras, y el precio de pedir de más es mucho menor
+       * que el de una agenda con horarios de otra zona o un total en otra moneda
+       * sin decirlo.
        */
-      if (payload.timezone !== undefined) {
+      if (payload.timezone !== undefined || payload.currency !== undefined) {
         await queryClient.invalidateQueries()
       }
 
