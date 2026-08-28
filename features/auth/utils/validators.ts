@@ -12,6 +12,21 @@ export function validatePassword(password: string): string | null {
   return null
 }
 
+/**
+ * Nombre, apellido o nombre del negocio.
+ *
+ * **Espeja el mínimo de dos caracteres del backend**, y existe sobre todo por el
+ * idioma: sin esto el rebote llega como "firstName must be longer than or equal
+ * to 2 characters", que sería lo único en inglés que ve alguien creando su
+ * cuenta. `que` es el sujeto de la frase ("El nombre", "El apellido").
+ */
+export function validateNombre(valor: string, que: string): string | null {
+  const limpio = valor.trim()
+  if (!limpio) return `${que} es requerido`
+  if (limpio.length < 2) return `${que} es demasiado corto`
+  return null
+}
+
 /** Espeja la regla del backend para registro y cambio de contraseña. */
 export function validateNewPassword(password: string): string | null {
   if (!password) return "La contraseña es requerida"
