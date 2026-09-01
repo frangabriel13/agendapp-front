@@ -9,7 +9,9 @@ import {
   loginRequest,
   logoutRequest,
   registerRequest,
+  resendVerificationRequest,
 } from "@/services/auth"
+import { ApiError } from "@/lib/api"
 import type { EmployeeRole, LoginCredentials, RegisterPayload } from "@/types"
 
 export const SESSION_KEY = ["session"] as const
@@ -59,6 +61,29 @@ export function useRegister() {
       storeTokens(tokens)
       await queryClient.invalidateQueries({ queryKey: SESSION_KEY })
       router.push("/dashboard")
+    },
+  })
+}
+
+/**
+ * Vuelve a mandar el mail de confirmación.
+ *
+ * **El 409 se trata como éxito, no como error.** Significa que la cuenta ya
+ * estaba confirmada —se confirmó en otra pestaña mientras esta miraba una sesión
+ * vieja—, así que refrescar la sesión hace desaparecer el aviso solo. Mostrar
+ * "error" ahí sería avisar de un problema que no existe y que además ya se
+ * resolvió.
+ */
+export function useResendVerification() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: resendVerificationRequest,
+    onSettled: (_datos, error) => {
+      const yaEstaba = error instanceof ApiError && error.statusCode === 409
+      if (!error || yaEstaba) {
+        void queryClient.invalidateQueries({ queryKey: SESSION_KEY })
+      }
     },
   })
 }
