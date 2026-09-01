@@ -9,6 +9,7 @@ import { TeamAvailability } from "@/features/dashboard/components/TeamAvailabili
 import { RevenueCard } from "@/features/dashboard/components/RevenueCard"
 import { TeamCard } from "@/features/dashboard/components/TeamCard"
 import { UpcomingAppointments } from "@/features/dashboard/components/UpcomingAppointments"
+import { VerifyEmailNotice } from "@/features/auth/components/VerifyEmailNotice"
 
 export default function DashboardPage() {
   const now = useMemo(() => businessNow(), [])
@@ -36,6 +37,10 @@ export default function DashboardPage() {
      * franja entera de alto para decir dos veces lo mismo.
      */
     <Page width="full" className="flex flex-1 flex-col gap-3">
+      {/* Se dibuja solo si falta confirmar, así que no ocupa lugar en el caso
+          normal. Va arriba de todo porque es de la cuenta, no del negocio. */}
+      <VerifyEmailNotice />
+
       <TeamAvailability appointments={appointments} />
 
       {/*

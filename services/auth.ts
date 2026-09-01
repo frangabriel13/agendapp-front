@@ -94,6 +94,21 @@ export function resetPasswordRequest(input: { token: string; password: string })
 }
 
 /**
+ * Vuelve a mandar el mail de confirmación.
+ *
+ * **Devuelve 204 y no dice a dónde lo mandó**: va a la dirección de la sesión, no
+ * a una que se elija. Y **da 409 si la cuenta ya estaba confirmada**, que no es un
+ * fallo sino una carrera —se confirmó en otra pestaña—: ahí lo que corresponde es
+ * refrescar la sesión y hacer desaparecer el aviso, no mostrar un error.
+ *
+ * ⚠️ **En desarrollo no sale ningún mail**: el backend arranca con
+ * `MAIL_PROVIDER=log` y escribe el link en su propia consola.
+ */
+export function resendVerificationRequest(): Promise<void> {
+  return apiFetch<void>("/auth/verify-email/resend", { method: "POST" })
+}
+
+/**
  * Confirma la dirección de mail con el token del link.
  *
  * También es de un solo uso, así que la pantalla que lo llama tiene que hacerlo

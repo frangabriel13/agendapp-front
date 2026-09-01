@@ -33,7 +33,7 @@ Este proyecto usa **Next.js 16.2.6**, que tiene breaking changes respecto de ver
 |---|---|
 | `/` | Landing pública, terminada |
 | `/login` | **Integrado con el backend real** |
-| `/registro` | Placeholder ("próximamente"), deriva a `/#contacto` |
+| `/registro` | **Real.** Alta de un negocio nuevo: crea persona y tenant juntos |
 | `/olvide-contrasena` | **Real.** Pide el mail de recuperación. Pública |
 | `/restablecer?token=` | **Real.** Contraseña nueva con el token del mail. Pública |
 | `/verificar-email?token=` | **Real.** Confirma la dirección sola al abrirse. Pública |
@@ -501,6 +501,14 @@ colapsan en `ADMINISTRATIVE`.
 Escribir sucursales y empleados exige `OWNER` o `ADMINISTRATIVE`; un
 `PROFESSIONAL` recibe 403. Usar `canManage(role)` de `features/auth/hooks/useAuth.ts`.
 
+### 21. ~~El mail de confirmación sin salida~~ ✅ hecho
+`POST /auth/verify-email/resend` era **el único endpoint del panel sin cablear**
+(los otros tres que faltan no van: `/health`, el webhook y `/auth/refresh`, que ya
+vive dentro de `lib/api.ts`). Confirmar el email se hacía abriendo el link, así que
+si ese mail no llegaba —spam, dirección tipeada mal— la cuenta quedaba sin
+confirmar para siempre y sin nada que apretar. Con el alta abierta al público eso
+dejó de ser teórico. Detalle en "Las pantallas de los mails", punto 7.
+
 ## Deuda conocida
 Relevada y no atendida todavía:
 - `useTeamTimeOff`, `useTeamSchedules` y `useAssignableEmployees` hacen N pedidos
@@ -885,6 +893,7 @@ quien lo abrió.
 | `/olvide-contrasena` | `POST /auth/forgot-password` | `ForgotPasswordForm` |
 | `/restablecer?token=` | `POST /auth/reset-password` | `ResetPasswordForm` |
 | `/verificar-email?token=` | `POST /auth/verify-email` | `VerifyEmailCard` |
+| Inicio (aviso) | `POST /auth/verify-email/resend` | `VerifyEmailNotice` |
 | `/activar?token=` | `POST /employees/activate` | `ActivateAccountForm` |
 
 Seis cosas que no son obvias:
@@ -909,6 +918,14 @@ Seis cosas que no son obvias:
 6. **En desarrollo no sale ningún mail.** El backend arranca con
    `MAIL_PROVIDER=log` y escribe el link en su propia consola: para probar el
    camino feliz hay que copiarlo de ahí
+7. **Si el mail no llega, `VerifyEmailNotice` es la única salida.** Confirmar se
+   hace abriendo el link, así que sin un "reenviar" una cuenta quedaba sin
+   confirmar para siempre y sin nada que apretar. Vive en **Inicio y en ninguna
+   otra pantalla**: `emailVerifiedAt` hoy **no bloquea nada**, y repetir en cada
+   vista un aviso que no impide trabajar es ruido. Es de la **persona** y no del
+   negocio —vive en `user`—, así que cada empleado ve el suyo.
+   **El 409 se trata como éxito**: significa que ya estaba confirmado (otra
+   pestaña), y refrescar la sesión hace desaparecer el aviso solo
 
 El token se lee con `useSearchParams` dentro de un `Suspense` —no en el servidor—
 para que un secreto de un solo uso no viaje en el payload de la página. Las cuatro
