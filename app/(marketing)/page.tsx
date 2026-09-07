@@ -19,7 +19,7 @@ export default function MarketingPage() {
     // página en vez de mandarlo detrás. `overflow-x-clip` lo contiene a lo ancho:
     // es más ancho que la pantalla y si no aparece scroll horizontal en mobile.
     // Tiene que ser `clip` y no `hidden`, que crearía un scroll container y
-    // rompería el `sticky` del nav.
+    // rompería el `sticky` del nav..
     <div className="relative isolate min-h-screen overflow-x-clip bg-white text-neutral-900 antialiased">
       <TopBackdrop />
       <Nav />
